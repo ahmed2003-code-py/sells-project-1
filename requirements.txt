@@ -4,3 +4,4 @@ pg8000
 schedule==1.2.1
 pandas
 flask
+gunicorn
