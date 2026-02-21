@@ -18,7 +18,7 @@ def get_conn():
 
 @app.route("/")
 def index():
-    return send_file("sales-dashboard.html")
+    return send_file("index.html")
 
 @app.route("/api/units")
 def get_units():
