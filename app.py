@@ -24,12 +24,16 @@ app = Flask(__name__)
 # ─── JSON SERIALIZER (handles Decimal from PostgreSQL) ─────────────────────────
 def json_serial(obj):
     if isinstance(obj, Decimal):
-        return float(obj)
+        val = float(obj)
+        # Check for NaN
+        if val != val:  # NaN check
+            return None
+        return val
     raise TypeError(f"Type {type(obj)} not serializable")
 
 def json_response(data):
     return app.response_class(
-        json.dumps(data, default=json_serial),
+        json.dumps(data, default=json_serial, allow_nan=False),
         mimetype='application/json'
     )
 
@@ -73,29 +77,40 @@ def get_units():
                     developer_name, developer_id,
                     phase_name, phase_id, unit_type,
                     bedrooms,
-                    CAST(built_up_area_sqm AS FLOAT)      AS built_up_area_sqm,
-                    CAST(total_price_egp AS FLOAT)         AS total_price_egp,
-                    CAST(price_per_sqm_egp AS FLOAT)       AS price_per_sqm_egp,
-                    CAST(cash_price_from_egp AS FLOAT)     AS cash_price_from_egp,
-                    CAST(cash_price_to_egp AS FLOAT)       AS cash_price_to_egp,
+                    NULLIF(CAST(built_up_area_sqm AS FLOAT), 'NaN')      AS built_up_area_sqm,
+                    NULLIF(CAST(total_price_egp AS FLOAT), 'NaN')         AS total_price_egp,
+                    NULLIF(CAST(price_per_sqm_egp AS FLOAT), 'NaN')       AS price_per_sqm_egp,
+                    NULLIF(CAST(cash_price_from_egp AS FLOAT), 'NaN')     AS cash_price_from_egp,
+                    NULLIF(CAST(cash_price_to_egp AS FLOAT), 'NaN')       AS cash_price_to_egp,
                     delivery_from_months, delivery_to_months,
                     payment_plan, maintenance, club_fees,
                     parking_fees, finishing_type,
-                    CAST(cash_discount_percent AS FLOAT)   AS cash_discount_percent,
+                    NULLIF(CAST(cash_discount_percent AS FLOAT), 'NaN')   AS cash_discount_percent,
                     city_id, detail_id, outdoor_area, status, sub_type,
-                    CAST(total_price_to_egp AS FLOAT)      AS total_price_to_egp,
+                    NULLIF(CAST(total_price_to_egp AS FLOAT), 'NaN')      AS total_price_to_egp,
                     type_id,
                     COALESCE(is_sold, false) AS is_sold
                 FROM units
                 WHERE total_price_egp IS NOT NULL
                   AND CAST(total_price_egp AS TEXT) != ''
-                  AND CAST(total_price_egp AS FLOAT) > 0
+                  AND CAST(total_price_egp AS TEXT) !~ '^[[:space:]]*$'
+                  AND total_price_egp::text != 'NaN'
                 ORDER BY CAST(total_price_egp AS FLOAT) ASC
             """)
             rows = cur.fetchall()
         conn.close()
-        log.info(f"✅ Returned {len(rows)} units")
-        return json_response([dict(r) for r in rows])
+        
+        # Clean up any remaining NaN/None values
+        cleaned_rows = []
+        for row in rows:
+            cleaned_row = dict(row)
+            for key, val in cleaned_row.items():
+                if val is None or (isinstance(val, float) and (val != val)):  # NaN check
+                    cleaned_row[key] = None
+            cleaned_rows.append(cleaned_row)
+        
+        log.info(f"✅ Returned {len(cleaned_rows)} units")
+        return json_response(cleaned_rows)
     except Exception as e:
         log.error(f"❌ Error fetching units: {e}")
         return json_response({"error": str(e)}), 500
