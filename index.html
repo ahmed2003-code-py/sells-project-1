@@ -762,6 +762,7 @@
 let allData = [];
 let filteredData = [];
 let sortMode = 'price_asc';
+let isLoading = false;
 
 const ranges = {
   price: { min: 0, max: 0, step: 500000 },
@@ -779,6 +780,15 @@ const activeFilters = {
 // ─── DB CONNECTION ─────────────────────────────────────────────────────────────
 async function loadData() {
   console.log('🔄 Loading data from API...');
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      Loading units data...
+    </div>`;
+  
+  isLoading = true;
+  
   try {
     const resp = await fetch('/api/units');
     if (!resp.ok) {
@@ -790,15 +800,35 @@ async function loadData() {
       throw new Error(data.error);
     }
     
-    allData = data;
-    console.log(`✅ Loaded ${allData.length} units from API`);
+    // Filter out invalid data
+    allData = data.filter(u => 
+      u.total_price_egp && 
+      u.total_price_egp > 0 && 
+      u.total_price_egp < 1e10 && // Remove unrealistic prices
+      u.built_up_area_sqm && 
+      u.built_up_area_sqm > 0 &&
+      u.built_up_area_sqm < 10000 && // Remove unrealistic areas
+      u.price_per_sqm_egp &&
+      u.price_per_sqm_egp > 0 &&
+      u.price_per_sqm_egp < 1e6 // Remove unrealistic PSM
+    );
+    
+    console.log(`✅ Loaded ${allData.length} valid units from API (filtered from ${data.length} total)`);
     
   } catch(e) {
     console.error('❌ Failed to load from API:', e);
-    alert(`Failed to load data: ${e.message}`);
-    allData = [];
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <h3>Failed to load data</h3>
+        <p>${e.message}</p>
+        <button class="btn-reset" onclick="loadData()" style="width:auto;margin-top:16px">🔄 Retry</button>
+      </div>`;
+    isLoading = false;
+    return;
   }
   
+  isLoading = false;
   initPage();
 }
 
@@ -814,13 +844,29 @@ function initPage() {
     return;
   }
 
+  // Calculate ACTUAL ranges from the data
   const prices = allData.map(d => d.total_price_egp).filter(Boolean);
   const areas  = allData.map(d => d.built_up_area_sqm).filter(Boolean);
   const psms   = allData.map(d => d.price_per_sqm_egp).filter(Boolean);
 
-  ranges.price = { min: Math.min(...prices), max: Math.max(...prices) };
-  ranges.area  = { min: Math.min(...areas),  max: Math.max(...areas)  };
-  ranges.psm   = { min: Math.min(...psms),   max: Math.max(...psms)   };
+  ranges.price = { 
+    min: Math.floor(Math.min(...prices) / 100000) * 100000, // Round down to nearest 100k
+    max: Math.ceil(Math.max(...prices) / 100000) * 100000   // Round up to nearest 100k
+  };
+  ranges.area = { 
+    min: Math.floor(Math.min(...areas) / 10) * 10,  // Round down to nearest 10
+    max: Math.ceil(Math.max(...areas) / 10) * 10    // Round up to nearest 10
+  };
+  ranges.psm = { 
+    min: Math.floor(Math.min(...psms) / 1000) * 1000,  // Round down to nearest 1k
+    max: Math.ceil(Math.max(...psms) / 1000) * 1000    // Round up to nearest 1k
+  };
+
+  console.log('📊 Calculated ranges:', {
+    price: `${fmtMillion(ranges.price.min)} - ${fmtMillion(ranges.price.max)}`,
+    area: `${ranges.area.min} - ${ranges.area.max}`,
+    psm: `${fmtNum(ranges.psm.min)} - ${fmtNum(ranges.psm.max)}`
+  });
 
   updateRangeDisplay('price');
   updateRangeDisplay('area');
@@ -980,6 +1026,7 @@ function applyFilters() {
     return 0;
   });
 
+  currentBatchEnd = 50; // Reset batch counter
   renderCards();
   updateStats();
   updateTags();
@@ -1000,9 +1047,28 @@ function renderCards() {
     return;
   }
 
-  const show = filteredData.slice(0, 100);
-  grid.innerHTML = show.map((u, i) => `
-    <div class="unit-card" style="animation-delay:${i * 0.02}s">
+  // Progressive rendering - show first batch immediately
+  const BATCH_SIZE = 50;
+  const firstBatch = filteredData.slice(0, BATCH_SIZE);
+  
+  // Render first batch
+  grid.innerHTML = firstBatch.map((u, i) => renderCard(u, i)).join('');
+
+  // If there are more, add them progressively
+  if (filteredData.length > BATCH_SIZE) {
+    const remaining = filteredData.length - BATCH_SIZE;
+    grid.innerHTML += `
+      <div class="empty-state" style="background:var(--surface2);border-radius:16px;border:1px dashed var(--border)" id="loadMoreCard">
+        <div style="font-size:24px">📦</div>
+        <h3 style="font-size:16px">${fmtNum(remaining)} more units</h3>
+        <button class="btn-reset" onclick="loadMoreUnits()" style="width:auto;margin-top:12px">Show More</button>
+      </div>`;
+  }
+}
+
+function renderCard(u, i) {
+  return `
+    <div class="unit-card" style="animation-delay:${(i % 50) * 0.02}s">
       ${u.is_sold || u.status === 0 ? '<div class="sold-badge">Sold</div>' : ''}
       <div class="card-header">
         <div class="compound-name">${u.compound_name}</div>
@@ -1045,14 +1111,35 @@ function renderCards() {
       </div>
       ${u.payment_plan ? `<div style="margin-top:10px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px">💳 ${u.payment_plan}</div>` : ''}
     </div>
-  `).join('');
+  `;
+}
 
-  if (filteredData.length > 100) {
-    grid.innerHTML += `<div class="empty-state" style="background:var(--surface2);border-radius:16px;border:1px dashed var(--border)">
-      <div style="font-size:24px">📦</div>
-      <h3 style="font-size:16px">+${fmtNum(filteredData.length - 100)} more units</h3>
-      <p>Refine your filters to see specific results</p>
-    </div>`;
+let currentBatchEnd = 50;
+function loadMoreUnits() {
+  const BATCH_SIZE = 50;
+  const grid = document.getElementById('cardsGrid');
+  const loadMoreCard = document.getElementById('loadMoreCard');
+  
+  if (loadMoreCard) {
+    loadMoreCard.remove();
+  }
+  
+  const nextBatch = filteredData.slice(currentBatchEnd, currentBatchEnd + BATCH_SIZE);
+  currentBatchEnd += BATCH_SIZE;
+  
+  nextBatch.forEach((u, i) => {
+    const cardHtml = renderCard(u, currentBatchEnd - BATCH_SIZE + i);
+    grid.insertAdjacentHTML('beforeend', cardHtml);
+  });
+  
+  if (currentBatchEnd < filteredData.length) {
+    const remaining = filteredData.length - currentBatchEnd;
+    grid.innerHTML += `
+      <div class="empty-state" style="background:var(--surface2);border-radius:16px;border:1px dashed var(--border)" id="loadMoreCard">
+        <div style="font-size:24px">📦</div>
+        <h3 style="font-size:16px">${fmtNum(remaining)} more units</h3>
+        <button class="btn-reset" onclick="loadMoreUnits()" style="width:auto;margin-top:12px">Show More</button>
+      </div>`;
   }
 }
 
