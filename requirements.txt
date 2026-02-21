@@ -3,3 +3,5 @@ psycopg2-binary
 gunicorn
 requests
 schedule
+pg8000
+pandas
