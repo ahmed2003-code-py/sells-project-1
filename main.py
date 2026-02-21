@@ -1,6 +1,8 @@
 import requests
 import psycopg2
 import psycopg2.extras
+import pg8000
+import pg8000.native
 import schedule
 import time
 import logging
