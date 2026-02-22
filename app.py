@@ -459,18 +459,18 @@ def sync_job():
         sync_status["running"] = False
 
 # ─── BACKGROUND SCHEDULER ──────────────────────────────────────────────────────
-def run_scheduler():
-    log.info("⏰ Scheduler thread started")
-    log.info("⏳ Waiting 15s before first sync to let gunicorn fully boot...")
-    time.sleep(15)
+# def run_scheduler():
+#     log.info("⏰ Scheduler thread started")
+#     log.info("⏳ Waiting 15s before first sync to let gunicorn fully boot...")
+#     time.sleep(15)
 
-    log.info("🚀 Starting first sync now...")
-    sync_job()
+#     log.info("🚀 Starting first sync now...")
+#     sync_job()
 
-    schedule.every(16).days.do(sync_job)
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+#     schedule.every(16).days.do(sync_job)
+#     while True:
+#         schedule.run_pending()
+#         time.sleep(60)
 
 if os.environ.get("DISABLE_SYNC", "false").lower() != "true":
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
