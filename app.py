@@ -407,7 +407,6 @@ def sync_job():
     sync_status["error"] = None
     start_time = datetime.now()
     log.info(f"🔄 Sync started at {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-
     try:
         conn = get_conn()
         ensure_columns_exist(conn)
@@ -468,19 +467,17 @@ def run_scheduler():
     log.info("🚀 Starting first sync now...")
     sync_job()
 
-    schedule.every(1).hours.do(sync_job)
+    schedule.every(15).days.do(sync_job)
     while True:
         schedule.run_pending()
         time.sleep(60)
 
-# Set DISABLE_SYNC=true in environment to disable scheduler
 if os.environ.get("DISABLE_SYNC", "false").lower() != "true":
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
 else:
     log.info("⏸️  Sync scheduler DISABLED via DISABLE_SYNC env var")
 
-# ─── ENTRYPOINT ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
