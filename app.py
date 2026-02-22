@@ -145,6 +145,23 @@ def trigger_sync():
     t.start()
     return json_response({"message": "Sync triggered"})
 
+# ─── FIX: Reset all is_sold flags endpoint ─────────────────────────────────────
+@app.route("/api/reset-sold", methods=["POST"])
+def reset_sold():
+    """Reset all is_sold flags to FALSE — use when sync wrongly marked units as sold"""
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute("UPDATE units SET is_sold = FALSE, sold_at = NULL")
+            affected = cur.rowcount
+        conn.commit()
+        conn.close()
+        log.info(f"✅ Reset is_sold for {affected} units")
+        return json_response({"message": f"Reset {affected} units to is_sold=false"})
+    except Exception as e:
+        log.error(f"❌ reset-sold error: {e}")
+        return json_response({"error": str(e)}), 500
+
 BASE_URL     = "https://newapi.masterv.net/api/v3/public"
 ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOjMyMTksIlVzZXJFbWFpbCI6Im1vaGFtZWRoYW16YTEzMDNAZ21haWwuY29tIiwiVXNlclBob25lTnVtYmVyIjoiMjAxMDk5MjQ5NDk5IiwiSXNDbGllbnQiOnRydWUsImlhdCI6MTc3MTQyNjgwOCwiZXhwIjoxNzc0MDE4ODA4fQ.S9I6GS6gk96R8BkZwyLP0JNUic7jwwVTzJtjTdt7nkI"
 HEADERS = {
@@ -297,6 +314,12 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
     now = datetime.now()
     new_count = updated_count = sold_count = 0
     fresh_ids = {u["detail_id"] for u in fresh_units if u.get("detail_id")}
+
+    # ─── SAFETY: only mark sold if we fetched a meaningful number of units ──────
+    # If fresh_ids is suspiciously small (< 10% of existing), skip sold marking
+    # to avoid false-positive sold flags from a failed/partial sync
+    safe_to_mark_sold = len(fresh_ids) >= max(1, len(existing) * 0.10)
+
     with conn.cursor() as cur:
         for unit in fresh_units:
             did = unit.get("detail_id")
@@ -355,16 +378,26 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
                         "UPDATE units SET last_seen = %s WHERE detail_id = %s",
                         (now, did)
                     )
-        for did in set(existing.keys()) - fresh_ids:
-            if not existing[did].get("is_sold"):
-                cur.execute(
-                    "UPDATE units SET is_sold = TRUE, sold_at = %s WHERE detail_id = %s",
-                    (now, did)
-                )
-                sold_count += 1
+
+        # Only mark as sold if the sync returned a healthy number of units
+        if safe_to_mark_sold:
+            for did in set(existing.keys()) - fresh_ids:
+                if not existing[did].get("is_sold"):
+                    cur.execute(
+                        "UPDATE units SET is_sold = TRUE, sold_at = %s WHERE detail_id = %s",
+                        (now, did)
+                    )
+                    sold_count += 1
+        else:
+            log.warning(
+                f"⚠️  Skipping sold-marking: only {len(fresh_ids)} fresh units vs "
+                f"{len(existing)} existing — looks like a partial sync"
+            )
+
     conn.commit()
     return new_count, updated_count, sold_count
 
+# ─── SYNC JOB ──────────────────────────────────────────────────────────────────
 def sync_job():
     if sync_status["running"]:
         log.info("⏭️  Sync already running, skipping")
@@ -426,6 +459,7 @@ def sync_job():
     finally:
         sync_status["running"] = False
 
+# ─── BACKGROUND SCHEDULER ──────────────────────────────────────────────────────
 def run_scheduler():
     log.info("⏰ Scheduler thread started")
     log.info("⏳ Waiting 15s before first sync to let gunicorn fully boot...")
@@ -439,12 +473,14 @@ def run_scheduler():
         schedule.run_pending()
         time.sleep(60)
 
+# Set DISABLE_SYNC=true in environment to disable scheduler
 if os.environ.get("DISABLE_SYNC", "false").lower() != "true":
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
 else:
     log.info("⏸️  Sync scheduler DISABLED via DISABLE_SYNC env var")
 
+# ─── ENTRYPOINT ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

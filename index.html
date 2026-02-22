@@ -737,7 +737,6 @@
             <div class="unit-hint" id="priceMaxHint">—</div>
           </div>
         </div>
-        <!-- Logarithmic dual slider -->
         <div class="slider-wrap">
           <div class="range-track-bg">
             <div class="range-fill" id="priceFill"
@@ -746,7 +745,6 @@
           <input type="range" id="priceSliderMin" min="0" max="1000" value="0"   oninput="onPriceSliderChange()">
           <input type="range" id="priceSliderMax" min="0" max="1000" value="1000" oninput="onPriceSliderChange()">
         </div>
-        <!-- Scale reference marks: log scale 1M → 500M+ -->
         <div class="scale-markers">
           <span class="scale-marker">1M</span>
           <span class="scale-marker">5M</span>
@@ -896,10 +894,11 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
+      <!-- ✅ FIX: hideSold is OFF by default so all units show -->
       <div class="toggle-row">
         <span class="toggle-label">Hide Sold Units</span>
         <label class="toggle">
-          <input type="checkbox" id="hideSold" onchange="applyFilters()" checked>
+          <input type="checkbox" id="hideSold" onchange="applyFilters()">
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -939,14 +938,12 @@
 <script>
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCALE CONFIG
-// Price: logarithmic 1M → 500M+ (10^6 to 10^8.7 ≈ 500M)
 // ═══════════════════════════════════════════════════════════════════════════════
-const PRICE_LOG_MIN = 6;       // 10^6  = 1,000,000
-const PRICE_LOG_MAX = 8.699;   // 10^8.699 ≈ 500,000,000
-
-const AREA_LINEAR_MAX = 1000;  // sqm max for slider
-const PSM_LOG_MIN = 4;         // 10^4 = 10,000
-const PSM_LOG_MAX = 6.3;       // 10^6.3 ≈ 2,000,000
+const PRICE_LOG_MIN = 6;
+const PRICE_LOG_MAX = 8.699;
+const AREA_LINEAR_MAX = 1000;
+const PSM_LOG_MIN = 4;
+const PSM_LOG_MAX = 6.3;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -981,7 +978,6 @@ function priceToSlider(p) {
   const t = (Math.log10(p) - PRICE_LOG_MIN) / (PRICE_LOG_MAX - PRICE_LOG_MIN);
   return Math.round(Math.max(0, Math.min(1000, t * 1000)));
 }
-
 function sliderToPsm(v) {
   const t = v / 1000;
   return Math.round(Math.pow(10, PSM_LOG_MIN + t * (PSM_LOG_MAX - PSM_LOG_MIN)));
@@ -991,7 +987,6 @@ function psmToSlider(p) {
   const t = (Math.log10(p) - PSM_LOG_MIN) / (PSM_LOG_MAX - PSM_LOG_MIN);
   return Math.round(Math.max(0, Math.min(1000, t * 1000)));
 }
-
 function sliderToArea(v) { return Math.round((v / 1000) * AREA_LINEAR_MAX); }
 function areaToSlider(a) { return Math.round((a / AREA_LINEAR_MAX) * 1000); }
 
@@ -1026,18 +1021,14 @@ function onPriceSliderChange() {
   const minS = document.getElementById('priceSliderMin');
   const maxS = document.getElementById('priceSliderMax');
   if (parseInt(minS.value) > parseInt(maxS.value)) minS.value = maxS.value;
-
   const minVal = sliderToPrice(parseInt(minS.value));
   const maxVal = sliderToPrice(parseInt(maxS.value));
-
   rangeState.priceMin = parseInt(minS.value) === 0    ? null : minVal;
   rangeState.priceMax = parseInt(maxS.value) === 1000 ? null : maxVal;
-
   document.getElementById('priceMinInput').value = rangeState.priceMin || '';
   document.getElementById('priceMaxInput').value = rangeState.priceMax || '';
   document.getElementById('priceMinHint').textContent = rangeState.priceMin ? fmtMillion(minVal) : '—';
   document.getElementById('priceMaxHint').textContent = rangeState.priceMax ? fmtMillion(maxVal) : '—';
-
   clearPresets('pricePresets');
   syncFill('priceFill', 'priceSliderMin', 'priceSliderMax');
   applyFilters();
@@ -1046,15 +1037,12 @@ function onPriceSliderChange() {
 function onPriceInputChange() {
   const minRaw = parseFloat(document.getElementById('priceMinInput').value);
   const maxRaw = parseFloat(document.getElementById('priceMaxInput').value);
-
   rangeState.priceMin = isNaN(minRaw) || minRaw <= 0 ? null : minRaw;
   rangeState.priceMax = isNaN(maxRaw) || maxRaw <= 0 ? null : maxRaw;
-
   document.getElementById('priceMinHint').textContent = rangeState.priceMin ? fmtMillion(rangeState.priceMin) : '—';
   document.getElementById('priceMaxHint').textContent = rangeState.priceMax ? fmtMillion(rangeState.priceMax) : '—';
   document.getElementById('priceSliderMin').value = rangeState.priceMin ? priceToSlider(rangeState.priceMin) : 0;
   document.getElementById('priceSliderMax').value = rangeState.priceMax ? priceToSlider(rangeState.priceMax) : 1000;
-
   clearPresets('pricePresets');
   syncFill('priceFill', 'priceSliderMin', 'priceSliderMax');
   applyFilters();
@@ -1063,14 +1051,12 @@ function onPriceInputChange() {
 function setPricePreset(min, max, label) {
   rangeState.priceMin = min > 0 ? min : null;
   rangeState.priceMax = max >= 999e9 ? null : max;
-
   document.getElementById('priceMinInput').value = min > 0 ? min : '';
   document.getElementById('priceMaxInput').value = max >= 999e9 ? '' : max;
   document.getElementById('priceMinHint').textContent = min > 0 ? fmtMillion(min) : '—';
   document.getElementById('priceMaxHint').textContent = (max && max < 999e9) ? fmtMillion(max) : '—';
   document.getElementById('priceSliderMin').value = min > 0 ? priceToSlider(min) : 0;
   document.getElementById('priceSliderMax').value = (max && max < 999e9) ? priceToSlider(max) : 1000;
-
   syncFill('priceFill', 'priceSliderMin', 'priceSliderMax');
   highlightPreset('pricePresets', label);
   applyFilters();
@@ -1083,13 +1069,10 @@ function onAreaSliderChange() {
   const minS = document.getElementById('areaSliderMin');
   const maxS = document.getElementById('areaSliderMax');
   if (parseInt(minS.value) > parseInt(maxS.value)) minS.value = maxS.value;
-
   const minVal = sliderToArea(parseInt(minS.value));
   const maxVal = sliderToArea(parseInt(maxS.value));
-
   rangeState.areaMin = parseInt(minS.value) === 0    ? null : minVal;
   rangeState.areaMax = parseInt(maxS.value) === 1000 ? null : maxVal;
-
   document.getElementById('areaMinInput').value = rangeState.areaMin || '';
   document.getElementById('areaMaxInput').value = rangeState.areaMax || '';
   syncFill('areaFill', 'areaSliderMin', 'areaSliderMax');
@@ -1099,10 +1082,8 @@ function onAreaSliderChange() {
 function onAreaInputChange() {
   const minRaw = parseFloat(document.getElementById('areaMinInput').value);
   const maxRaw = parseFloat(document.getElementById('areaMaxInput').value);
-
   rangeState.areaMin = isNaN(minRaw) || minRaw <= 0 ? null : minRaw;
   rangeState.areaMax = isNaN(maxRaw) || maxRaw <= 0 ? null : maxRaw;
-
   document.getElementById('areaSliderMin').value = rangeState.areaMin ? areaToSlider(rangeState.areaMin) : 0;
   document.getElementById('areaSliderMax').value = rangeState.areaMax ? areaToSlider(rangeState.areaMax) : 1000;
   syncFill('areaFill', 'areaSliderMin', 'areaSliderMax');
@@ -1127,13 +1108,10 @@ function onPsmSliderChange() {
   const minS = document.getElementById('psmSliderMin');
   const maxS = document.getElementById('psmSliderMax');
   if (parseInt(minS.value) > parseInt(maxS.value)) minS.value = maxS.value;
-
   const minVal = sliderToPsm(parseInt(minS.value));
   const maxVal = sliderToPsm(parseInt(maxS.value));
-
   rangeState.psmMin = parseInt(minS.value) === 0    ? null : minVal;
   rangeState.psmMax = parseInt(maxS.value) === 1000 ? null : maxVal;
-
   document.getElementById('psmMinInput').value = rangeState.psmMin || '';
   document.getElementById('psmMaxInput').value = rangeState.psmMax || '';
   syncFill('psmFill', 'psmSliderMin', 'psmSliderMax');
@@ -1143,10 +1121,8 @@ function onPsmSliderChange() {
 function onPsmInputChange() {
   const minRaw = parseFloat(document.getElementById('psmMinInput').value);
   const maxRaw = parseFloat(document.getElementById('psmMaxInput').value);
-
   rangeState.psmMin = isNaN(minRaw) || minRaw <= 0 ? null : minRaw;
   rangeState.psmMax = isNaN(maxRaw) || maxRaw <= 0 ? null : maxRaw;
-
   document.getElementById('psmSliderMin').value = rangeState.psmMin ? psmToSlider(rangeState.psmMin) : 0;
   document.getElementById('psmSliderMax').value = rangeState.psmMax ? psmToSlider(rangeState.psmMax) : 1000;
   syncFill('psmFill', 'psmSliderMin', 'psmSliderMax');
@@ -1179,7 +1155,7 @@ function clearDeliveryPresets() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PRESET HIGHLIGHT HELPERS
+// PRESET HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 function highlightPreset(containerId, label) {
   document.querySelectorAll(`#${containerId} .preset-chip`).forEach(c => {
@@ -1220,7 +1196,7 @@ function clearSearch() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DATA LOAD — fetches from Flask /api/units
+// DATA LOAD
 // ═══════════════════════════════════════════════════════════════════════════════
 async function loadData() {
   const grid = document.getElementById('cardsGrid');
@@ -1333,6 +1309,7 @@ function applyFilters() {
   document.getElementById('searchClear').classList.toggle('visible', search.length > 0);
 
   filteredData = allData.filter(u => {
+    // ✅ Only hide sold if toggle is ON
     if (hideSold && (u.is_sold || u.status === 0)) return false;
 
     if (activeFilters.cities.size    && !activeFilters.cities.has(u.city_name))        return false;
@@ -1568,6 +1545,10 @@ function updateTags() {
     tags.push({ label: `📅 Delivery ${dFrom || 0}–${dTo || '∞'} mo`,
       clear: () => { document.getElementById('deliveryFrom').value = ''; document.getElementById('deliveryTo').value = ''; clearDeliveryPresets(); applyFilters(); }});
 
+  // Show tag if hideSold is ON
+  if (document.getElementById('hideSold').checked)
+    tags.push({ label: '🚫 Hiding Sold', clear: () => { document.getElementById('hideSold').checked = false; applyFilters(); }});
+
   const container = document.getElementById('activeTags');
   container.innerHTML = tags.map((t, i) => `
     <div class="filter-tag">
@@ -1609,7 +1590,8 @@ function resetFilters() {
   document.getElementById('developerFilter').value = '';
   document.getElementById('freeClub').checked    = false;
   document.getElementById('freeParking').checked = false;
-  document.getElementById('hideSold').checked    = true;
+  // ✅ Reset hideSold to OFF (unchecked)
+  document.getElementById('hideSold').checked    = false;
   document.getElementById('searchInput').value   = '';
   document.getElementById('searchClear').classList.remove('visible');
 
