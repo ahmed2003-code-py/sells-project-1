@@ -14,10 +14,8 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
 
-  /* ── DESKTOP GRID ── */
   .app { display:grid; grid-template-columns:340px 1fr; grid-template-rows:auto 1fr; min-height:100vh; }
 
-  /* ── HEADER ── */
   header {
     grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
     padding:20px 32px; border-bottom:1px solid var(--border);
@@ -42,7 +40,6 @@
   .search-clear { background:none; border:none; cursor:pointer; color:var(--muted); font-size:18px; opacity:0; transition:opacity .2s; padding:0; touch-action:manipulation; }
   .search-clear.visible { opacity:1; }
 
-  /* ── HAMBURGER ── */
   .hamburger-btn {
     display:none; align-items:center; justify-content:center; flex-direction:column; gap:5px;
     width:44px; height:44px; background:var(--surface2); border:1px solid var(--border);
@@ -53,77 +50,36 @@
   .hamburger-btn.open span:nth-child(1) { transform:rotate(45deg) translate(5px,5px); }
   .hamburger-btn.open span:nth-child(2) { opacity:0; }
   .hamburger-btn.open span:nth-child(3) { transform:rotate(-45deg) translate(5px,-5px); }
-  .filter-badge {
-    position:absolute; top:-5px; right:-5px;
-    background:var(--accent); color:#fff; font-size:10px; font-weight:700;
-    border-radius:10px; padding:1px 5px; display:none;
-  }
+  .filter-badge { position:absolute; top:-5px; right:-5px; background:var(--accent); color:#fff; font-size:10px; font-weight:700; border-radius:10px; padding:1px 5px; display:none; }
   .filter-badge.on { display:block; }
 
-  /* ── MOBILE STATS ── */
-  .mobile-stats {
-    display:none; grid-column:1/-1;
-    background:var(--surface2); border-bottom:1px solid var(--border);
-  }
+  .mobile-stats { display:none; grid-column:1/-1; background:var(--surface2); border-bottom:1px solid var(--border); }
   .mobile-stats-inner { display:flex; }
   .mobile-stats .stat { flex:1; padding:10px 12px; border-right:1px solid var(--border); text-align:center; }
   .mobile-stats .stat:last-child { border-right:none; }
   .mobile-stats .stat-value { font-size:14px; }
   .mobile-stats .stat-label { font-size:9px; }
 
-  /* ── MOBILE SEARCH ── */
-  .mobile-search {
-    display:none; grid-column:1/-1;
-    align-items:center; gap:10px; padding:10px 16px;
-    background:var(--surface2); border-bottom:1px solid var(--border);
-  }
+  .mobile-search { display:none; grid-column:1/-1; align-items:center; gap:10px; padding:10px 16px; background:var(--surface2); border-bottom:1px solid var(--border); }
   .mobile-search input { background:none; border:none; outline:none; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; flex:1; }
   .mobile-search input::placeholder { color:var(--muted); }
 
-  /* ── OVERLAY ── */
-  .overlay {
-    display:none; position:fixed; inset:0;
-    background:rgba(0,0,0,0.5); z-index:98;
-    opacity:0; pointer-events:none; transition:opacity .3s;
-  }
+  .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:98; opacity:0; pointer-events:none; transition:opacity .3s; }
   .overlay.on { opacity:1; pointer-events:all; }
 
-  /* ── SIDEBAR (DESKTOP) ── */
-  .sidebar {
-    border-right:1px solid var(--border); padding:20px;
-    overflow-y:auto; max-height:calc(100vh - 77px);
-    position:sticky; top:77px;
-    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
-  }
-
-  /* close row hidden on desktop */
-  .sidebar-top {
-    display:none; justify-content:space-between; align-items:center;
-    padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border);
-    flex-shrink:0;
-  }
+  .sidebar { border-right:1px solid var(--border); padding:20px; overflow-y:auto; max-height:calc(100vh - 77px); position:sticky; top:77px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+  .sidebar-top { display:none; justify-content:space-between; align-items:center; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .sidebar-top-title { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; }
-  .close-btn {
-    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
-    color:var(--text); font-size:22px; line-height:1; cursor:pointer;
-    width:38px; height:38px; display:flex; align-items:center; justify-content:center;
-    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
-  }
+  .close-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:22px; line-height:1; cursor:pointer; width:38px; height:38px; display:flex; align-items:center; justify-content:center; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
 
   .sidebar-title { font-family:'Syne',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
   .sidebar-title::after { content:''; flex:1; height:1px; background:var(--border); }
   .filter-section { margin-bottom:20px; }
   .filter-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
 
-  /* ── WIDGETS ── */
   .price-widget, .area-widget { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:14px; }
   .presets { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; }
-  .chip {
-    padding:4px 10px; border-radius:16px; border:1px solid var(--border);
-    background:transparent; color:var(--muted); font-size:11px; cursor:pointer;
-    font-family:'DM Sans',sans-serif; white-space:nowrap;
-    touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all .15s;
-  }
+  .chip { padding:4px 10px; border-radius:16px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:11px; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all .15s; }
   .chip.on { border-color:var(--accent); color:var(--accent); background:rgba(124,109,255,.12); }
 
   .range-row { display:grid; grid-template-columns:1fr auto 1fr; gap:6px; align-items:center; margin-bottom:12px; }
@@ -148,24 +104,11 @@
   .single-rng input[type=range] { width:100%; accent-color:var(--accent2); cursor:pointer; }
 
   .pill-group { display:flex; flex-wrap:wrap; gap:5px; }
-  .pill {
-    padding:6px 12px; border-radius:20px; border:1px solid var(--border);
-    background:var(--surface2); color:var(--muted); font-size:12px; font-weight:500;
-    cursor:pointer; user-select:none; white-space:nowrap;
-    min-height:36px; display:flex; align-items:center;
-    touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all .15s;
-  }
+  .pill { padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:12px; font-weight:500; cursor:pointer; user-select:none; white-space:nowrap; min-height:36px; display:flex; align-items:center; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all .15s; }
   .pill.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   .pill.on-green { background:var(--accent3); border-color:var(--accent3); color:#000; }
 
-  .styled-select {
-    width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px;
-    color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px;
-    padding:10px 32px 10px 12px; outline:none; min-height:44px;
-    -webkit-appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b80' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 12px center;
-  }
+  .styled-select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; padding:10px 32px 10px 12px; outline:none; min-height:44px; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b80' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
 
   .num-inputs { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .num-wrap { position:relative; }
@@ -185,7 +128,6 @@
   .btn-reset { width:100%; padding:12px; background:transparent; border:1px solid var(--border); border-radius:10px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all .2s; margin-top:4px; }
   .btn-reset:active { border-color:var(--accent2); color:var(--accent2); }
 
-  /* ── MAIN ── */
   .main { padding:24px; overflow-y:auto; max-height:calc(100vh - 77px); }
   .results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
   .results-count { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; }
@@ -199,28 +141,29 @@
   .tag button { background:none; border:none; cursor:pointer; color:var(--accent); font-size:16px; line-height:1; padding:0; min-width:24px; min-height:24px; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
 
   .cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px; }
-  .unit-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; position:relative; overflow:visible; animation:cardIn .3s ease both; }
-  /* ── TOOLTIP ── */
-.card-tooltip {
-  display:none; position:fixed; width:260px; z-index:9999;
-  background:#1e1e2e; border:1px solid var(--accent);
-  border-radius:14px; padding:14px; z-index:200;
-  box-shadow:0 8px 32px rgba(0,0,0,0.6);
-  pointer-events:none;
-  animation:tipIn .15s ease;
-}
-@keyframes tipIn { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
-.card-tooltip::after {
-  content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
-  border:7px solid transparent; border-top-color:var(--accent);
-}
-.tip-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--border); font-size:11px; }
-.tip-row:last-child { border-bottom:none; }
-.tip-key { color:var(--muted); }
-.tip-val { color:var(--text); font-weight:600; text-align:right; }
-.tip-title { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; color:var(--accent); margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border); }
-@media (max-width:768px) { .card-tooltip { display:none !important; } }
+  .unit-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; position:relative; overflow:hidden; animation:cardIn .3s ease both; transition:border-color .2s, box-shadow .2s; cursor:default; }
+  .unit-card:hover { border-color:rgba(124,109,255,.4); box-shadow:0 4px 20px rgba(124,109,255,.1); }
   @keyframes cardIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── GLOBAL TOOLTIP (lives in body) ── */
+  #globalTooltip {
+    display:none;
+    position:fixed;
+    width:270px;
+    z-index:99999;
+    background:#1a1a2e;
+    border:1px solid var(--accent);
+    border-radius:14px;
+    padding:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.8);
+    pointer-events:none;
+  }
+  .tip-title { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; color:var(--accent); margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .tip-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid rgba(42,42,58,.6); font-size:11px; gap:8px; }
+  .tip-row:last-child { border-bottom:none; }
+  .tip-key { color:var(--muted); flex-shrink:0; }
+  .tip-val { color:var(--text); font-weight:600; text-align:right; }
+
   .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
   .compound-name { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; flex:1; }
   .type-badge { padding:3px 9px; border-radius:20px; font-size:11px; background:rgba(109,255,203,.12); color:var(--accent3); border:1px solid rgba(109,255,203,.2); white-space:nowrap; margin-left:8px; }
@@ -244,9 +187,6 @@
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
 
-  /* ══════════════════════
-     MOBILE ≤ 768px
-  ══════════════════════ */
   @media (max-width:768px) {
     .app { grid-template-columns:1fr; grid-template-rows:auto auto auto 1fr; }
     header { padding:12px 16px; }
@@ -258,39 +198,10 @@
     .mobile-stats { display:block; }
     .mobile-search { display:flex; }
     .overlay { display:block; }
-
-    /* SIDEBAR = FIXED DRAWER */
-    .sidebar {
-      position:fixed !important;
-      top:0; left:0;
-      width:min(320px, 90vw);
-      height:100vh;
-      z-index:99;
-      background:var(--bg);
-      border-right:1px solid var(--border);
-      /* flex column: top bar fixed, content scrolls */
-      display:flex !important;
-      flex-direction:column;
-      padding:16px;
-      overflow:hidden; /* no scroll on outer */
-      transform:translateX(-100%);
-      transition:transform .3s cubic-bezier(.4,0,.2,1);
-      max-height:100vh;
-    }
+    .sidebar { position:fixed !important; top:0; left:0; width:min(320px, 90vw); height:100vh; z-index:99; background:var(--bg); border-right:1px solid var(--border); display:flex !important; flex-direction:column; padding:16px; overflow:hidden; transform:translateX(-100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:100vh; }
     .sidebar.open { transform:translateX(0); }
-
-    /* scrollable inner */
-    .sidebar-inner {
-      flex:1;
-      overflow-y:auto;
-      overflow-x:hidden;
-      -webkit-overflow-scrolling:touch;
-      scrollbar-width:thin;
-      padding-bottom:30px;
-    }
-
+    .sidebar-inner { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:thin; padding-bottom:30px; }
     .sidebar-top { display:flex; }
-
     .main { padding:14px; max-height:none; overflow-y:visible; }
     .results-header { flex-direction:column; align-items:flex-start; gap:8px; }
     .results-count { font-size:18px; }
@@ -301,6 +212,7 @@
     .pill { min-height:40px; padding:8px 14px; font-size:13px; }
     .chip { min-height:32px; padding:6px 11px; font-size:12px; }
     .slider-wrap input[type=range]::-webkit-slider-thumb { width:30px; height:30px; }
+    #globalTooltip { display:none !important; }
   }
   @media (min-width:480px) and (max-width:768px) {
     .cards-grid { grid-template-columns:repeat(2,1fr); }
@@ -309,12 +221,13 @@
 </head>
 <body>
 
-<!-- Overlay (mobile) - clicking it closes sidebar -->
+<!-- Global Tooltip - lives in body, always on top -->
+<div id="globalTooltip"></div>
+
 <div class="overlay" id="overlay"></div>
 
 <div class="app">
 
-  <!-- HEADER -->
   <header>
     <div class="logo">
       <div class="logo-icon">🏙️</div>
@@ -337,7 +250,6 @@
     </button>
   </header>
 
-  <!-- MOBILE STATS -->
   <div class="mobile-stats">
     <div class="mobile-stats-inner">
       <div class="stat"><div class="stat-value" id="totalCountM">—</div><div class="stat-label">Total</div></div>
@@ -347,37 +259,27 @@
     </div>
   </div>
 
-  <!-- MOBILE SEARCH -->
   <div class="mobile-search">
     <span>🔍</span>
     <input type="text" id="searchInputM" placeholder="Compound, developer, area..." autocomplete="off">
     <button class="search-clear" id="searchClearM" style="opacity:0">×</button>
   </div>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-
-    <!-- Top bar (mobile only) -->
     <div class="sidebar-top">
       <div class="sidebar-top-title">Filters</div>
       <button class="close-btn" id="closeBtn">×</button>
     </div>
-
-    <!-- All filter content scrolls inside this div on mobile -->
     <div class="sidebar-inner">
-
       <div class="sidebar-title">Filters</div>
-
       <div class="filter-section">
         <div class="filter-label">City</div>
         <div class="pill-group" id="cityFilter"></div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Unit Type</div>
         <div class="pill-group" id="unitTypeFilter"></div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Bedrooms</div>
         <div class="pill-group" id="bedroomsFilter">
@@ -389,7 +291,6 @@
           <div class="pill" data-bed="5">5+ BR</div>
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Total Price <span style="color:var(--accent3);font-size:9px">EGP</span></div>
         <div class="price-widget">
@@ -418,7 +319,6 @@
           </div>
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Built-Up Area <span style="color:var(--accent3);font-size:9px">m²</span></div>
         <div class="area-widget">
@@ -440,7 +340,6 @@
           </div>
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Price / m² <span style="color:var(--accent3);font-size:9px">EGP</span></div>
         <div class="area-widget">
@@ -462,7 +361,6 @@
           </div>
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Delivery (months)</div>
         <div class="presets" id="deliveryPresets" style="margin-bottom:8px">
@@ -476,17 +374,14 @@
           <div class="num-wrap"><label>To</label><input type="number" id="deliveryTo" placeholder="e.g. 24"></div>
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Developer</div>
         <select class="styled-select" id="developerFilter"><option value="">All Developers</option></select>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Finishing Type</div>
         <div class="pill-group" id="finishingFilter"></div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Min Cash Discount</div>
         <div class="single-rng">
@@ -497,7 +392,6 @@
           <input type="range" id="discountSlider" min="0" max="40" value="0">
         </div>
       </div>
-
       <div class="filter-section">
         <div class="filter-label">Options</div>
         <div class="toggle-row">
@@ -513,13 +407,10 @@
           <label class="toggle"><input type="checkbox" id="hideSold"><span class="tog-slider"></span></label>
         </div>
       </div>
-
       <button class="btn-reset" id="resetBtn">↺ Reset All Filters</button>
-
-    </div><!-- end sidebar-inner -->
+    </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main">
     <div class="results-header">
       <div class="results-count"><span id="resultNum">—</span> units found</div>
@@ -559,11 +450,9 @@ function fmtM(n){if(!n)return '0';if(n>=1e9)return(n/1e9).toFixed(2).replace(/\.
 
 function syncFill(fid,n,x){const f=g(fid),a=g(n),b=g(x);if(!f||!a||!b)return;f.style.left=(+a.value/10)+'%';f.style.width=((+b.value-+a.value)/10)+'%';}
 
-/* ── SIDEBAR ── */
 function openSidebar(){g('sidebar').classList.add('open');g('overlay').classList.add('on');g('hamburgerBtn').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){g('sidebar').classList.remove('open');g('overlay').classList.remove('on');g('hamburgerBtn').classList.remove('open');document.body.style.overflow='';}
 
-/* ── PRICE ── */
 function onPriceSlide(){
   const a=g('priceSMin'),b=g('priceSMax');
   if(+a.value>+b.value)a.value=b.value;
@@ -588,7 +477,6 @@ function setPricePreset(mn,mx,lbl){
   syncFill('priceFill','priceSMin','priceSMax'); hlChip('pricePresets',lbl); applyFilters();
 }
 
-/* ── AREA ── */
 function onAreaSlide(){
   const a=g('areaSMin'),b=g('areaSMax');
   if(+a.value>+b.value)a.value=b.value;
@@ -609,7 +497,6 @@ function setAreaPreset(mn,mx){
   syncFill('areaFill','areaSMin','areaSMax'); applyFilters();
 }
 
-/* ── PSM ── */
 function onPsmSlide(){
   const a=g('psmSMin'),b=g('psmSMax');
   if(+a.value>+b.value)a.value=b.value;
@@ -731,9 +618,11 @@ function applyFilters(){
   batchEnd=50;renderCards();updateStats();updateTags();updateBadge();
 }
 
-function cardHTML(u,i){return`<div class="unit-card" style="animation-delay:${(i%50)*.02}s">
-  <div class="card-tooltip">
-    <div class="tip-title">📋 ${u.compound_name}</div>
+// Store tooltip data per card index
+const tipData={};
+
+function buildTipHTML(u){
+  return`<div class="tip-title">📋 ${u.compound_name}</div>
     <div class="tip-row"><span class="tip-key">🏙️ Developer</span><span class="tip-val">${u.developer_name}</span></div>
     <div class="tip-row"><span class="tip-key">📍 City</span><span class="tip-val">${u.city_name}</span></div>
     <div class="tip-row"><span class="tip-key">🏠 Type</span><span class="tip-val">${u.unit_type}</span></div>
@@ -748,8 +637,13 @@ function cardHTML(u,i){return`<div class="unit-card" style="animation-delay:${(i
     <div class="tip-row"><span class="tip-key">📅 Delivery</span><span class="tip-val">${u.delivery_from_months}–${u.delivery_to_months} mo</span></div>
     <div class="tip-row"><span class="tip-key">🏊 Club Fees</span><span class="tip-val">${u.club_fees||'—'}</span></div>
     <div class="tip-row"><span class="tip-key">🚗 Parking</span><span class="tip-val">${u.parking_fees||'—'}</span></div>
-    ${u.payment_plan?`<div class="tip-row"><span class="tip-key">💳 Plan</span><span class="tip-val">${u.payment_plan}</span></div>`:''}
-  </div>
+    ${u.payment_plan?`<div class="tip-row"><span class="tip-key">💳 Plan</span><span class="tip-val">${u.payment_plan}</span></div>`:''}`;
+}
+
+function cardHTML(u,i){
+  const idx=batchEnd-50+i;
+  tipData[idx]=u;
+  return`<div class="unit-card" data-tip="${idx}" style="animation-delay:${(i%50)*.02}s">
   <div class="card-header"><div class="compound-name">${u.compound_name}</div><div class="type-badge">${u.unit_type}</div></div>
   <div class="card-meta">
     <div class="meta-chip">📍 <strong>${u.city_name}</strong></div>
@@ -769,7 +663,7 @@ function cardHTML(u,i){return`<div class="unit-card" style="animation-delay:${(i
     <div class="card-detail"><strong>${u.delivery_from_months}–${u.delivery_to_months}mo</strong>Delivery</div>
     <div class="card-detail"><strong>${u.club_fees==='Free'?'✓ Free':(u.club_fees||'—')}</strong>Club</div>
   </div>
-${u.payment_plan?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">${(()=>{const m=u.payment_plan.match(/([\d.]+)\s*%\s*down/i),mo=u.payment_plan.match(/(\d+)\s*month/i);if(!m||!mo)return`<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px"><span style="font-size:13px">💳</span><span style="font-size:11px;color:var(--muted)">${u.payment_plan}</span></div>`;const y=parseInt(mo[1])/12,ys=Number.isInteger(y)?y:y.toFixed(1);return`<div style="display:flex;align-items:stretch;background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex:0 0 auto"><span style="font-size:13px">💳</span><div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px">Down</div><div style="font-size:12px;font-weight:700;color:var(--accent2)">${parseFloat(m[1])}%</div></div></div><div style="width:1px;background:var(--border);flex-shrink:0"></div><div style="display:flex;align-items:center;justify-content:center;padding:8px 12px;flex:1"><div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;text-align:center">Installments</div><div style="font-size:12px;font-weight:700;color:var(--accent3);text-align:center">${ys} ${y===1?'yr':'yrs'}</div></div></div></div>`;})()}</div>`:''}
+  ${u.payment_plan?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">${(()=>{const m=u.payment_plan.match(/([\d.]+)\s*%\s*down/i),mo=u.payment_plan.match(/(\d+)\s*month/i);if(!m||!mo)return`<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px"><span style="font-size:13px">💳</span><span style="font-size:11px;color:var(--muted)">${u.payment_plan}</span></div>`;const y=parseInt(mo[1])/12,ys=Number.isInteger(y)?y:y.toFixed(1);return`<div style="display:flex;align-items:stretch;background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex:0 0 auto"><span style="font-size:13px">💳</span><div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px">Down</div><div style="font-size:12px;font-weight:700;color:var(--accent2)">${parseFloat(m[1])}%</div></div></div><div style="width:1px;background:var(--border);flex-shrink:0"></div><div style="display:flex;align-items:center;justify-content:center;padding:8px 12px;flex:1"><div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;text-align:center">Installments</div><div style="font-size:12px;font-weight:700;color:var(--accent3);text-align:center">${ys} ${y===1?'yr':'yrs'}</div></div></div></div>`;})()}</div>`:''}
 </div>`;}
 
 function renderCards(){
@@ -778,7 +672,9 @@ function renderCards(){
     grid.innerHTML=`<div class="empty-state"><h3>🔍 No units found</h3><p>Try adjusting filters</p><button class="btn-reset" id="clrBtn" style="width:auto;margin-top:16px">Clear</button></div>`;
     g('clrBtn')?.addEventListener('click',resetFilters);return;
   }
-  grid.innerHTML=filteredData.slice(0,50).map(cardHTML).join('');
+  Object.keys(tipData).forEach(k=>delete tipData[k]);
+  batchEnd=50;
+  grid.innerHTML=filteredData.slice(0,50).map((u,i)=>cardHTML(u,i)).join('');
   if(filteredData.length>50){
     const rem=filteredData.length-50;
     grid.innerHTML+=`<div class="empty-state" id="lmCard" style="background:var(--surface2);border-radius:16px;border:1px dashed var(--border)"><div style="font-size:24px">📦</div><h3 style="font-size:16px">${fmt(rem)} more</h3><button class="btn-reset" id="lmBtn" style="width:auto;margin-top:12px">Show More</button></div>`;
@@ -842,24 +738,19 @@ function resetFilters(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  // Sidebar open/close
   g('hamburgerBtn').addEventListener('click',openSidebar);
   g('closeBtn').addEventListener('click',closeSidebar);
   g('overlay').addEventListener('click',closeSidebar);
-  // CRITICAL: stop clicks inside sidebar from reaching overlay
   g('sidebar').addEventListener('click',e=>e.stopPropagation());
   window.addEventListener('resize',()=>{if(window.innerWidth>768)closeSidebar();});
-
   g('resetBtn').addEventListener('click',resetFilters);
 
-  // Search
   g('searchClear').addEventListener('click',()=>{g('searchInput').value='';g('searchClear').classList.remove('visible');applyFilters();});
   g('searchClearM').addEventListener('click',()=>{g('searchInputM').value='';g('searchClearM').style.opacity='0';applyFilters();});
   let st;
   g('searchInput').addEventListener('input',()=>{clearTimeout(st);st=setTimeout(applyFilters,200);});
   g('searchInputM').addEventListener('input',()=>{clearTimeout(st);st=setTimeout(applyFilters,200);});
 
-  // Sliders
   g('priceSMin').addEventListener('input',onPriceSlide);g('priceSMax').addEventListener('input',onPriceSlide);
   g('priceMinIn').addEventListener('input',onPriceInput);g('priceMaxIn').addEventListener('input',onPriceInput);
   g('areaSMin').addEventListener('input',onAreaSlide);g('areaSMax').addEventListener('input',onAreaSlide);
@@ -868,52 +759,60 @@ document.addEventListener('DOMContentLoaded',()=>{
   g('psmMinIn').addEventListener('input',onPsmInput);g('psmMaxIn').addEventListener('input',onPsmInput);
   g('discountSlider').addEventListener('input',()=>{g('discountVal').textContent=g('discountSlider').value+'%';applyFilters();});
 
-  // Toggles
   ['freeClub','freeParking','hideSold'].forEach(id=>g(id).addEventListener('change',applyFilters));
   g('developerFilter').addEventListener('change',applyFilters);
   g('deliveryFrom').addEventListener('input',()=>{clearDelChips();applyFilters();});
   g('deliveryTo').addEventListener('input',()=>{clearDelChips();applyFilters();});
 
-  // Sort
   document.querySelectorAll('.sort-btn').forEach(b=>b.addEventListener('click',()=>{
     sortMode=b.dataset.sort;
     document.querySelectorAll('.sort-btn').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');applyFilters();
   }));
 
-  // Bedrooms
   document.querySelectorAll('#bedroomsFilter .pill').forEach(p=>p.addEventListener('click',()=>{
     document.querySelectorAll('#bedroomsFilter .pill').forEach(x=>x.classList.remove('on','on-green'));
     p.classList.add(p.dataset.bed==='any'?'on-green':'on');
     af.beds=p.dataset.bed;applyFilters();
   }));
 
-  // Price presets
   document.querySelectorAll('#pricePresets .chip').forEach(c=>c.addEventListener('click',()=>setPricePreset(+c.dataset.pmin,+c.dataset.pmax,c.dataset.label)));
-  // Area presets
   document.querySelectorAll('.area-chip').forEach(c=>c.addEventListener('click',()=>setAreaPreset(+c.dataset.min,+c.dataset.max)));
-  // PSM presets
   document.querySelectorAll('.psm-chip').forEach(c=>c.addEventListener('click',()=>setPsmPreset(+c.dataset.min,+c.dataset.max)));
-  // Delivery presets
   document.querySelectorAll('.del-chip').forEach(c=>c.addEventListener('click',()=>{
     g('deliveryFrom').value=c.dataset.from;g('deliveryTo').value=c.dataset.to;
     clearDelChips();c.classList.add('on');applyFilters();
   }));
-let tip=null;
+
+  // ── GLOBAL TOOLTIP ──
+  const tooltip=g('globalTooltip');
+
   document.addEventListener('mouseover',e=>{
     const card=e.target.closest('.unit-card');
-    if(card){tip=card.querySelector('.card-tooltip');if(tip)tip.style.display='block';}
+    if(!card)return;
+    const idx=card.dataset.tip;
+    const u=tipData[idx];
+    if(!u)return;
+    tooltip.innerHTML=buildTipHTML(u);
+    tooltip.style.display='block';
   });
+
   document.addEventListener('mouseout',e=>{
     const card=e.target.closest('.unit-card');
-    if(card&&!card.contains(e.relatedTarget)){if(tip)tip.style.display='none';tip=null;}
+    if(card&&!card.contains(e.relatedTarget)){
+      tooltip.style.display='none';
+    }
   });
+
   document.addEventListener('mousemove',e=>{
-    if(!tip)return;
-    let x=e.clientX+16,y=e.clientY-10;
-    if(x+260>window.innerWidth)x=e.clientX-276;
-    if(y+400>window.innerHeight)y=window.innerHeight-410;
-    tip.style.left=x+'px';tip.style.top=y+'px';
+    if(tooltip.style.display==='none')return;
+    let x=e.clientX+16, y=e.clientY-10;
+    const tw=270, th=tooltip.offsetHeight||420;
+    if(x+tw>window.innerWidth) x=e.clientX-tw-16;
+    if(y+th>window.innerHeight) y=window.innerHeight-th-10;
+    if(y<0) y=10;
+    tooltip.style.left=x+'px';
+    tooltip.style.top=y+'px';
   });
 
   loadData();
