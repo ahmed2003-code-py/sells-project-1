@@ -145,15 +145,14 @@ function clearForm() {
 function updateStatus(entry) {
   const el = document.getElementById("statusLabel");
   if (!entry) {
-    el.innerHTML = `<div class="status-bar pending" data-i18n="sales.status_pending">لم يُسلَّم بعد</div>`;
+    el.innerHTML = `<div class="status-bar pending">${t("sales.status_pending")}</div>`;
   } else if (entry.dataentry_submitted_at) {
-    el.innerHTML = `<div class="status-bar done" data-i18n="sales.status_complete">مكتمل</div>`;
+    el.innerHTML = `<div class="status-bar done">${t("sales.status_complete")}</div>`;
   } else if (entry.sales_submitted_at) {
-    el.innerHTML = `<div class="status-bar info" data-i18n="sales.status_waiting_mgr">تم التسليم — بانتظار تقييم المدير</div>`;
+    el.innerHTML = `<div class="status-bar info">${t("sales.status_waiting_mgr")}</div>`;
   } else {
-    el.innerHTML = `<div class="status-bar pending" data-i18n="sales.status_pending">لم يُسلَّم بعد</div>`;
+    el.innerHTML = `<div class="status-bar pending">${t("sales.status_pending")}</div>`;
   }
-  applyLang();
 }
 
 function livePreview() {
@@ -202,7 +201,7 @@ document.getElementById("salesForm").addEventListener("submit", async (e) => {
   }
 });
 
-function onLangChange() { updateStatus({sales_submitted_at: null}); livePreview(); loadEntry(); }
+function onLangChange() { loadEntry(); }
 
 setMonthField();
 loadEntry();

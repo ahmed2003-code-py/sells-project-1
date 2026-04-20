@@ -122,32 +122,31 @@ function render() {
   renderTrend();
 }
 
-function renderTotals(t) {
+function renderTotals(totals) {
   document.getElementById("totals").innerHTML = `
     <div class="stat success">
-      <div class="stat-label" data-i18n="fin.total_revenue">إجمالي الإيرادات</div>
-      <div class="stat-value money-big money">${fmtMoney(t.total_revenue)}</div>
-      <div class="stat-sub" data-i18n="fin.egp">جنيه</div>
+      <div class="stat-label">${t("fin.total_revenue")}</div>
+      <div class="stat-value money-big money">${fmtMoney(totals.total_revenue)}</div>
+      <div class="stat-sub">${t("fin.egp")}</div>
     </div>
     <div class="stat accent">
-      <div class="stat-label" data-i18n="fin.total_commission">إجمالي العمولات</div>
-      <div class="stat-value money" style="color:var(--accent-2)">${fmtMoney(t.total_commission)}</div>
-      <div class="stat-sub" data-i18n="fin.egp">جنيه</div>
+      <div class="stat-label">${t("fin.total_commission")}</div>
+      <div class="stat-value money" style="color:var(--accent-2)">${fmtMoney(totals.total_commission)}</div>
+      <div class="stat-sub">${t("fin.egp")}</div>
     </div>
     <div class="stat">
       <div class="stat-label">Total Deals</div>
-      <div class="stat-value">${t.total_deals}</div>
+      <div class="stat-value">${totals.total_deals}</div>
     </div>
     <div class="stat">
       <div class="stat-label">Total Reservations</div>
-      <div class="stat-value">${t.total_reservations}</div>
+      <div class="stat-value">${totals.total_reservations}</div>
     </div>
     <div class="stat warn">
       <div class="stat-label">Avg Commission / Sales</div>
-      <div class="stat-value sm money">${fmtMoney(t.avg_commission_per_sales)}</div>
+      <div class="stat-value sm money">${fmtMoney(totals.avg_commission_per_sales)}</div>
     </div>
   `;
-  applyLang();
 }
 
 function renderCharts(rows) {
