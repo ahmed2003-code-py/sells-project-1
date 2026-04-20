@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الدخول — Ain KPI{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">A</div>
+      <div class="auth-logo-text">Ain Real Estate</div>
+    </div>
+    <p class="auth-subtitle">تسجيل الدخول إلى نظام KPI</p>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label>اسم المستخدم</label>
+        <input type="text" id="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label>كلمة المرور</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">دخول</button>
+    </form>
+
+    <div class="auth-switch">
+      ليس لديك حساب؟ <a href="/register">إنشاء حساب جديد</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const errorMsg = document.getElementById("errorMsg");
+const form = document.getElementById("loginForm");
+const btn = document.getElementById("loginBtn");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errorMsg.classList.remove("show");
+  btn.disabled = true;
+  btn.textContent = "جاري الدخول...";
+
+  try {
+    const data = await api("/api/auth/login", {
+      method: "POST",
+      body: {
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+      },
+    });
+    window.location.href = data.redirect || "/";
+  } catch (err) {
+    errorMsg.textContent = err.message || "حدث خطأ";
+    errorMsg.classList.add("show");
+    btn.disabled = false;
+    btn.textContent = "دخول";
+  }
+});
+</script>
+{% endblock %}

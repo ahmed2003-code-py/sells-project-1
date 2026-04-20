@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}PropFinder — Ain KPI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">PropFinder</h1>
+    <p class="page-subtitle">معلومات العقارات والـ Compounds المزامنة من Master V</p>
+  </div>
+  <div class="flex gap-2">
+    <button class="btn" onclick="triggerSync()" id="syncBtn">تشغيل Sync يدوياً</button>
+  </div>
+</div>
+
+<div class="stats-grid" id="stats">
+  <div class="stat"><div class="stat-label">إجمالي Units</div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label">تم بيعها</div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label">Compounds</div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label">متوسط السعر</div><div class="stat-value">—</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">حالة الـ Sync</div>
+  <div id="syncStatus" class="text-muted">جاري التحميل...</div>
+</div>
+
+<div class="card">
+  <div class="card-title">الـ Units (أحدث 50)</div>
+  <div class="table-wrap" style="max-height:600px;overflow:auto">
+    <table>
+      <thead><tr>
+        <th>Compound</th>
+        <th>Developer</th>
+        <th>City</th>
+        <th>Type</th>
+        <th>Bedrooms</th>
+        <th>BUA</th>
+        <th>Price</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="unitsBody">
+        <tr><td colspan="8" class="table-empty">جاري التحميل...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats() {
+  try {
+    const s = await api("/api/stats");
+    if (s.total === 0 || s.total == null) {
+      document.getElementById("stats").innerHTML = `
+        <div class="stat" style="grid-column:1/-1">
+          <div class="stat-label">لا توجد بيانات Units</div>
+          <div class="text-muted" style="font-size:12px;margin-top:4px">الـ sync لم يعمل بعد أو جدول units فارغ</div>
+        </div>`;
+      return;
+    }
+    document.getElementById("stats").innerHTML = `
+      <div class="stat"><div class="stat-label">إجمالي Units</div><div class="stat-value">${fmtNum(s.total)}</div></div>
+      <div class="stat"><div class="stat-label">تم بيعها</div><div class="stat-value">${fmtNum(s.sold)}</div></div>
+      <div class="stat"><div class="stat-label">Compounds</div><div class="stat-value">${fmtNum(s.compounds)}</div></div>
+      <div class="stat"><div class="stat-label">متوسط السعر</div><div class="stat-value sm">${s.avg_price ? fmtNum(s.avg_price, 0) + ' جنيه' : '—'}</div></div>
+    `;
+  } catch (e) {
+    document.getElementById("stats").innerHTML = `
+      <div class="stat" style="grid-column:1/-1">
+        <div class="stat-label text-danger">خطأ في تحميل الإحصائيات</div>
+        <div class="text-muted" style="font-size:12px">${e.message}</div>
+      </div>`;
+  }
+}
+
+async function loadUnits() {
+  try {
+    const units = await api("/api/units");
+    const body = document.getElementById("unitsBody");
+    if (!units.length) {
+      body.innerHTML = '<tr><td colspan="8" class="table-empty">لا توجد Units. قم بتشغيل الـ Sync يدوياً.</td></tr>';
+      return;
+    }
+    const latest = units.slice(-50).reverse();
+    body.innerHTML = latest.map(u => `<tr>
+      <td>${u.compound_name || "—"}</td>
+      <td>${u.developer_name || "—"}</td>
+      <td>${u.city_name || "—"}</td>
+      <td>${u.unit_type || "—"}</td>
+      <td>${u.bedrooms || "—"}</td>
+      <td>${u.built_up_area_sqm ? u.built_up_area_sqm + " م²" : "—"}</td>
+      <td>${u.total_price_egp ? fmtNum(u.total_price_egp) + " جنيه" : "—"}</td>
+      <td>${u.is_sold ? '<span class="badge badge-pending">Sold</span>' : '<span class="badge badge-excellent">Available</span>'}</td>
+    </tr>`).join("");
+  } catch (e) {
+    document.getElementById("unitsBody").innerHTML = `<tr><td colspan="8" class="table-empty text-danger">خطأ: ${e.message}</td></tr>`;
+  }
+}
+
+async function loadSyncStatus() {
+  try {
+    const s = await api("/api/sync/status");
+    const btn = document.getElementById("syncBtn");
+    let html = "";
+
+    if (!s.enabled) {
+      html = '<span class="text-muted">● الـ Sync معطّل (DISABLE_SYNC=true)</span>';
+      btn.disabled = true;
+      btn.textContent = "Sync معطّل";
+    } else if (s.running) {
+      html = '<span class="text-warn">● قيد التشغيل...</span>';
+    } else if (s.error) {
+      html = `<span class="text-danger">● خطأ: ${s.error}</span>`;
+    } else if (s.last_run) {
+      html = `<span class="text-success">● آخر نجاح: ${new Date(s.last_run).toLocaleString("ar-EG")}</span>
+              <div class="text-muted mt-1" style="font-size:12px">${s.last_result || ""}</div>`;
+    } else {
+      html = '<span class="text-muted">لم يعمل بعد</span>';
+    }
+    document.getElementById("syncStatus").innerHTML = html;
+  } catch (e) {
+    document.getElementById("syncStatus").innerHTML = `<span class="text-danger">خطأ: ${e.message}</span>`;
+  }
+}
+
+async function triggerSync() {
+  const btn = document.getElementById("syncBtn");
+  btn.disabled = true;
+  btn.textContent = "جاري التشغيل...";
+  try {
+    await api("/api/sync/trigger", { method: "POST" });
+    toast("بدأ الـ Sync في الخلفية", "success");
+    setTimeout(() => { loadSyncStatus(); loadStats(); loadUnits(); }, 3000);
+  } catch (e) {
+    toast(e.message || "خطأ", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "تشغيل Sync يدوياً";
+  }
+}
+
+loadStats();
+loadUnits();
+loadSyncStatus();
+setInterval(loadSyncStatus, 15000);
+</script>
+{% endblock %}

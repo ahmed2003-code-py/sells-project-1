@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ain Real Estate — KPI System{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    {% if user %}
+    <nav class="topnav">
+      <a href="/" class="topnav-brand">
+        <div class="topnav-brand-icon">A</div>
+        <span>Ain KPI</span>
+      </a>
+
+      <div class="topnav-links">
+        {% if user.role == 'sales' %}
+          <a href="/sales" class="topnav-link {% if request.path == '/sales' %}active{% endif %}">بياناتي</a>
+        {% endif %}
+
+        {% if user.role in ['admin', 'manager', 'dataentry'] %}
+          <a href="/dashboard" class="topnav-link {% if request.path == '/dashboard' %}active{% endif %}">لوحة المدير</a>
+          <a href="/data-entry" class="topnav-link {% if request.path == '/data-entry' %}active{% endif %}">تقييم</a>
+        {% endif %}
+
+        {% if user.role == 'admin' %}
+          <a href="/admin" class="topnav-link {% if request.path == '/admin' %}active{% endif %}">المستخدمون</a>
+        {% endif %}
+
+        <a href="/propfinder" class="topnav-link {% if request.path == '/propfinder' %}active{% endif %}">PropFinder</a>
+      </div>
+
+      <div class="topnav-user" id="userMenuTrigger">
+        <div class="avatar">{{ user.full_name[0] if user.full_name else 'U' }}</div>
+        <div class="user-info">
+          <span class="name">{{ user.full_name }}</span>
+          <span class="role">{{
+            'مدير' if user.role == 'manager' else
+            'Admin' if user.role == 'admin' else
+            'إدخال بيانات' if user.role == 'dataentry' else
+            'Sales'
+          }}</span>
+        </div>
+        <div class="dropdown">
+          <a href="/profile" class="dropdown-item">الملف الشخصي</a>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" onclick="logout()">تسجيل الخروج</button>
+        </div>
+      </div>
+    </nav>
+    {% endif %}
+
+    <main class="main {% block main_class %}{% endblock %}">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

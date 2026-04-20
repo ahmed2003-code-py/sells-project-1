@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}لوحة المدير — Ain KPI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">لوحة أداء الفريق</h1>
+    <p class="page-subtitle">نظرة شاملة على KPI لكل Sales مع Breakdown كامل</p>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="field mb-0">
+    <label>الشهر</label>
+    <select id="selMonth" onchange="loadAll()"></select>
+  </div>
+  <div class="field mb-0">
+    <label>ترتيب</label>
+    <select id="selSort" onchange="render()">
+      <option value="score">بالـ Score</option>
+      <option value="name">بالاسم</option>
+    </select>
+  </div>
+  <div class="field mb-0">
+    <label>تقييم</label>
+    <select id="selRating" onchange="render()">
+      <option value="all">الكل</option>
+      <option value="Excellent">Excellent</option>
+      <option value="V.Good">V.Good</option>
+      <option value="Good">Good</option>
+      <option value="Medium">Medium</option>
+      <option value="Weak">Weak</option>
+      <option value="Bad">Bad</option>
+    </select>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-sm" onclick="exportCSV()">تصدير CSV</button>
+</div>
+
+<div class="stats-grid" id="summaryCards"></div>
+
+<div class="table-wrap">
+  <table id="mainTable">
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>Sales</th>
+      <th style="width:120px">KPI %</th>
+      <th style="width:90px">تقييم</th>
+      <th style="width:110px">Calls</th>
+      <th style="width:110px">Deals</th>
+      <th style="width:110px">Meetings</th>
+      <th style="width:110px">CRM %</th>
+      <th style="width:110px">أضعف KPI</th>
+      <th style="width:80px">الحالة</th>
+      <th style="width:60px"></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div id="detailPanel" class="hidden mt-2"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allData = [];
+const KPI_LABELS = {
+  calls: "Calls", meetings: "Meetings", crm_pct: "CRM", deals: "Deals",
+  reports: "Reports", reservations: "Reservations", attitude: "Attitude",
+  presentation: "Presentation", followup_pct: "Follow-up", behaviour: "Behaviour",
+  appearance: "Appearance", attendance_pct: "Attendance", hr_roles: "HR Roles"
+};
+
+async function initMonths() {
+  try {
+    const months = await api("/api/kpi/months");
+    const sel = document.getElementById("selMonth");
+    sel.innerHTML = `<option value="${currentMonth()}">${fmtMonth(currentMonth())}</option>`;
+    months.forEach(m => {
+      if (m === currentMonth()) return;
+      const o = document.createElement("option");
+      o.value = m; o.textContent = fmtMonth(m);
+      sel.appendChild(o);
+    });
+  } catch (e) {}
+}
+
+async function loadAll() {
+  const month = document.getElementById("selMonth").value;
+  try {
+    allData = await api(`/api/kpi/report?month=${month}`);
+    render();
+  } catch (e) {
+    toast(e.message, "error");
+  }
+}
+
+function render() {
+  const sort = document.getElementById("selSort").value;
+  const ratingFilter = document.getElementById("selRating").value;
+  let rows = [...allData];
+  if (ratingFilter !== "all") rows = rows.filter(r => r.rating === ratingFilter);
+  rows.sort(sort === "score"
+    ? (a, b) => (parseFloat(b.total_score) || 0) - (parseFloat(a.total_score) || 0)
+    : (a, b) => (a.user_name || "").localeCompare(b.user_name || "", "ar"));
+
+  renderSummary(rows);
+  renderTable(rows);
+}
+
+function renderSummary(rows) {
+  const n = rows.length;
+  const avg = n ? rows.reduce((a, r) => a + (parseFloat(r.total_score) || 0), 0) / n : 0;
+  const top = rows[0];
+  const below55 = rows.filter(r => (parseFloat(r.total_score) || 0) < 55).length;
+  const salesDone = rows.filter(r => r.sales_submitted_at).length;
+  const deDone = rows.filter(r => r.dataentry_submitted_at).length;
+
+  document.getElementById("summaryCards").innerHTML = `
+    <div class="stat">
+      <div class="stat-label">عدد الـ Sales</div>
+      <div class="stat-value">${n}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">متوسط KPI</div>
+      <div class="stat-value ${avg >= 55 ? 'text-success' : 'text-danger'}">${avg.toFixed(1)}%</div>
+      <div class="stat-sub">${getRating(avg)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">الأول</div>
+      <div class="stat-value sm">${top ? top.user_name : "—"}</div>
+      <div class="stat-sub">${top ? parseFloat(top.total_score).toFixed(1) + "%" : ""}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">يحتاج متابعة</div>
+      <div class="stat-value text-danger">${below55}</div>
+      <div class="stat-sub">أقل من 55%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Sales سلّموا</div>
+      <div class="stat-value">${salesDone}/${n}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">تم التقييم</div>
+      <div class="stat-value">${deDone}/${n}</div>
+    </div>
+  `;
+}
+
+function getRating(s) {
+  if (s >= 90) return "Excellent";
+  if (s >= 75) return "V.Good";
+  if (s >= 55) return "Good";
+  if (s >= 40) return "Medium";
+  if (s >= 25) return "Weak";
+  return "Bad";
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("tbody");
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">لا توجد بيانات لهذا الشهر</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const score = parseFloat(r.total_score) || 0;
+    const rating = r.rating || "Pending";
+    const bd = r.breakdown || {};
+    let worstKey = "calls", worstPct = 100;
+    Object.entries(bd).forEach(([k, v]) => {
+      if (v.achievement_pct < worstPct) { worstPct = v.achievement_pct; worstKey = k; }
+    });
+    const fresh = parseFloat(r.fresh_leads) || 0;
+
+    return `<tr class="clickable" onclick="showDetail(${r.user_id},'${r.month}')">
+      <td>${i + 1}</td>
+      <td>
+        <div style="font-weight:500">${r.user_name}</div>
+        <div class="text-dim" style="font-size:10px">Leads: ${fresh}</div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:500;min-width:44px">${score.toFixed(1)}%</span>
+          <div class="bar" style="flex:1"><div class="bar-fill ${scoreColor(score)}" style="width:${score}%"></div></div>
+        </div>
+      </td>
+      <td><span class="badge ${ratingClass(rating)}">${rating}</span></td>
+      <td>${fmtCell(bd.calls)}</td>
+      <td>${fmtCell(bd.deals)}</td>
+      <td>${fmtCell(bd.meetings)}</td>
+      <td>${fmtCell(bd.crm_pct)}</td>
+      <td class="text-muted" style="font-size:11px">
+        ${KPI_LABELS[worstKey]} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
+      </td>
+      <td style="font-size:10px">
+        ${r.sales_submitted_at ? '<span class="text-success">S✓</span>' : '<span class="text-dim">S✗</span>'}
+        ${r.dataentry_submitted_at ? '<span class="text-success">D✓</span>' : '<span class="text-dim">D✗</span>'}
+      </td>
+      <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')">تفاصيل</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function fmtCell(kpi) {
+  if (!kpi) return '<span class="text-dim">—</span>';
+  const col = kpi.achievement_pct >= 80 ? "success" : kpi.achievement_pct >= 55 ? "warn" : "danger";
+  return `<div style="font-size:12px"><span class="text-${col}">${kpi.actual}</span>
+    <span class="text-dim">/ ${kpi.target}</span>
+    <div class="text-muted" style="font-size:10px">${kpi.achievement_pct.toFixed(0)}%</div></div>`;
+}
+
+function showDetail(userId, month) {
+  const entry = allData.find(r => r.user_id === userId && r.month === month);
+  if (!entry) return;
+  const score = parseFloat(entry.total_score) || 0;
+  const rating = entry.rating || "Pending";
+  const bd = entry.breakdown || {};
+  const L = parseFloat(entry.fresh_leads) || 0;
+
+  let kpiHTML = Object.entries(bd).map(([k, v]) => {
+    const col = scoreColor(v.achievement_pct);
+    return `<div class="kpi-cell">
+      <div class="kpi-cell-label">${v.label_ar || v.label}</div>
+      <div class="kpi-cell-value text-${col}">${v.achievement_pct.toFixed(0)}%</div>
+      <div class="kpi-cell-detail">فعلي: ${v.actual} / هدف: ${v.target}<br>وزن: ${v.weighted_score}/${v.weight}</div>
+      <div class="bar kpi-cell-bar"><div class="bar-fill ${col}" style="width:${v.achievement_pct}%"></div></div>
+    </div>`;
+  }).join("");
+
+  const panel = document.getElementById("detailPanel");
+  panel.classList.remove("hidden");
+  panel.innerHTML = `<div class="card">
+    <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+      <div>
+        <div style="font-size:16px;font-weight:600">${entry.user_name}
+          <span class="badge ${ratingClass(rating)}" style="margin-right:8px">${rating}</span>
+        </div>
+        <div class="text-muted" style="font-size:12px">${fmtMonth(entry.month)} — Fresh Leads: ${L}</div>
+        ${entry.notes ? `<div class="text-muted mt-1" style="font-size:12px">ملاحظة: ${entry.notes}</div>` : ""}
+      </div>
+      <div class="flex gap-2">
+        <div class="text-center">
+          <div class="stat-value text-${scoreColor(score)}">${score.toFixed(1)}%</div>
+          <div class="stat-label">إجمالي KPI</div>
+        </div>
+        <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')">إغلاق</button>
+      </div>
+    </div>
+    <div class="kpi-grid">${kpiHTML}</div>
+  </div>`;
+  panel.scrollIntoView({ behavior: "smooth" });
+}
+
+function exportCSV() {
+  const rows = allData;
+  if (!rows.length) return toast("لا توجد بيانات", "error");
+  const header = ["Rep", "Month", "Fresh Leads", ...Object.keys(rows[0].breakdown || {}), "Total %", "Rating"];
+  const lines = [header.join(",")];
+  rows.forEach(r => {
+    const bd = r.breakdown || {};
+    const row = [r.user_name, r.month, r.fresh_leads,
+      ...Object.values(bd).map(v => v.actual),
+      r.total_score, r.rating];
+    lines.push(row.join(","));
+  });
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `kpi_${rows[0].month}.csv`;
+  a.click();
+}
+
+initMonths().then(loadAll);
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}الملف الشخصي — Ain KPI{% endblock %}
+
+{% block main_class %}narrow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">الملف الشخصي</h1>
+    <p class="page-subtitle">معلومات حسابك وتغيير كلمة المرور</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">معلومات الحساب</div>
+  <div class="field-row">
+    <div class="field">
+      <label>الاسم الكامل</label>
+      <input type="text" value="{{ user.full_name }}" readonly>
+    </div>
+    <div class="field">
+      <label>اسم المستخدم</label>
+      <input type="text" value="{{ user.username }}" readonly>
+    </div>
+  </div>
+  <div class="field">
+    <label>الدور</label>
+    <input type="text" value="{{
+      'Admin' if user.role == 'admin' else
+      'Manager' if user.role == 'manager' else
+      'Data Entry' if user.role == 'dataentry' else 'Sales'
+    }}" readonly>
+  </div>
+  <p class="text-muted" style="font-size:11px">لتعديل أي من هذه البيانات، تواصل مع Admin.</p>
+</div>
+
+<div class="card">
+  <div class="card-title">تغيير كلمة المرور</div>
+  <div class="error-msg" id="errorMsg"></div>
+  <form id="pwForm">
+    <div class="field">
+      <label>كلمة المرور الحالية</label>
+      <input type="password" id="oldPw" required>
+    </div>
+    <div class="field">
+      <label>كلمة المرور الجديدة</label>
+      <input type="password" id="newPw" minlength="4" required>
+    </div>
+    <div class="field">
+      <label>تأكيد كلمة المرور الجديدة</label>
+      <input type="password" id="confirmPw" minlength="4" required>
+    </div>
+    <button type="submit" class="btn btn-primary" id="btn">تغيير كلمة المرور</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const errorMsg = document.getElementById("errorMsg");
+const form = document.getElementById("pwForm");
+const btn = document.getElementById("btn");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errorMsg.classList.remove("show");
+  const oldPw = document.getElementById("oldPw").value;
+  const newPw = document.getElementById("newPw").value;
+  const confirmPw = document.getElementById("confirmPw").value;
+
+  if (newPw !== confirmPw) {
+    errorMsg.textContent = "كلمتا المرور غير متطابقتين";
+    errorMsg.classList.add("show");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "جاري التغيير...";
+  try {
+    await api("/api/auth/change-password", {
+      method: "POST",
+      body: { old_password: oldPw, new_password: newPw },
+    });
+    toast("تم تغيير كلمة المرور", "success");
+    form.reset();
+  } catch (err) {
+    errorMsg.textContent = err.message || "حدث خطأ";
+    errorMsg.classList.add("show");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "تغيير كلمة المرور";
+  }
+});
+</script>
+{% endblock %}

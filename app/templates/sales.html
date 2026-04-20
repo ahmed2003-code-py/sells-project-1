@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}بياناتي — Ain KPI{% endblock %}
+
+{% block main_class %}narrow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">تسجيل KPI الشهري</h1>
+    <p class="page-subtitle">سجّل بياناتك الشهرية — يمكنك التعديل في أي وقت قبل إغلاق الشهر</p>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="field mb-0">
+    <label>الشهر</label>
+    <input type="month" id="selMonth">
+  </div>
+  <div class="spacer"></div>
+  <div id="statusIndicator"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">البيانات الأساسية</div>
+  <div class="field">
+    <label>Fresh Leads <small>(إجمالي الـ Leads هذا الشهر)</small></label>
+    <input type="number" id="fresh_leads" min="0" placeholder="0">
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">الأداء الرقمي</div>
+  <div class="field-row">
+    <div class="field">
+      <label>Calls <small>الهدف: 2000</small></label>
+      <input type="number" id="calls" min="0" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Meetings <small>الهدف: 20% من الـ Leads</small></label>
+      <input type="number" id="meetings" min="0" placeholder="0">
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>CRM Update % <small>الهدف: 95%</small></label>
+      <input type="number" id="crm_pct" min="0" max="100" step="0.1" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Deals <small>الهدف: 3% من الـ Leads</small></label>
+      <input type="number" id="deals" min="0" placeholder="0">
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>Reports <small>الهدف: 4 تقارير</small></label>
+      <input type="number" id="reports" min="0" max="4" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Reservations <small>الهدف: 7% من الـ Leads</small></label>
+      <input type="number" id="reservations" min="0" placeholder="0">
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>Follow-up % <small>الهدف: 100%</small></label>
+      <input type="number" id="followup_pct" min="0" max="100" step="0.1" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Attendance % <small>الهدف: 100%</small></label>
+      <input type="number" id="attendance_pct" min="0" max="100" step="0.1" placeholder="0">
+    </div>
+  </div>
+</div>
+
+<div class="flex gap-2">
+  <button class="btn btn-primary" id="saveBtn" onclick="submitData()">حفظ وتسليم</button>
+  <button class="btn btn-ghost" onclick="resetForm()">إلغاء التعديلات</button>
+</div>
+
+<div id="scoreCard" class="card hidden" style="margin-top:20px">
+  <div class="card-title">نتيجتك المبدئية</div>
+  <div class="flex items-center gap-2" style="justify-content:center;flex-direction:column">
+    <div id="scoreNum" style="font-size:48px;font-weight:700">0</div>
+    <div id="scoreBadge" class="badge">—</div>
+    <div class="text-dim text-center" style="font-size:11px;margin-top:6px">
+      النتيجة النهائية بعد تقييم المدير (Attitude / Presentation / Behaviour / Appearance / HR)
+    </div>
+  </div>
+  <div class="mt-2" id="breakdownSummary"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SALES_FIELDS = ["fresh_leads","calls","meetings","crm_pct","deals","reports","reservations","followup_pct","attendance_pct"];
+let currentEntry = null;
+
+function setInputs(data) {
+  SALES_FIELDS.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) el.value = data && data[f] != null ? data[f] : "";
+  });
+}
+
+function getFormData() {
+  const body = { month: document.getElementById("selMonth").value };
+  SALES_FIELDS.forEach(f => {
+    const el = document.getElementById(f);
+    body[f] = el && el.value !== "" ? parseFloat(el.value) : 0;
+  });
+  return body;
+}
+
+async function loadEntry() {
+  const month = document.getElementById("selMonth").value;
+  if (!month) return;
+  try {
+    const me = await api("/api/auth/me");
+    const data = await api(`/api/kpi/entry/${me.id}/${month}`);
+    currentEntry = data;
+    setInputs(data || {});
+    updateStatus(data);
+    if (data && data.total_score > 0) showScore(data);
+    else document.getElementById("scoreCard").classList.add("hidden");
+  } catch (e) {
+    setInputs({});
+    updateStatus(null);
+  }
+}
+
+function updateStatus(entry) {
+  const el = document.getElementById("statusIndicator");
+  if (!entry || !entry.sales_submitted_at) {
+    el.innerHTML = '<span class="badge badge-pending">لم يُسلَّم بعد</span>';
+  } else if (!entry.dataentry_submitted_at) {
+    el.innerHTML = '<span class="badge badge-good">تم تسليم بياناتك — بانتظار تقييم المدير</span>';
+  } else {
+    el.innerHTML = '<span class="badge badge-excellent">مكتمل</span>';
+  }
+}
+
+function showScore(entry) {
+  document.getElementById("scoreCard").classList.remove("hidden");
+  document.getElementById("scoreNum").textContent = parseFloat(entry.total_score).toFixed(1) + "%";
+  const badge = document.getElementById("scoreBadge");
+  badge.textContent = entry.rating;
+  badge.className = "badge " + ratingClass(entry.rating);
+
+  if (entry.breakdown) {
+    const rows = Object.entries(entry.breakdown).map(([k, v]) => {
+      const pct = v.achievement_pct;
+      const col = scoreColor(pct);
+      return `<div style="display:grid;grid-template-columns:120px 1fr 60px;gap:10px;align-items:center;padding:6px 0;font-size:12px">
+        <span class="text-muted">${v.label_ar || v.label}</span>
+        <div class="bar"><div class="bar-fill ${col}" style="width:${pct}%"></div></div>
+        <span class="text-muted">${pct.toFixed(0)}%</span>
+      </div>`;
+    }).join("");
+    document.getElementById("breakdownSummary").innerHTML = rows;
+  }
+}
+
+async function submitData() {
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+  btn.textContent = "جاري الحفظ...";
+  try {
+    const res = await api("/api/kpi/submit/sales", {
+      method: "POST",
+      body: getFormData(),
+    });
+    toast("تم الحفظ بنجاح", "success");
+    loadEntry();
+  } catch (err) {
+    toast(err.message || "حدث خطأ", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "حفظ وتسليم";
+  }
+}
+
+function resetForm() {
+  setInputs(currentEntry || {});
+  toast("تم الإلغاء");
+}
+
+document.getElementById("selMonth").value = currentMonth();
+document.getElementById("selMonth").addEventListener("change", loadEntry);
+loadEntry();
+</script>
+{% endblock %}
