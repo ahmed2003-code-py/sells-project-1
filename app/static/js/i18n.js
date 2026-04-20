@@ -224,6 +224,7 @@ function applyLang(skipCallback) {
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.body.classList.toggle("lang-en", lang === "en");
     document.body.classList.toggle("lang-ar", lang === "ar");
+    document.documentElement.className = lang === "en" ? "lang-en" : "";
     document.querySelectorAll("[data-i18n]").forEach(el => {
       el.textContent = t(el.getAttribute("data-i18n"));
     });
@@ -234,7 +235,7 @@ function applyLang(skipCallback) {
       el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
     });
     const btn = document.getElementById("langToggleBtn");
-    if (btn) btn.textContent = lang === "ar" ? "EN" : "ع";
+    if (btn) btn.textContent = lang === "ar" ? "EN" : "AR";
     if (!skipCallback && typeof onLangChange === "function") {
       onLangChange(lang);
     }

@@ -1,16 +1,16 @@
 const CHART_COLORS = {
-  brand: '#00d4a0',
-  brand2: '#22e5b2',
-  accent: '#7c6dff',
-  accent2: '#9888ff',
-  info: '#4fc3ff',
+  brand: '#45f1bb',
+  brand2: '#6df4c8',
+  accent: '#c6bfff',
+  accent2: '#d5cfff',
+  info: '#5bc8ff',
   warning: '#ffb84d',
   danger: '#ff6b8a',
-  muted: '#5f6572',
-  text: '#f5f6fa',
-  textMuted: '#9aa0ad',
+  muted: '#6e7178',
+  text: '#e3e2e6',
+  textMuted: '#bacac1',
   bg: 'transparent',
-  grid: 'rgba(255,255,255,0.05)',
+  grid: 'rgba(186,202,193,0.06)',
 };
 
 // Wait for Plotly to load (up to 5 seconds), then call the drawer function.
@@ -62,9 +62,9 @@ function chartLayout(opts = {}) {
       ...opts.legend,
     },
     hoverlabel: {
-      bgcolor: '#1a1e27',
-      bordercolor: '#2d3441',
-      font: { color: '#f5f6fa', size: 12 },
+      bgcolor: '#1f1f23',
+      bordercolor: 'rgba(186,202,193,0.12)',
+      font: { color: '#e3e2e6', size: 12 },
     },
     ...opts.layout,
   };
@@ -142,7 +142,7 @@ function drawDonut(containerId, data, options = {}) {
     hole: 0.6,
     marker: {
       colors: data.colors || PALETTE,
-      line: { color: '#12151c', width: 2 },
+      line: { color: '#121316', width: 2 },
     },
     textinfo: 'label+percent',
     textfont: { size: 12, color: CHART_COLORS.text },
@@ -200,12 +200,12 @@ function drawGauge(containerId, value, options = {}) {
     gauge: {
       axis: { range: [0, 100], tickcolor: CHART_COLORS.textMuted, tickfont: { size: 10 } },
       bar: { color: color, thickness: 0.8 },
-      bgcolor: '#252a36',
+      bgcolor: '#292a2d',
       borderwidth: 0,
       steps: [
-        { range: [0, 25], color: 'rgba(255, 107, 138, 0.2)' },
-        { range: [25, 55], color: 'rgba(255, 184, 77, 0.15)' },
-        { range: [55, 100], color: 'rgba(0, 212, 160, 0.15)' },
+        { range: [0, 25], color: 'rgba(255, 107, 138, 0.18)' },
+        { range: [25, 55], color: 'rgba(255, 184, 77, 0.12)' },
+        { range: [55, 100], color: 'rgba(69, 241, 187, 0.12)' },
       ],
       threshold: {
         line: { color: CHART_COLORS.text, width: 2 },
@@ -233,7 +233,7 @@ function drawRadarChart(containerId, data, options = {}) {
     r: data.values,
     theta: data.labels,
     fill: 'toself',
-    fillcolor: 'rgba(0, 212, 160, 0.2)',
+    fillcolor: 'rgba(69, 241, 187, 0.15)',
     line: { color: CHART_COLORS.brand, width: 2 },
     marker: { size: 6, color: CHART_COLORS.brand },
     hovertemplate: '<b>%{theta}</b><br>%{r}%<extra></extra>',

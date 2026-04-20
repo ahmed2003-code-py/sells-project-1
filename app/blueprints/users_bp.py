@@ -22,7 +22,7 @@ def _user_to_dict(row):
 
 
 @users_bp.route("", methods=["GET"])
-@role_required("admin", "manager")
+@role_required("admin", "manager", "dataentry")
 def list_users():
     role_filter = request.args.get("role")
     active_only = request.args.get("active_only") == "true"
