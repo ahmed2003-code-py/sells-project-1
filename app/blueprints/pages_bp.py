@@ -1,7 +1,7 @@
 """
 Pages blueprint: serves HTML pages with role-based routing
 """
-from flask import Blueprint, render_template, redirect, session, request
+from flask import Blueprint, render_template, redirect, session
 from app.auth import login_required, role_required, role_home, current_user
 
 pages_bp = Blueprint("pages", __name__)
@@ -9,7 +9,6 @@ pages_bp = Blueprint("pages", __name__)
 
 @pages_bp.route("/")
 def home():
-    """Redirect to role-appropriate page"""
     if "user_id" in session:
         return redirect(role_home(session["role"]))
     return redirect("/login")
@@ -30,21 +29,27 @@ def register_page():
 
 
 @pages_bp.route("/sales")
-@role_required("sales", "admin", "manager")
+@login_required
 def sales_page():
     return render_template("sales.html", user=current_user())
 
 
 @pages_bp.route("/data-entry")
-@role_required("dataentry", "admin", "manager")
+@role_required("dataentry", "manager", "admin")
 def dataentry_page():
     return render_template("dataentry.html", user=current_user())
 
 
 @pages_bp.route("/dashboard")
-@role_required("manager", "admin", "dataentry")
+@role_required("manager", "dataentry", "admin")
 def dashboard_page():
     return render_template("dashboard.html", user=current_user())
+
+
+@pages_bp.route("/finance")
+@role_required("admin", "manager")
+def finance_page():
+    return render_template("finance.html", user=current_user())
 
 
 @pages_bp.route("/admin")

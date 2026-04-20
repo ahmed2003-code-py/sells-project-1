@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}{{ "Finance" }} — Ain KPI{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="fin.title">التقرير المالي</h1>
+    <p class="page-subtitle" data-i18n="fin.subtitle">الإيرادات والعمولات المتوقعة حسب الأداء</p>
+  </div>
+  <div class="flex gap-2">
+    <button class="btn" onclick="window.print()" data-i18n="common.print">طباعة</button>
+    <button class="btn" onclick="exportCSV()" data-i18n="common.export">تصدير</button>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label data-i18n="common.month">الشهر</label>
+    <select id="selMonth" onchange="loadAll()"></select>
+  </div>
+  <div class="field">
+    <label data-i18n="fin.avg_deal">متوسط قيمة الصفقة</label>
+    <input type="number" id="avgDeal" value="2500000" onchange="loadAll()" style="width:180px">
+  </div>
+  <div class="field">
+    <label data-i18n="fin.commission_rate">نسبة العمولة (%)</label>
+    <input type="number" id="commissionRate" value="2.5" step="0.1" onchange="loadAll()" style="width:140px">
+  </div>
+  <div class="spacer"></div>
+</div>
+
+<div class="stats-grid stagger" id="totals"></div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <h3 data-i18n="fin.chart_revenue_by_sales">الإيرادات حسب الـ Sales</h3>
+    <div id="chartRevenue" class="plotly-container"></div>
+  </div>
+  <div class="chart-card">
+    <h3 data-i18n="fin.chart_commission_split">توزيع العمولات</h3>
+    <div id="chartCommission" class="plotly-container"></div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3 data-i18n="fin.chart_monthly_trend">الاتجاه الشهري</h3>
+  <div id="chartTrend" class="plotly-container"></div>
+</div>
+
+<div class="chart-card">
+  <h3 data-i18n="fin.deals_vs_reservations">صفقات مقابل حجوزات</h3>
+  <div id="chartDealsRes" class="plotly-container"></div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th style="width:50px">#</th>
+      <th data-i18n="admin.user">Sales</th>
+      <th>Deals</th>
+      <th>Reservations</th>
+      <th data-i18n="fin.deal_revenue">إيراد الصفقات</th>
+      <th data-i18n="fin.reservation_revenue">إيراد الحجوزات</th>
+      <th data-i18n="fin.total_revenue">إجمالي الإيرادات</th>
+      <th data-i18n="fin.total_commission">إجمالي العمولات</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+let reportData = null;
+let trendData = null;
+
+async function initMonths() {
+  try {
+    const months = await api("/api/kpi/months");
+    const sel = document.getElementById("selMonth");
+    const cur = currentMonth();
+    sel.innerHTML = "";
+    const monthSet = new Set(months);
+    monthSet.add(cur);
+    [...monthSet].sort().reverse().forEach(m => {
+      const o = document.createElement("option");
+      o.value = m; o.textContent = fmtMonth(m);
+      if (m === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function loadAll() {
+  const month = document.getElementById("selMonth").value;
+  const avgDeal = parseFloat(document.getElementById("avgDeal").value) || 2500000;
+  const commRate = (parseFloat(document.getElementById("commissionRate").value) || 2.5) / 100;
+
+  try {
+    const qs = `month=${month}&avg_deal_value_egp=${avgDeal}&commission_rate=${commRate}`;
+    reportData = await api(`/api/finance/report?${qs}`);
+    trendData = await api("/api/finance/trend?months_back=6");
+    render();
+  } catch (e) {
+    toast(e.message, "error");
+  }
+}
+
+function render() {
+  if (!reportData) return;
+  const totals = reportData.totals;
+  const breakdown = reportData.breakdown;
+
+  renderTotals(totals);
+  renderCharts(breakdown);
+  renderTable(breakdown);
+  renderTrend();
+}
+
+function renderTotals(t) {
+  document.getElementById("totals").innerHTML = `
+    <div class="stat success">
+      <div class="stat-label" data-i18n="fin.total_revenue">إجمالي الإيرادات</div>
+      <div class="stat-value money-big money">${fmtMoney(t.total_revenue)}</div>
+      <div class="stat-sub" data-i18n="fin.egp">جنيه</div>
+    </div>
+    <div class="stat accent">
+      <div class="stat-label" data-i18n="fin.total_commission">إجمالي العمولات</div>
+      <div class="stat-value money" style="color:var(--accent-2)">${fmtMoney(t.total_commission)}</div>
+      <div class="stat-sub" data-i18n="fin.egp">جنيه</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total Deals</div>
+      <div class="stat-value">${t.total_deals}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total Reservations</div>
+      <div class="stat-value">${t.total_reservations}</div>
+    </div>
+    <div class="stat warn">
+      <div class="stat-label">Avg Commission / Sales</div>
+      <div class="stat-value sm money">${fmtMoney(t.avg_commission_per_sales)}</div>
+    </div>
+  `;
+  applyLang();
+}
+
+function renderCharts(rows) {
+  if (typeof Plotly === 'undefined' || !rows.length) return;
+
+  const sortedByRev = [...rows].sort((a,b) => b.total_revenue - a.total_revenue);
+  Charts.drawHorizontalBar("chartRevenue", {
+    x: sortedByRev.map(r => r.total_revenue).reverse(),
+    y: sortedByRev.map(r => r.user_name).reverse(),
+    colors: sortedByRev.map((_, i) => Charts.PALETTE[i % Charts.PALETTE.length]).reverse(),
+    labels: sortedByRev.map(r => fmtMoney(r.total_revenue)).reverse(),
+  }, { margin: { l: 120, r: 100, t: 20, b: 40 } });
+
+  const dealComm = rows.reduce((a, r) => a + r.deal_commission, 0);
+  const resComm = rows.reduce((a, r) => a + r.reservation_commission, 0);
+  Charts.drawDonut("chartCommission", {
+    labels: [t("fin.deal_revenue"), t("fin.reservation_revenue")],
+    values: [dealComm, resComm],
+    colors: [Charts.COLORS.brand, Charts.COLORS.accent],
+  }, { centerText: fmtMoney(dealComm + resComm) });
+
+  const topRows = sortedByRev.slice(0, 8);
+  Charts.drawStackedBar("chartDealsRes",
+    [
+      { name: "Deals", values: topRows.map(r => r.deals_count), color: Charts.COLORS.brand },
+      { name: "Reservations", values: topRows.map(r => r.reservations_count), color: Charts.COLORS.accent },
+    ],
+    topRows.map(r => r.user_name),
+    { showlegend: true }
+  );
+}
+
+function renderTrend() {
+  if (!trendData || !trendData.length) return;
+  const lang = getLang();
+  const xLabels = trendData.map(t => fmtMonth(t.month));
+
+  Charts.drawLineChart("chartTrend", [
+    {
+      name: t("fin.total_revenue"),
+      x: xLabels,
+      y: trendData.map(t => t.revenue),
+      color: Charts.COLORS.brand,
+      fill: true,
+    },
+    {
+      name: t("fin.total_commission"),
+      x: xLabels,
+      y: trendData.map(t => t.commission),
+      color: Charts.COLORS.accent,
+      fill: false,
+    },
+  ], { showlegend: true });
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById("tbody");
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">' + t("admin.no_users") + '</td></tr>';
+    return;
+  }
+  const sorted = [...rows].sort((a,b) => b.total_revenue - a.total_revenue);
+  tbody.innerHTML = sorted.map((r, i) => {
+    const rankCls = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+    return `<tr>
+      <td><span class="rank ${rankCls}">${i + 1}</span></td>
+      <td style="font-weight:500">${r.user_name}</td>
+      <td>${r.deals_count}</td>
+      <td>${r.reservations_count}</td>
+      <td class="money">${fmtMoney(r.deal_revenue)}</td>
+      <td class="money">${fmtMoney(r.reservation_revenue)}</td>
+      <td class="money text-success" style="font-weight:600">${fmtMoney(r.total_revenue)}</td>
+      <td class="money" style="color:var(--accent-2);font-weight:600">${fmtMoney(r.total_commission)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function exportCSV() {
+  if (!reportData) return;
+  const rows = reportData.breakdown;
+  const header = ["Sales", "Deals", "Reservations", "Deal Revenue", "Reservation Revenue", "Total Revenue", "Total Commission"];
+  const lines = [header.join(",")];
+  rows.forEach(r => {
+    lines.push([r.user_name, r.deals_count, r.reservations_count,
+      r.deal_revenue, r.reservation_revenue, r.total_revenue, r.total_commission].join(","));
+  });
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `finance_${reportData.month || "all"}.csv`;
+  a.click();
+}
+
+function onLangChange() { render(); }
+
+initMonths().then(loadAll);
+</script>
+{% endblock %}

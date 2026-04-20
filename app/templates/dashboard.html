@@ -1,30 +1,38 @@
 {% extends "base.html" %}
-{% block title %}لوحة المدير — Ain KPI{% endblock %}
+{% block title %}Dashboard — Ain KPI{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">لوحة أداء الفريق</h1>
-    <p class="page-subtitle">نظرة شاملة على KPI لكل Sales مع Breakdown كامل</p>
+    <h1 class="page-title" data-i18n="dash.title">لوحة أداء الفريق</h1>
+    <p class="page-subtitle" data-i18n="dash.subtitle">نظرة شاملة على KPI لكل Sales</p>
+  </div>
+  <div class="flex gap-2">
+    <button class="btn" onclick="exportCSV()" data-i18n="common.export">تصدير</button>
+    <button class="btn" onclick="window.print()" data-i18n="common.print">طباعة</button>
   </div>
 </div>
 
 <div class="controls">
-  <div class="field mb-0">
-    <label>الشهر</label>
+  <div class="field">
+    <label data-i18n="common.month">الشهر</label>
     <select id="selMonth" onchange="loadAll()"></select>
   </div>
-  <div class="field mb-0">
-    <label>ترتيب</label>
+  <div class="field">
+    <label data-i18n="common.filter">فلترة</label>
     <select id="selSort" onchange="render()">
-      <option value="score">بالـ Score</option>
-      <option value="name">بالاسم</option>
+      <option value="score" data-i18n="dash.sort_by_score">ترتيب بالـ Score</option>
+      <option value="name" data-i18n="dash.sort_by_name">ترتيب بالاسم</option>
     </select>
   </div>
-  <div class="field mb-0">
-    <label>تقييم</label>
+  <div class="field">
+    <label data-i18n="dash.rating">تقييم</label>
     <select id="selRating" onchange="render()">
-      <option value="all">الكل</option>
+      <option value="all" data-i18n="common.all">الكل</option>
       <option value="Excellent">Excellent</option>
       <option value="V.Good">V.Good</option>
       <option value="Good">Good</option>
@@ -34,25 +42,40 @@
     </select>
   </div>
   <div class="spacer"></div>
-  <button class="btn btn-sm" onclick="exportCSV()">تصدير CSV</button>
 </div>
 
-<div class="stats-grid" id="summaryCards"></div>
+<div class="stats-grid stagger" id="summaryCards"></div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <h3 data-i18n="dash.chart_performance">أداء الفريق</h3>
+    <div id="chartTeamPerf" class="plotly-container"></div>
+  </div>
+  <div class="chart-card">
+    <h3 data-i18n="dash.chart_distribution">توزيع التقييمات</h3>
+    <div id="chartRatings" class="plotly-container"></div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3 data-i18n="dash.chart_breakdown">متوسط تحقيق كل KPI</h3>
+  <div id="chartBreakdown" class="plotly-container"></div>
+</div>
 
 <div class="table-wrap">
-  <table id="mainTable">
+  <table>
     <thead><tr>
-      <th style="width:40px">#</th>
-      <th>Sales</th>
-      <th style="width:120px">KPI %</th>
-      <th style="width:90px">تقييم</th>
+      <th style="width:50px">#</th>
+      <th data-i18n="admin.user">Sales</th>
+      <th style="width:160px" data-i18n="dash.avg_kpi">KPI %</th>
+      <th style="width:100px" data-i18n="dash.rating">تقييم</th>
       <th style="width:110px">Calls</th>
       <th style="width:110px">Deals</th>
       <th style="width:110px">Meetings</th>
       <th style="width:110px">CRM %</th>
-      <th style="width:110px">أضعف KPI</th>
-      <th style="width:80px">الحالة</th>
-      <th style="width:60px"></th>
+      <th style="width:130px" data-i18n="dash.weakest">أضعف KPI</th>
+      <th style="width:90px" data-i18n="dash.status">الحالة</th>
+      <th style="width:80px"></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -62,27 +85,45 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 let allData = [];
-const KPI_LABELS = {
-  calls: "Calls", meetings: "Meetings", crm_pct: "CRM", deals: "Deals",
-  reports: "Reports", reservations: "Reservations", attitude: "Attitude",
-  presentation: "Presentation", followup_pct: "Follow-up", behaviour: "Behaviour",
-  appearance: "Appearance", attendance_pct: "Attendance", hr_roles: "HR Roles"
-};
+
+const KPI_KEYS = ["calls","meetings","crm_pct","deals","reports","reservations","attitude","presentation","followup_pct","behaviour","appearance","attendance_pct","hr_roles"];
+
+function kpiLabel(key, lang) {
+  const labels_ar = {
+    calls:"المكالمات", meetings:"الاجتماعات", crm_pct:"CRM",
+    deals:"الصفقات", reports:"التقارير", reservations:"الحجوزات",
+    attitude:"السلوك", presentation:"العرض", followup_pct:"Follow-up",
+    behaviour:"التصرف", appearance:"المظهر", attendance_pct:"الحضور",
+    hr_roles:"HR Roles"
+  };
+  const labels_en = {
+    calls:"Calls", meetings:"Meetings", crm_pct:"CRM",
+    deals:"Deals", reports:"Reports", reservations:"Reservations",
+    attitude:"Attitude", presentation:"Presentation", followup_pct:"Follow-up",
+    behaviour:"Behaviour", appearance:"Appearance", attendance_pct:"Attendance",
+    hr_roles:"HR Roles"
+  };
+  return (lang === "en" ? labels_en : labels_ar)[key] || key;
+}
 
 async function initMonths() {
   try {
     const months = await api("/api/kpi/months");
     const sel = document.getElementById("selMonth");
-    sel.innerHTML = `<option value="${currentMonth()}">${fmtMonth(currentMonth())}</option>`;
-    months.forEach(m => {
-      if (m === currentMonth()) return;
+    const cur = currentMonth();
+    sel.innerHTML = "";
+    const monthSet = new Set(months);
+    monthSet.add(cur);
+    [...monthSet].sort().reverse().forEach(m => {
       const o = document.createElement("option");
       o.value = m; o.textContent = fmtMonth(m);
+      if (m === cur) o.selected = true;
       sel.appendChild(o);
     });
-  } catch (e) {}
+  } catch (e) { console.error(e); }
 }
 
 async function loadAll() {
@@ -90,9 +131,7 @@ async function loadAll() {
   try {
     allData = await api(`/api/kpi/report?month=${month}`);
     render();
-  } catch (e) {
-    toast(e.message, "error");
-  }
+  } catch (e) { toast(e.message, "error"); }
 }
 
 function render() {
@@ -102,49 +141,11 @@ function render() {
   if (ratingFilter !== "all") rows = rows.filter(r => r.rating === ratingFilter);
   rows.sort(sort === "score"
     ? (a, b) => (parseFloat(b.total_score) || 0) - (parseFloat(a.total_score) || 0)
-    : (a, b) => (a.user_name || "").localeCompare(b.user_name || "", "ar"));
+    : (a, b) => (a.user_name || "").localeCompare(b.user_name || ""));
 
   renderSummary(rows);
   renderTable(rows);
-}
-
-function renderSummary(rows) {
-  const n = rows.length;
-  const avg = n ? rows.reduce((a, r) => a + (parseFloat(r.total_score) || 0), 0) / n : 0;
-  const top = rows[0];
-  const below55 = rows.filter(r => (parseFloat(r.total_score) || 0) < 55).length;
-  const salesDone = rows.filter(r => r.sales_submitted_at).length;
-  const deDone = rows.filter(r => r.dataentry_submitted_at).length;
-
-  document.getElementById("summaryCards").innerHTML = `
-    <div class="stat">
-      <div class="stat-label">عدد الـ Sales</div>
-      <div class="stat-value">${n}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">متوسط KPI</div>
-      <div class="stat-value ${avg >= 55 ? 'text-success' : 'text-danger'}">${avg.toFixed(1)}%</div>
-      <div class="stat-sub">${getRating(avg)}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">الأول</div>
-      <div class="stat-value sm">${top ? top.user_name : "—"}</div>
-      <div class="stat-sub">${top ? parseFloat(top.total_score).toFixed(1) + "%" : ""}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">يحتاج متابعة</div>
-      <div class="stat-value text-danger">${below55}</div>
-      <div class="stat-sub">أقل من 55%</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Sales سلّموا</div>
-      <div class="stat-value">${salesDone}/${n}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">تم التقييم</div>
-      <div class="stat-value">${deDone}/${n}</div>
-    </div>
-  `;
+  renderCharts(rows);
 }
 
 function getRating(s) {
@@ -156,13 +157,99 @@ function getRating(s) {
   return "Bad";
 }
 
+function renderSummary(rows) {
+  const n = rows.length;
+  const avg = n ? rows.reduce((a, r) => a + (parseFloat(r.total_score) || 0), 0) / n : 0;
+  const top = rows[0];
+  const below55 = rows.filter(r => (parseFloat(r.total_score) || 0) < 55).length;
+  const salesDone = rows.filter(r => r.sales_submitted_at).length;
+  const deDone = rows.filter(r => r.dataentry_submitted_at).length;
+
+  document.getElementById("summaryCards").innerHTML = `
+    <div class="stat success">
+      <div class="stat-label" data-i18n="dash.sales_count">عدد الـ Sales</div>
+      <div class="stat-value">${n}</div>
+    </div>
+    <div class="stat ${avg >= 55 ? 'success' : 'danger'}">
+      <div class="stat-label" data-i18n="dash.avg_kpi">متوسط KPI</div>
+      <div class="stat-value" style="color:${avg >= 55 ? 'var(--brand-2)' : 'var(--danger)'}">${avg.toFixed(1)}%</div>
+      <div class="stat-sub">${t("rating." + getRating(avg))}</div>
+    </div>
+    <div class="stat accent">
+      <div class="stat-label" data-i18n="dash.top">الأول</div>
+      <div class="stat-value sm">${top ? top.user_name : "—"}</div>
+      <div class="stat-sub">${top ? parseFloat(top.total_score).toFixed(1) + "%" : ""}</div>
+    </div>
+    <div class="stat danger">
+      <div class="stat-label" data-i18n="dash.needs_attention">يحتاج متابعة</div>
+      <div class="stat-value" style="color:var(--danger)">${below55}</div>
+      <div class="stat-sub" data-i18n="dash.below_55">أقل من 55%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" data-i18n="dash.sales_submitted">Sales سلّموا</div>
+      <div class="stat-value">${salesDone}/${n}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" data-i18n="dash.eval_done">تم التقييم</div>
+      <div class="stat-value">${deDone}/${n}</div>
+    </div>
+  `;
+  applyLang();
+}
+
+function renderCharts(rows) {
+  if (!rows.length || typeof Plotly === 'undefined') return;
+
+  const sorted = [...rows].sort((a,b) => (parseFloat(b.total_score)||0) - (parseFloat(a.total_score)||0));
+  const topN = sorted.slice(0, 10);
+  Charts.drawHorizontalBar("chartTeamPerf", {
+    x: topN.map(r => parseFloat(r.total_score) || 0).reverse(),
+    y: topN.map(r => r.user_name).reverse(),
+    colors: topN.map(r => Charts.scoreColorHex(parseFloat(r.total_score) || 0)).reverse(),
+  });
+
+  const ratings = ["Excellent","V.Good","Good","Medium","Weak","Bad"];
+  const ratingCounts = ratings.map(r => rows.filter(x => x.rating === r).length);
+  const ratingColors = [Charts.COLORS.brand, Charts.COLORS.brand2, Charts.COLORS.info, Charts.COLORS.warning, '#ff923c', Charts.COLORS.danger];
+  const filteredRatings = [], filteredCounts = [], filteredColors = [];
+  ratings.forEach((r, i) => {
+    if (ratingCounts[i] > 0) {
+      filteredRatings.push(t("rating." + r));
+      filteredCounts.push(ratingCounts[i]);
+      filteredColors.push(ratingColors[i]);
+    }
+  });
+
+  if (filteredRatings.length) {
+    Charts.drawDonut("chartRatings", {
+      labels: filteredRatings,
+      values: filteredCounts,
+      colors: filteredColors,
+    }, { centerText: rows.length + "" });
+  }
+
+  const kpiAvgs = KPI_KEYS.map(key => {
+    const values = rows.map(r => (r.breakdown && r.breakdown[key]) ? r.breakdown[key].achievement_pct : 0);
+    const avg = values.length ? values.reduce((a,b) => a+b, 0) / values.length : 0;
+    return { key, avg };
+  });
+  const lang = getLang();
+  Charts.drawBarChart("chartBreakdown", {
+    x: kpiAvgs.map(k => kpiLabel(k.key, lang)),
+    y: kpiAvgs.map(k => k.avg),
+    colors: kpiAvgs.map(k => Charts.scoreColorHex(k.avg)),
+    labels: kpiAvgs.map(k => k.avg.toFixed(0) + "%"),
+  }, { xangle: -30 });
+}
+
 function renderTable(rows) {
   const tbody = document.getElementById("tbody");
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">لا توجد بيانات لهذا الشهر</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">' + t("admin.no_users") + '</td></tr>';
     return;
   }
 
+  const lang = getLang();
   tbody.innerHTML = rows.map((r, i) => {
     const score = parseFloat(r.total_score) || 0;
     const rating = r.rating || "Pending";
@@ -172,34 +259,36 @@ function renderTable(rows) {
       if (v.achievement_pct < worstPct) { worstPct = v.achievement_pct; worstKey = k; }
     });
     const fresh = parseFloat(r.fresh_leads) || 0;
+    const rankCls = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
 
     return `<tr class="clickable" onclick="showDetail(${r.user_id},'${r.month}')">
-      <td>${i + 1}</td>
+      <td><span class="rank ${rankCls}">${i + 1}</span></td>
       <td>
         <div style="font-weight:500">${r.user_name}</div>
         <div class="text-dim" style="font-size:10px">Leads: ${fresh}</div>
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:500;min-width:44px">${score.toFixed(1)}%</span>
+          <span style="font-weight:600;min-width:48px">${score.toFixed(1)}%</span>
           <div class="bar" style="flex:1"><div class="bar-fill ${scoreColor(score)}" style="width:${score}%"></div></div>
         </div>
       </td>
-      <td><span class="badge ${ratingClass(rating)}">${rating}</span></td>
+      <td><span class="badge ${ratingClass(rating)}">${t("rating." + rating)}</span></td>
       <td>${fmtCell(bd.calls)}</td>
       <td>${fmtCell(bd.deals)}</td>
       <td>${fmtCell(bd.meetings)}</td>
       <td>${fmtCell(bd.crm_pct)}</td>
       <td class="text-muted" style="font-size:11px">
-        ${KPI_LABELS[worstKey]} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
+        ${kpiLabel(worstKey, lang)} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
       </td>
       <td style="font-size:10px">
-        ${r.sales_submitted_at ? '<span class="text-success">S✓</span>' : '<span class="text-dim">S✗</span>'}
-        ${r.dataentry_submitted_at ? '<span class="text-success">D✓</span>' : '<span class="text-dim">D✗</span>'}
+        ${r.sales_submitted_at ? '<span class="text-success">S&#10003;</span>' : '<span class="text-dim">S&#10007;</span>'}
+        ${r.dataentry_submitted_at ? '<span class="text-success">D&#10003;</span>' : '<span class="text-dim">D&#10007;</span>'}
       </td>
-      <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')">تفاصيل</button></td>
+      <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')" data-i18n="common.details">تفاصيل</button></td>
     </tr>`;
   }).join("");
+  applyLang();
 }
 
 function fmtCell(kpi) {
@@ -217,13 +306,14 @@ function showDetail(userId, month) {
   const rating = entry.rating || "Pending";
   const bd = entry.breakdown || {};
   const L = parseFloat(entry.fresh_leads) || 0;
+  const lang = getLang();
 
   let kpiHTML = Object.entries(bd).map(([k, v]) => {
     const col = scoreColor(v.achievement_pct);
     return `<div class="kpi-cell">
-      <div class="kpi-cell-label">${v.label_ar || v.label}</div>
+      <div class="kpi-cell-label">${kpiLabel(k, lang)}</div>
       <div class="kpi-cell-value text-${col}">${v.achievement_pct.toFixed(0)}%</div>
-      <div class="kpi-cell-detail">فعلي: ${v.actual} / هدف: ${v.target}<br>وزن: ${v.weighted_score}/${v.weight}</div>
+      <div class="kpi-cell-detail">${t("sales.target")}: ${v.target} / ${v.actual}<br>${v.weighted_score}/${v.weight}</div>
       <div class="bar kpi-cell-bar"><div class="bar-fill ${col}" style="width:${v.achievement_pct}%"></div></div>
     </div>`;
   }).join("");
@@ -231,30 +321,43 @@ function showDetail(userId, month) {
   const panel = document.getElementById("detailPanel");
   panel.classList.remove("hidden");
   panel.innerHTML = `<div class="card">
-    <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
       <div>
-        <div style="font-size:16px;font-weight:600">${entry.user_name}
-          <span class="badge ${ratingClass(rating)}" style="margin-right:8px">${rating}</span>
+        <div style="font-size:18px;font-weight:700">${entry.user_name}
+          <span class="badge ${ratingClass(rating)}" style="margin-inline-start:8px">${t("rating." + rating)}</span>
         </div>
         <div class="text-muted" style="font-size:12px">${fmtMonth(entry.month)} — Fresh Leads: ${L}</div>
-        ${entry.notes ? `<div class="text-muted mt-1" style="font-size:12px">ملاحظة: ${entry.notes}</div>` : ""}
+        ${entry.notes ? `<div class="text-muted mt-1" style="font-size:12px">${entry.notes}</div>` : ""}
       </div>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
         <div class="text-center">
-          <div class="stat-value text-${scoreColor(score)}">${score.toFixed(1)}%</div>
-          <div class="stat-label">إجمالي KPI</div>
+          <div class="stat-value lg text-${scoreColor(score)}">${score.toFixed(1)}%</div>
+          <div class="stat-label">${t("sales.prelim_score")}</div>
         </div>
-        <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')">إغلاق</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')" data-i18n="common.close">إغلاق</button>
       </div>
     </div>
-    <div class="kpi-grid">${kpiHTML}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="chart-card" style="margin:0"><h3>${t("dash.chart_breakdown")}</h3><div id="detailRadar" style="height:320px"></div></div>
+      <div class="chart-card" style="margin:0"><h3>${t("dash.chart_performance")}</h3><div id="detailGauge" style="height:320px"></div></div>
+    </div>
+    <div class="kpi-grid stagger">${kpiHTML}</div>
   </div>`;
   panel.scrollIntoView({ behavior: "smooth" });
+  applyLang();
+
+  setTimeout(() => {
+    Charts.drawRadarChart("detailRadar", {
+      labels: Object.keys(bd).map(k => kpiLabel(k, lang)),
+      values: Object.values(bd).map(v => v.achievement_pct),
+    });
+    Charts.drawGauge("detailGauge", score, { target: 75 });
+  }, 100);
 }
 
 function exportCSV() {
   const rows = allData;
-  if (!rows.length) return toast("لا توجد بيانات", "error");
+  if (!rows.length) return toast(t("admin.no_users"), "error");
   const header = ["Rep", "Month", "Fresh Leads", ...Object.keys(rows[0].breakdown || {}), "Total %", "Rating"];
   const lines = [header.join(",")];
   rows.forEach(r => {
@@ -270,6 +373,8 @@ function exportCSV() {
   a.download = `kpi_${rows[0].month}.csv`;
   a.click();
 }
+
+function onLangChange() { render(); }
 
 initMonths().then(loadAll);
 </script>

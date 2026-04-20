@@ -1,112 +1,103 @@
 {% extends "base.html" %}
-{% block title %}إدارة المستخدمين — Ain KPI{% endblock %}
+{% block title %}{{ "Admin" }} — Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">إدارة المستخدمين</h1>
-    <p class="page-subtitle">إضافة / تعديل / تفعيل / حذف المستخدمين والصلاحيات</p>
+    <h1 class="page-title" data-i18n="admin.title">إدارة المستخدمين</h1>
+    <p class="page-subtitle" data-i18n="admin.subtitle">إضافة / تعديل / تفعيل / حذف المستخدمين والصلاحيات</p>
   </div>
-  <button class="btn btn-primary" onclick="openUserModal()">+ إضافة مستخدم</button>
+  <button class="btn btn-primary" onclick="openNew()" data-i18n="admin.add_user">+ إضافة مستخدم</button>
 </div>
 
 <div class="controls">
-  <div class="field mb-0">
-    <label>فلترة بالدور</label>
-    <select id="filterRole" onchange="loadUsers()">
-      <option value="">الكل</option>
-      <option value="admin">Admin</option>
-      <option value="manager">Manager</option>
-      <option value="dataentry">Data Entry</option>
-      <option value="sales">Sales</option>
+  <div class="field">
+    <label data-i18n="admin.filter_role">فلترة بالدور</label>
+    <select id="roleFilter" onchange="render()">
+      <option value="all" data-i18n="common.all">الكل</option>
+      <option value="admin" data-i18n="role.admin">Admin</option>
+      <option value="manager" data-i18n="role.manager">Manager</option>
+      <option value="dataentry" data-i18n="role.dataentry">Data Entry</option>
+      <option value="sales" data-i18n="role.sales">Sales</option>
     </select>
   </div>
-  <div class="field mb-0">
-    <label>الحالة</label>
-    <select id="filterActive" onchange="render()">
-      <option value="all">الكل</option>
-      <option value="active">نشط</option>
-      <option value="inactive">معطل</option>
+  <div class="field">
+    <label data-i18n="admin.filter_status">الحالة</label>
+    <select id="statusFilter" onchange="render()">
+      <option value="all" data-i18n="common.all">الكل</option>
+      <option value="active" data-i18n="common.active">نشط</option>
+      <option value="inactive" data-i18n="common.inactive">معطل</option>
     </select>
   </div>
-  <div class="field mb-0" style="flex:1;max-width:280px">
-    <label>بحث</label>
-    <input type="text" id="searchInput" placeholder="بحث بالاسم أو البريد..." oninput="render()">
+  <div class="field" style="flex:1">
+    <label data-i18n="common.search">بحث</label>
+    <input type="text" id="searchBox" data-i18n-placeholder="admin.search_ph" oninput="render()">
   </div>
 </div>
 
 <div class="table-wrap">
   <table>
     <thead><tr>
-      <th>المستخدم</th>
-      <th>الدور</th>
-      <th>البريد / الموبايل</th>
-      <th>آخر دخول</th>
-      <th>تاريخ الإنشاء</th>
-      <th>الحالة</th>
-      <th style="width:180px">إجراءات</th>
+      <th data-i18n="admin.user">المستخدم</th>
+      <th data-i18n="admin.role">الدور</th>
+      <th data-i18n="admin.contact">البريد / الموبايل</th>
+      <th data-i18n="common.active">الحالة</th>
+      <th data-i18n="admin.actions">إجراءات</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
 </div>
 
-<!-- User modal -->
+<!-- Modal -->
 <div class="modal-backdrop" id="userModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="modalTitle">إضافة مستخدم</div>
+      <div class="modal-title" id="modalTitle">User</div>
       <button class="modal-close" onclick="closeModal('userModal')">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="error-msg" id="userError"></div>
-      <input type="hidden" id="userId">
-      <div class="field-row">
-        <div class="field">
-          <label>الاسم الكامل</label>
-          <input type="text" id="fFullName" required>
+    <form id="userForm">
+      <div class="modal-body">
+        <div class="error-msg" id="mError"></div>
+        <div class="field-row">
+          <div class="field">
+            <label data-i18n="auth.full_name">الاسم الكامل</label>
+            <input type="text" id="mName" required>
+          </div>
+          <div class="field">
+            <label data-i18n="auth.username">اسم المستخدم</label>
+            <input type="text" id="mUsername" pattern="[a-z0-9_.]{3,}" required>
+          </div>
         </div>
         <div class="field">
-          <label>اسم المستخدم</label>
-          <input type="text" id="fUsername" pattern="[a-z0-9_.]{3,}" required>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>الدور</label>
-          <select id="fRole">
-            <option value="sales">Sales</option>
-            <option value="dataentry">Data Entry</option>
-            <option value="manager">Manager</option>
-            <option value="admin">Admin</option>
+          <label data-i18n="admin.role">الدور</label>
+          <select id="mRole" required>
+            <option value="sales" data-i18n="role.sales">Sales</option>
+            <option value="dataentry" data-i18n="role.dataentry">Data Entry</option>
+            <option value="manager" data-i18n="role.manager">Manager</option>
+            <option value="admin" data-i18n="role.admin">Admin</option>
           </select>
         </div>
-        <div class="field">
-          <label>الحالة</label>
-          <select id="fActive">
-            <option value="true">نشط</option>
-            <option value="false">معطل</option>
-          </select>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>البريد الإلكتروني <small>(اختياري)</small></label>
-          <input type="email" id="fEmail">
+        <div class="field-row">
+          <div class="field">
+            <label><span data-i18n="auth.email">البريد</span> <small data-i18n="auth.optional">اختياري</small></label>
+            <input type="email" id="mEmail">
+          </div>
+          <div class="field">
+            <label><span data-i18n="auth.phone">الموبايل</span> <small data-i18n="auth.optional">اختياري</small></label>
+            <input type="tel" id="mPhone">
+          </div>
         </div>
         <div class="field">
-          <label>الموبايل <small>(اختياري)</small></label>
-          <input type="tel" id="fPhone">
+          <label data-i18n="auth.password">كلمة المرور</label>
+          <input type="password" id="mPassword" minlength="4">
+          <small class="text-dim" id="mPwHint" data-i18n="admin.pw_hint_new">يجب أن تكون 4 أحرف على الأقل</small>
         </div>
       </div>
-      <div class="field">
-        <label>كلمة المرور <small id="pwHint">(يجب أن تكون 4 أحرف على الأقل)</small></label>
-        <input type="password" id="fPassword" minlength="4">
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary" data-i18n="common.save">حفظ</button>
+        <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')" data-i18n="common.cancel">إلغاء</button>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" id="saveUserBtn" onclick="saveUser()">حفظ</button>
-      <button class="btn btn-ghost" onclick="closeModal('userModal')">إلغاء</button>
-    </div>
+    </form>
   </div>
 </div>
 {% endblock %}
@@ -114,176 +105,140 @@
 {% block scripts %}
 <script>
 let users = [];
-
-const ROLE_LABELS = { admin: "Admin", manager: "Manager", dataentry: "Data Entry", sales: "Sales" };
+let editingId = null;
 
 async function loadUsers() {
-  const role = document.getElementById("filterRole").value;
-  try {
-    const q = role ? `?role=${role}` : "";
-    users = await api("/api/users" + q);
-    render();
-  } catch (e) { toast(e.message, "error"); }
+  try { users = await api("/api/users"); render(); }
+  catch (e) { toast(e.message, "error"); }
 }
 
 function render() {
-  const activeFilter = document.getElementById("filterActive").value;
-  const search = document.getElementById("searchInput").value.trim().toLowerCase();
+  const role = document.getElementById("roleFilter").value;
+  const status = document.getElementById("statusFilter").value;
+  const search = (document.getElementById("searchBox").value || "").trim().toLowerCase();
 
-  let list = users;
-  if (activeFilter === "active") list = list.filter(u => u.active);
-  if (activeFilter === "inactive") list = list.filter(u => !u.active);
-  if (search) list = list.filter(u =>
-    u.full_name.toLowerCase().includes(search) ||
-    u.username.toLowerCase().includes(search) ||
-    (u.email || "").toLowerCase().includes(search)
-  );
+  let rows = [...users];
+  if (role !== "all") rows = rows.filter(u => u.role === role);
+  if (status !== "all") rows = rows.filter(u => status === "active" ? u.active : !u.active);
+  if (search) rows = rows.filter(u =>
+    (u.full_name || "").toLowerCase().includes(search) ||
+    (u.username || "").toLowerCase().includes(search) ||
+    (u.email || "").toLowerCase().includes(search));
 
   const tbody = document.getElementById("tbody");
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">لا يوجد مستخدمون</td></tr>';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">' + t("admin.no_users") + '</td></tr>';
     return;
   }
 
-  tbody.innerHTML = list.map(u => `<tr>
+  tbody.innerHTML = rows.map(u => `<tr>
     <td>
-      <div class="flex items-center gap-2">
-        <div class="avatar">${u.full_name[0] || "?"}</div>
+      <div class="flex items-center gap-1">
+        <div class="avatar" style="width:30px;height:30px;font-size:11px">${(u.full_name || "?")[0]}</div>
         <div>
           <div style="font-weight:500">${u.full_name}</div>
           <div class="text-muted" style="font-size:11px">@${u.username}</div>
         </div>
       </div>
     </td>
-    <td><span class="badge badge-role-${u.role}">${ROLE_LABELS[u.role]}</span></td>
+    <td><span class="badge badge-role-${u.role}">${t("role." + u.role)}</span></td>
     <td class="text-muted" style="font-size:12px">
-      ${u.email || '<span class="text-dim">—</span>'}<br>
-      ${u.phone || '<span class="text-dim">—</span>'}
+      ${u.email || "—"}${u.phone ? "<br>" + u.phone : ""}
     </td>
-    <td class="text-muted" style="font-size:12px">${u.last_login ? new Date(u.last_login).toLocaleString("ar-EG") : '<span class="text-dim">لم يدخل</span>'}</td>
-    <td class="text-muted" style="font-size:12px">${u.created_at ? new Date(u.created_at).toLocaleDateString("ar-EG") : "—"}</td>
     <td>${u.active
-      ? '<span class="badge badge-excellent">نشط</span>'
-      : '<span class="badge badge-pending">معطل</span>'}</td>
+      ? '<span class="badge badge-excellent">' + t("common.active") + '</span>'
+      : '<span class="badge badge-pending">' + t("common.inactive") + '</span>'}</td>
     <td>
       <div class="flex gap-1">
-        <button class="btn btn-sm" onclick='editUser(${JSON.stringify(u)})'>تعديل</button>
-        ${u.active
-          ? `<button class="btn btn-sm" onclick="deactivate(${u.id})">تعطيل</button>`
-          : `<button class="btn btn-sm" onclick="activate(${u.id})">تفعيل</button>`}
-        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.full_name.replace(/'/g,"")}')">حذف</button>
+        <button class="btn btn-sm" onclick="openEdit(${u.id})" data-i18n="common.edit">تعديل</button>
+        <button class="btn btn-sm" onclick="toggleActive(${u.id}, ${!u.active})">
+          ${u.active ? t("admin.deactivate") : t("admin.activate")}
+        </button>
+        ${u.id != {{ user.id }}
+          ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" data-i18n="common.delete">حذف</button>`
+          : ''}
       </div>
     </td>
   </tr>`).join("");
+  applyLang();
 }
 
-function openUserModal() {
-  document.getElementById("modalTitle").textContent = "إضافة مستخدم";
-  document.getElementById("userId").value = "";
-  document.getElementById("fFullName").value = "";
-  document.getElementById("fUsername").value = "";
-  document.getElementById("fUsername").disabled = false;
-  document.getElementById("fRole").value = "sales";
-  document.getElementById("fActive").value = "true";
-  document.getElementById("fEmail").value = "";
-  document.getElementById("fPhone").value = "";
-  document.getElementById("fPassword").value = "";
-  document.getElementById("fPassword").placeholder = "";
-  document.getElementById("pwHint").textContent = "(يجب أن تكون 4 أحرف على الأقل)";
-  document.getElementById("userError").classList.remove("show");
+function openNew() {
+  editingId = null;
+  document.getElementById("modalTitle").textContent = t("admin.new_user");
+  document.getElementById("userForm").reset();
+  document.getElementById("mPassword").required = true;
+  document.getElementById("mPwHint").setAttribute("data-i18n", "admin.pw_hint_new");
+  document.getElementById("mError").classList.remove("show");
+  applyLang();
   openModal("userModal");
 }
 
-function editUser(u) {
-  document.getElementById("modalTitle").textContent = "تعديل " + u.full_name;
-  document.getElementById("userId").value = u.id;
-  document.getElementById("fFullName").value = u.full_name;
-  document.getElementById("fUsername").value = u.username;
-  document.getElementById("fUsername").disabled = true;
-  document.getElementById("fRole").value = u.role;
-  document.getElementById("fActive").value = u.active ? "true" : "false";
-  document.getElementById("fEmail").value = u.email || "";
-  document.getElementById("fPhone").value = u.phone || "";
-  document.getElementById("fPassword").value = "";
-  document.getElementById("fPassword").placeholder = "اتركها فارغة للحفاظ على كلمة المرور";
-  document.getElementById("pwHint").textContent = "(اتركها فارغة إذا لا تريد تغييرها)";
-  document.getElementById("userError").classList.remove("show");
+function openEdit(id) {
+  const u = users.find(x => x.id === id);
+  if (!u) return;
+  editingId = id;
+  document.getElementById("modalTitle").textContent = t("admin.edit_user") + ": " + u.full_name;
+  document.getElementById("mName").value = u.full_name || "";
+  document.getElementById("mUsername").value = u.username || "";
+  document.getElementById("mRole").value = u.role || "sales";
+  document.getElementById("mEmail").value = u.email || "";
+  document.getElementById("mPhone").value = u.phone || "";
+  document.getElementById("mPassword").value = "";
+  document.getElementById("mPassword").required = false;
+  document.getElementById("mPwHint").setAttribute("data-i18n", "admin.pw_hint_edit");
+  document.getElementById("mError").classList.remove("show");
+  applyLang();
   openModal("userModal");
 }
 
-async function saveUser() {
-  const id = document.getElementById("userId").value;
-  const errorEl = document.getElementById("userError");
-  const btn = document.getElementById("saveUserBtn");
-  errorEl.classList.remove("show");
-
+document.getElementById("userForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
   const body = {
-    full_name: document.getElementById("fFullName").value.trim(),
-    role: document.getElementById("fRole").value,
-    email: document.getElementById("fEmail").value.trim(),
-    phone: document.getElementById("fPhone").value.trim(),
-    active: document.getElementById("fActive").value === "true",
+    full_name: document.getElementById("mName").value.trim(),
+    username: document.getElementById("mUsername").value.trim().toLowerCase(),
+    role: document.getElementById("mRole").value,
+    email: document.getElementById("mEmail").value.trim(),
+    phone: document.getElementById("mPhone").value.trim(),
   };
-  const pw = document.getElementById("fPassword").value;
+  const pw = document.getElementById("mPassword").value;
+  if (pw) body.password = pw;
 
-  if (!id) {
-    body.username = document.getElementById("fUsername").value.trim().toLowerCase();
-    body.password = pw;
-    if (!body.username || !body.full_name || !pw) {
-      errorEl.textContent = "كل الحقول الأساسية مطلوبة";
-      errorEl.classList.add("show");
-      return;
-    }
-  } else if (pw) {
-    body.password = pw;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "جاري الحفظ...";
   try {
-    if (id) {
-      await api(`/api/users/${id}`, { method: "PUT", body });
-      toast("تم التحديث", "success");
+    if (editingId) {
+      await api(`/api/users/${editingId}`, { method: "PUT", body });
     } else {
       await api("/api/users", { method: "POST", body });
-      toast("تم إضافة المستخدم", "success");
     }
+    toast(t("common.saved"), "success");
     closeModal("userModal");
     loadUsers();
-  } catch (e) {
-    errorEl.textContent = e.message || "حدث خطأ";
-    errorEl.classList.add("show");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "حفظ";
+  } catch (err) {
+    const e = document.getElementById("mError");
+    e.textContent = err.message;
+    e.classList.add("show");
   }
-}
+});
 
-async function deactivate(id) {
-  if (!confirm("هل تريد تعطيل هذا المستخدم؟")) return;
+async function toggleActive(id, activate) {
+  if (!activate && !confirm(t("admin.confirm_deactivate"))) return;
   try {
-    await api(`/api/users/${id}/deactivate`, { method: "POST" });
-    toast("تم التعطيل", "success");
+    await api(`/api/users/${id}/${activate ? "activate" : "deactivate"}`, { method: "POST" });
     loadUsers();
   } catch (e) { toast(e.message, "error"); }
 }
 
-async function activate(id) {
-  try {
-    await api(`/api/users/${id}/activate`, { method: "POST" });
-    toast("تم التفعيل", "success");
-    loadUsers();
-  } catch (e) { toast(e.message, "error"); }
-}
-
-async function deleteUser(id, name) {
-  if (!confirm(`حذف نهائي للمستخدم "${name}"؟ سيتم حذف كل بياناته أيضاً. هذا الإجراء لا رجعة فيه.`)) return;
+async function deleteUser(id) {
+  const u = users.find(x => x.id === id);
+  if (!confirm(t("admin.confirm_delete") + " " + (u ? u.full_name : "") + "?")) return;
   try {
     await api(`/api/users/${id}`, { method: "DELETE" });
-    toast("تم الحذف", "success");
+    toast(t("common.saved"), "success");
     loadUsers();
   } catch (e) { toast(e.message, "error"); }
 }
+
+function onLangChange() { render(); }
 
 loadUsers();
 </script>

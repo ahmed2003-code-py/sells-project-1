@@ -6,12 +6,11 @@ from functools import wraps
 from flask import request, jsonify, session, redirect
 
 
-# ─── Roles hierarchy ───────────────────────────────────────────────────────────
+# Role hierarchy used by the system
 ROLES = ["admin", "manager", "dataentry", "sales"]
 
 
 def hash_password(password: str) -> str:
-    """Hash password using SHA-256 with salt"""
     salt = "ain_kpi_2026_salt"
     return hashlib.sha256((password + salt).encode()).hexdigest()
 
@@ -21,7 +20,6 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 def current_user():
-    """Get the currently logged-in user from session, or None"""
     if "user_id" not in session:
         return None
     return {
@@ -33,7 +31,6 @@ def current_user():
 
 
 def login_required(f):
-    """Decorator: require user to be logged in"""
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
@@ -45,7 +42,7 @@ def login_required(f):
 
 
 def role_required(*allowed_roles):
-    """Decorator: require user to have one of the allowed roles (admin always passes)"""
+    """Admin always passes. Otherwise must be in allowed_roles."""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -64,7 +61,6 @@ def role_required(*allowed_roles):
 
 
 def role_home(role: str) -> str:
-    """Get landing page for a role"""
     return {
         "admin": "/admin",
         "manager": "/dashboard",

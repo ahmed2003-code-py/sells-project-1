@@ -1,31 +1,36 @@
 {% extends "base.html" %}
-{% block title %}تسجيل الدخول — Ain KPI{% endblock %}
+{% block title %}{{ "تسجيل الدخول" }} — Ain KPI{% endblock %}
 
 {% block content %}
 <div class="auth-page">
   <div class="auth-card">
     <div class="auth-logo">
       <div class="auth-logo-icon">A</div>
-      <div class="auth-logo-text">Ain Real Estate</div>
+      <div class="auth-logo-text" data-i18n="app.name">Ain Real Estate</div>
     </div>
-    <p class="auth-subtitle">تسجيل الدخول إلى نظام KPI</p>
+    <p class="auth-subtitle" data-i18n="auth.subtitle_login">تسجيل الدخول إلى نظام KPI</p>
+
+    <div class="auth-lang-row">
+      <button id="langToggleBtn" class="lang-toggle">EN</button>
+    </div>
 
     <div class="error-msg" id="errorMsg"></div>
 
     <form id="loginForm">
       <div class="field">
-        <label>اسم المستخدم</label>
+        <label data-i18n="auth.username">اسم المستخدم</label>
         <input type="text" id="username" autocomplete="username" required autofocus>
       </div>
       <div class="field">
-        <label>كلمة المرور</label>
+        <label data-i18n="auth.password">كلمة المرور</label>
         <input type="password" id="password" autocomplete="current-password" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">دخول</button>
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn" data-i18n="auth.login_btn">دخول</button>
     </form>
 
     <div class="auth-switch">
-      ليس لديك حساب؟ <a href="/register">إنشاء حساب جديد</a>
+      <span data-i18n="auth.no_account">ليس لديك حساب؟</span>
+      <a href="/register" data-i18n="auth.create_one">إنشاء حساب جديد</a>
     </div>
   </div>
 </div>
@@ -41,7 +46,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.classList.remove("show");
   btn.disabled = true;
-  btn.textContent = "جاري الدخول...";
+  btn.textContent = t("common.saving");
 
   try {
     const data = await api("/api/auth/login", {
@@ -53,10 +58,10 @@ form.addEventListener("submit", async (e) => {
     });
     window.location.href = data.redirect || "/";
   } catch (err) {
-    errorMsg.textContent = err.message || "حدث خطأ";
+    errorMsg.textContent = err.message || t("common.error");
     errorMsg.classList.add("show");
     btn.disabled = false;
-    btn.textContent = "دخول";
+    btn.textContent = t("auth.login_btn");
   }
 });
 </script>

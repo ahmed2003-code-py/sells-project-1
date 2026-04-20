@@ -22,7 +22,6 @@ def create_app():
     )
     app.config.from_object(Config)
 
-    # Initialize database (creates users + kpi_entries tables + default admin)
     from app.database import init_all_tables
     init_all_tables()
 
@@ -32,14 +31,16 @@ def create_app():
     from app.blueprints.kpi_bp import kpi_bp
     from app.blueprints.pages_bp import pages_bp
     from app.blueprints.propfinder_bp import propfinder_bp
+    from app.blueprints.finance_bp import finance_bp
 
-    app.register_blueprint(pages_bp)          # HTML pages (/, /login, /dashboard, ...)
-    app.register_blueprint(auth_bp)           # /api/auth/*
-    app.register_blueprint(users_bp)          # /api/users/*
-    app.register_blueprint(kpi_bp)            # /api/kpi/*
-    app.register_blueprint(propfinder_bp)     # /api/units, /api/stats, /api/sync/*
+    app.register_blueprint(pages_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(users_bp)
+    app.register_blueprint(kpi_bp)
+    app.register_blueprint(propfinder_bp)
+    app.register_blueprint(finance_bp)
 
-    # Generic error handlers
+    # Error handlers
     @app.errorhandler(404)
     def not_found(e):
         from flask import request, jsonify, redirect
@@ -55,5 +56,5 @@ def create_app():
             return jsonify({"error": "Internal server error"}), 500
         return "Server error. Please try again later.", 500
 
-    log.info("✅ Flask app ready — routes registered")
+    log.info("✅ Flask app ready — all blueprints registered")
     return app

@@ -1,206 +1,163 @@
 {% extends "base.html" %}
-{% block title %}تقييم الفريق — Ain KPI{% endblock %}
+{% block title %}{{ "Evaluation" }} — Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">تقييم الفريق</h1>
-    <p class="page-subtitle">سجّل تقييم المدير لكل Sales (Attitude / Presentation / Behaviour / Appearance / HR)</p>
+    <h1 class="page-title" data-i18n="de.title">تقييم الفريق</h1>
+    <p class="page-subtitle" data-i18n="de.subtitle">سجّل تقييم المدير لكل Sales</p>
   </div>
 </div>
 
 <div class="controls">
-  <div class="field mb-0">
-    <label>الشهر</label>
-    <input type="month" id="selMonth">
+  <div class="field">
+    <label data-i18n="common.month">الشهر</label>
+    <input type="month" id="month" onchange="loadAll()">
   </div>
-  <div class="field mb-0">
-    <label>فلترة</label>
+  <div class="field">
+    <label data-i18n="common.filter">فلترة</label>
     <select id="filterStatus" onchange="render()">
-      <option value="all">كل الفريق</option>
-      <option value="pending">لم يُقيَّم بعد</option>
-      <option value="done">تم التقييم</option>
-      <option value="missing">Sales لم يسجل بعد</option>
+      <option value="all" data-i18n="de.all_team">كل الفريق</option>
+      <option value="pending" data-i18n="de.waiting_eval">لم يُقيَّم بعد</option>
+      <option value="done" data-i18n="de.evaluated">تم التقييم</option>
+      <option value="no-sales" data-i18n="de.missing_sales">Sales لم يسجل بعد</option>
     </select>
   </div>
   <div class="spacer"></div>
-  <div id="progressIndicator" class="text-muted" style="font-size:12px"></div>
+  <div id="progress" class="text-muted" style="font-size:13px"></div>
 </div>
 
-<div id="repsList"></div>
+<div id="list" class="stagger"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let reps = [], entries = {};
+let users = [];
+let entries = {};
+const PASSFAIL = ["attitude", "presentation", "behaviour", "appearance", "hr_roles"];
 
 async function loadAll() {
-  const month = document.getElementById("selMonth").value;
+  const month = document.getElementById("month").value;
   if (!month) return;
   try {
-    const [users, data] = await Promise.all([
-      api("/api/users?role=sales&active_only=true"),
-      api(`/api/kpi/report?month=${month}`)
-    ]);
-    reps = users;
+    const list = await api("/api/users?role=sales&active_only=true");
+    users = list;
+    const report = await api(`/api/kpi/report?month=${month}`);
     entries = {};
-    data.forEach(e => entries[e.user_id] = e);
+    report.forEach(r => { entries[r.user_id] = r; });
     render();
-  } catch (e) {
-    toast(e.message || "خطأ في تحميل البيانات", "error");
-  }
+  } catch (e) { toast(e.message, "error"); }
 }
 
 function render() {
   const filter = document.getElementById("filterStatus").value;
-  const wrap = document.getElementById("repsList");
+  const container = document.getElementById("list");
+  let rows = users.map(u => ({
+    user: u,
+    entry: entries[u.id] || null,
+  }));
 
-  let list = [...reps];
-  list = list.filter(r => {
-    const e = entries[r.id];
-    const deOk = e && e.dataentry_submitted_at;
-    const salesOk = e && e.sales_submitted_at;
-    if (filter === "pending") return !deOk;
-    if (filter === "done") return deOk;
-    if (filter === "missing") return !salesOk;
-    return true;
-  });
+  if (filter === "pending") rows = rows.filter(r => r.entry && r.entry.sales_submitted_at && !r.entry.dataentry_submitted_at);
+  else if (filter === "done") rows = rows.filter(r => r.entry && r.entry.dataentry_submitted_at);
+  else if (filter === "no-sales") rows = rows.filter(r => !r.entry || !r.entry.sales_submitted_at);
 
-  const totalEntries = reps.filter(r => entries[r.id] && entries[r.id].dataentry_submitted_at).length;
-  document.getElementById("progressIndicator").innerHTML =
-    `تم تقييم <strong style="color:var(--text)">${totalEntries}</strong> من ${reps.length}`;
+  const done = users.filter(u => entries[u.id] && entries[u.id].dataentry_submitted_at).length;
+  document.getElementById("progress").innerHTML = `<span data-i18n="de.progress">تم تقييم</span> <b>${done}</b> <span data-i18n="de.of">من</span> ${users.length}`;
 
-  if (!list.length) {
-    wrap.innerHTML = '<div class="card text-center text-muted">لا توجد نتائج</div>';
+  if (!rows.length) {
+    container.innerHTML = `<div class="card text-center text-muted">${t("admin.no_users")}</div>`;
+    applyLang();
     return;
   }
 
-  wrap.innerHTML = list.map(rep => {
-    const e = entries[rep.id] || {};
-    const salesOk = !!e.sales_submitted_at;
-    const deOk = !!e.dataentry_submitted_at;
-    const score = parseFloat(e.total_score || 0);
-
-    return `<div class="card" id="card-${rep.id}">
-      <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-        <div class="flex items-center gap-2">
-          <div class="avatar">${rep.full_name[0] || "?"}</div>
-          <div>
-            <div style="font-weight:500">${rep.full_name}</div>
-            <div class="text-muted" style="font-size:11px">@${rep.username}</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          ${salesOk
-            ? '<span class="badge badge-good">Sales ✓</span>'
-            : '<span class="badge badge-pending">Sales ✗</span>'}
-          ${deOk
-            ? '<span class="badge badge-excellent">تم التقييم</span>'
-            : '<span class="badge badge-pending">بانتظار التقييم</span>'}
-          ${score > 0 ? `<span class="badge ${ratingClass(e.rating)}">${score.toFixed(1)}%</span>` : ""}
-        </div>
-      </div>
-
-      <div class="field-row mb-2">
-        <div class="field mb-0">
-          <label>Fresh Leads <small>(من الـ Sales)</small></label>
-          <input type="number" id="fl-${rep.id}" value="${e.fresh_leads || 0}" min="0">
-        </div>
-        <div class="field mb-0">
-          <label>ملاحظات المدير <small>(اختياري)</small></label>
-          <input type="text" id="notes-${rep.id}" value="${e.notes || ''}" placeholder="ملاحظة قصيرة...">
-        </div>
-      </div>
-
-      <div class="field-row four mb-2" style="grid-template-columns:repeat(5,1fr)">
-        ${renderSelect("att", rep.id, "Attitude", e.attitude, deOk)}
-        ${renderSelect("pres", rep.id, "Presentation", e.presentation, deOk)}
-        ${renderSelect("beh", rep.id, "Behaviour", e.behaviour, deOk)}
-        ${renderSelect("app", rep.id, "Appearance", e.appearance, deOk)}
-        ${renderSelect("hr", rep.id, "HR Roles", e.hr_roles, deOk)}
-      </div>
-
-      <div class="flex gap-2">
-        <button class="btn btn-primary btn-sm" onclick="saveEval(${rep.id})">حفظ التقييم</button>
-        ${score > 0 ? `<button class="btn btn-sm" onclick="viewBreakdown(${rep.id})">عرض التفاصيل</button>` : ""}
-      </div>
-    </div>`;
-  }).join("");
+  container.innerHTML = rows.map(({user, entry}) => renderCard(user, entry)).join("");
+  applyLang();
 }
 
-function renderSelect(prefix, id, label, value, deOk) {
-  const v = deOk ? (value != null ? value : 100) : (value != null && value !== 0 ? value : 100);
-  return `<div class="field mb-0">
-    <label>${label}</label>
-    <select id="${prefix}-${id}">
-      <option value="100" ${v === 100 ? "selected" : ""}>Pass</option>
-      <option value="0" ${v === 0 && deOk ? "selected" : ""}>Fail</option>
-    </select>
+function renderCard(user, entry) {
+  const hasSales = entry && entry.sales_submitted_at;
+  const isDone = entry && entry.dataentry_submitted_at;
+  const score = entry ? parseFloat(entry.total_score) || 0 : 0;
+  const statusBadges = [];
+  if (hasSales) statusBadges.push('<span class="badge badge-vgood">Sales &#10003;</span>');
+  else statusBadges.push('<span class="badge badge-pending">Sales &#10007;</span>');
+  if (isDone) statusBadges.push('<span class="badge badge-excellent">' + t("de.evaluated") + '</span>');
+  else statusBadges.push('<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
+  if (isDone) statusBadges.push(`<span class="badge badge-excellent">${score.toFixed(1)}%</span>`);
+
+  const freshLeads = entry ? (entry.fresh_leads || 0) : 0;
+
+  let passfailHTML = PASSFAIL.map(k => {
+    const label_en = { attitude: "Attitude", presentation: "Presentation", behaviour: "Behaviour", appearance: "Appearance", hr_roles: "HR Roles" }[k];
+    const label_ar = { attitude: "السلوك", presentation: "العرض", behaviour: "التصرف", appearance: "المظهر", hr_roles: "HR Roles" }[k];
+    const current = entry ? (entry[k] || 0) : 0;
+    return `<div>
+      <div class="text-muted" style="font-size:11px;margin-bottom:4px" data-i18n-alt>${getLang() === 'ar' ? label_ar : label_en}</div>
+      <select id="${k}-${user.id}" class="pf-select">
+        <option value="100" ${current == 100 ? 'selected' : ''}>${t("common.pass")}</option>
+        <option value="0" ${current == 0 ? 'selected' : ''}>${t("common.fail")}</option>
+      </select>
+    </div>`;
+  }).join("");
+
+  return `<div class="card fade-in" data-user-id="${user.id}">
+    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+      <div class="flex items-center gap-2">
+        <div class="avatar">${(user.full_name || "?")[0]}</div>
+        <div>
+          <div style="font-weight:500">${user.full_name}</div>
+          <div class="text-muted" style="font-size:11px">@${user.username}</div>
+        </div>
+      </div>
+      <div class="flex gap-1" style="flex-wrap:wrap">${statusBadges.join("")}</div>
+    </div>
+
+    <div class="field-row" style="margin-bottom:12px">
+      <div class="field">
+        <label data-i18n="sales.fresh_leads">Fresh Leads</label>
+        <input type="number" id="fresh_leads-${user.id}" value="${freshLeads}">
+      </div>
+      <div class="field">
+        <label data-i18n="de.notes">ملاحظات المدير</label>
+        <input type="text" id="notes-${user.id}" value="${entry && entry.notes ? entry.notes.replace(/"/g, '&quot;') : ''}" data-i18n-placeholder="de.notes_ph">
+      </div>
+    </div>
+
+    <div class="field-row five" style="margin-bottom:14px">${passfailHTML}</div>
+
+    <div class="flex gap-1">
+      <button class="btn btn-primary btn-sm" onclick="saveEval(${user.id})" data-i18n="de.save_eval">حفظ التقييم</button>
+      ${entry ? `<button class="btn btn-sm" onclick="showDetail(${user.id})" data-i18n="common.details">تفاصيل</button>` : ''}
+    </div>
   </div>`;
 }
 
-async function saveEval(id) {
-  const month = document.getElementById("selMonth").value;
+async function saveEval(userId) {
+  const month = document.getElementById("month").value;
+  const body = {
+    user_id: userId,
+    month: month,
+    fresh_leads: document.getElementById(`fresh_leads-${userId}`).value || 0,
+    notes: document.getElementById(`notes-${userId}`).value || "",
+  };
+  PASSFAIL.forEach(k => body[k] = document.getElementById(`${k}-${userId}`).value);
+
   try {
-    const res = await api("/api/kpi/submit/evaluation", {
-      method: "POST",
-      body: {
-        user_id: id,
-        month,
-        fresh_leads: parseInt(document.getElementById("fl-" + id).value) || 0,
-        attitude: parseInt(document.getElementById("att-" + id).value),
-        presentation: parseInt(document.getElementById("pres-" + id).value),
-        behaviour: parseInt(document.getElementById("beh-" + id).value),
-        appearance: parseInt(document.getElementById("app-" + id).value),
-        hr_roles: parseInt(document.getElementById("hr-" + id).value),
-        notes: document.getElementById("notes-" + id).value.trim() || null,
-      },
-    });
-    toast(`تم حفظ التقييم (${res.total_score}%)`, "success");
+    const data = await api("/api/kpi/submit/evaluation", { method: "POST", body });
+    toast(t("common.saved") + ` — ${data.total_score}%`, "success");
     loadAll();
-  } catch (e) {
-    toast(e.message || "خطأ", "error");
-  }
+  } catch (e) { toast(e.message, "error"); }
 }
 
-function viewBreakdown(id) {
-  const e = entries[id];
-  if (!e || !e.breakdown) return;
-  const rows = Object.entries(e.breakdown).map(([k, v]) => {
-    return `<tr>
-      <td class="text-muted">${v.label_ar || v.label}</td>
-      <td>${v.actual}</td>
-      <td class="text-muted">${v.target}</td>
-      <td>${v.achievement_pct}%</td>
-      <td>${v.weighted_score} / ${v.weight}</td>
-    </tr>`;
-  }).join("");
-  document.getElementById("breakdownBody").innerHTML = rows;
-  document.getElementById("breakdownName").textContent = reps.find(r => r.id === id)?.full_name || "";
-  openModal("breakdownModal");
+function showDetail(userId) {
+  const entry = entries[userId];
+  if (!entry) return;
+  window.location.href = "/dashboard";
 }
 
-document.getElementById("selMonth").value = currentMonth();
-document.getElementById("selMonth").addEventListener("change", loadAll);
+function onLangChange() { render(); }
+
+document.getElementById("month").value = currentMonth();
 loadAll();
 </script>
-
-<div class="modal-backdrop" id="breakdownModal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="breakdownName"></div>
-      <button class="modal-close" onclick="closeModal('breakdownModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>KPI</th><th>فعلي</th><th>هدف</th><th>Achievement</th><th>الوزن</th>
-          </tr></thead>
-          <tbody id="breakdownBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}

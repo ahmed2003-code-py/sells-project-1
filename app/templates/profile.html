@@ -1,95 +1,80 @@
 {% extends "base.html" %}
-{% block title %}الملف الشخصي — Ain KPI{% endblock %}
-
+{% block title %}{{ "Profile" }} — Ain KPI{% endblock %}
 {% block main_class %}narrow{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">الملف الشخصي</h1>
-    <p class="page-subtitle">معلومات حسابك وتغيير كلمة المرور</p>
+    <h1 class="page-title" data-i18n="profile.title">الملف الشخصي</h1>
+    <p class="page-subtitle" data-i18n="profile.subtitle">معلومات حسابك وتغيير كلمة المرور</p>
   </div>
 </div>
 
 <div class="card">
-  <div class="card-title">معلومات الحساب</div>
+  <div class="card-title" data-i18n="profile.account_info">معلومات الحساب</div>
   <div class="field-row">
     <div class="field">
-      <label>الاسم الكامل</label>
+      <label data-i18n="auth.full_name">الاسم الكامل</label>
       <input type="text" value="{{ user.full_name }}" readonly>
     </div>
     <div class="field">
-      <label>اسم المستخدم</label>
+      <label data-i18n="auth.username">اسم المستخدم</label>
       <input type="text" value="{{ user.username }}" readonly>
     </div>
   </div>
-  <div class="field">
-    <label>الدور</label>
-    <input type="text" value="{{
-      'Admin' if user.role == 'admin' else
-      'Manager' if user.role == 'manager' else
-      'Data Entry' if user.role == 'dataentry' else 'Sales'
-    }}" readonly>
+  <div class="field-row">
+    <div class="field">
+      <label data-i18n="admin.role">الدور</label>
+      <input type="text" value="{{ user.role }}" readonly>
+    </div>
+    <div class="field">
+      <label data-i18n="auth.email">البريد</label>
+      <input type="text" value="{{ user.email or '—' }}" readonly>
+    </div>
   </div>
-  <p class="text-muted" style="font-size:11px">لتعديل أي من هذه البيانات، تواصل مع Admin.</p>
+  <small class="text-dim" data-i18n="profile.contact_admin">لتعديل أي من هذه البيانات، تواصل مع Admin</small>
 </div>
 
 <div class="card">
-  <div class="card-title">تغيير كلمة المرور</div>
-  <div class="error-msg" id="errorMsg"></div>
+  <div class="card-title" data-i18n="profile.change_pw">تغيير كلمة المرور</div>
   <form id="pwForm">
     <div class="field">
-      <label>كلمة المرور الحالية</label>
+      <label data-i18n="profile.old_pw">كلمة المرور الحالية</label>
       <input type="password" id="oldPw" required>
     </div>
-    <div class="field">
-      <label>كلمة المرور الجديدة</label>
-      <input type="password" id="newPw" minlength="4" required>
+    <div class="field-row">
+      <div class="field">
+        <label data-i18n="profile.new_pw">كلمة المرور الجديدة</label>
+        <input type="password" id="newPw" minlength="4" required>
+      </div>
+      <div class="field">
+        <label data-i18n="profile.confirm_pw">تأكيد كلمة المرور الجديدة</label>
+        <input type="password" id="confirmPw" minlength="4" required>
+      </div>
     </div>
-    <div class="field">
-      <label>تأكيد كلمة المرور الجديدة</label>
-      <input type="password" id="confirmPw" minlength="4" required>
-    </div>
-    <button type="submit" class="btn btn-primary" id="btn">تغيير كلمة المرور</button>
+    <button type="submit" class="btn btn-primary" data-i18n="profile.change_btn">تغيير كلمة المرور</button>
   </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const errorMsg = document.getElementById("errorMsg");
-const form = document.getElementById("pwForm");
-const btn = document.getElementById("btn");
-
-form.addEventListener("submit", async (e) => {
+document.getElementById("pwForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  errorMsg.classList.remove("show");
   const oldPw = document.getElementById("oldPw").value;
   const newPw = document.getElementById("newPw").value;
-  const confirmPw = document.getElementById("confirmPw").value;
+  const confirm = document.getElementById("confirmPw").value;
 
-  if (newPw !== confirmPw) {
-    errorMsg.textContent = "كلمتا المرور غير متطابقتين";
-    errorMsg.classList.add("show");
-    return;
-  }
+  if (newPw !== confirm) return toast(t("profile.pw_mismatch"), "error");
 
-  btn.disabled = true;
-  btn.textContent = "جاري التغيير...";
   try {
     await api("/api/auth/change-password", {
       method: "POST",
       body: { old_password: oldPw, new_password: newPw },
     });
-    toast("تم تغيير كلمة المرور", "success");
-    form.reset();
-  } catch (err) {
-    errorMsg.textContent = err.message || "حدث خطأ";
-    errorMsg.classList.add("show");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "تغيير كلمة المرور";
-  }
+    toast(t("profile.pw_changed"), "success");
+    document.getElementById("pwForm").reset();
+  } catch (err) { toast(err.message, "error"); }
 });
 </script>
 {% endblock %}

@@ -1,10 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════════
-   AIN KPI — Shared JS Utilities
-   ═══════════════════════════════════════════════════════════════════════════════ */
-
 const API = window.location.origin;
-
-/* ─── Toast notifications ──────────────────────────────────────────────────── */
 
 function toast(message, type = "") {
   let el = document.getElementById("__toast");
@@ -21,8 +15,6 @@ function toast(message, type = "") {
     el.classList.remove("show");
   }, 3000);
 }
-
-/* ─── API helper ───────────────────────────────────────────────────────────── */
 
 async function api(path, options = {}) {
   const opts = {
@@ -45,8 +37,6 @@ async function api(path, options = {}) {
   return data;
 }
 
-/* ─── Logout handler ───────────────────────────────────────────────────────── */
-
 async function logout() {
   try {
     await api("/api/auth/logout", { method: "POST" });
@@ -54,25 +44,29 @@ async function logout() {
   window.location.href = "/login";
 }
 
-/* ─── User dropdown ────────────────────────────────────────────────────────── */
-
 function initUserDropdown() {
   const trigger = document.querySelector(".topnav-user");
   if (!trigger) return;
   const dropdown = trigger.querySelector(".dropdown");
   if (!dropdown) return;
-
   trigger.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.classList.toggle("open");
   });
-
   document.addEventListener("click", () => {
     dropdown.classList.remove("open");
   });
 }
 
-/* ─── Rating helpers ───────────────────────────────────────────────────────── */
+function initLangToggle() {
+  const btn = document.getElementById("langToggleBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const current = getLang();
+    setLang(current === "ar" ? "en" : "ar");
+    if (typeof onLangChange === "function") onLangChange(getLang());
+  });
+}
 
 function ratingClass(rating) {
   const map = {
@@ -80,6 +74,10 @@ function ratingClass(rating) {
     "Medium": "badge-medium", "Weak": "badge-weak", "Bad": "badge-bad", "Pending": "badge-pending"
   };
   return map[rating] || "badge-pending";
+}
+
+function ratingLabel(rating) {
+  return t("rating." + rating);
 }
 
 function scoreColor(pct) {
@@ -91,7 +89,10 @@ function scoreColor(pct) {
 function fmtMonth(monthStr) {
   if (!monthStr) return "—";
   const [y, m] = monthStr.split("-");
-  const names = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const lang = getLang();
+  const namesAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const namesEn = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const names = lang === "en" ? namesEn : namesAr;
   return names[parseInt(m) - 1] + " " + y;
 }
 
@@ -102,13 +103,18 @@ function currentMonth() {
 
 function fmtNum(n, decimals = 0) {
   if (n == null || isNaN(n)) return "—";
-  return Number(n).toLocaleString("en-US", {
+  const locale = getLang() === "ar" ? "ar-EG" : "en-US";
+  return Number(n).toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 }
 
-/* ─── Modal helpers ────────────────────────────────────────────────────────── */
+function fmtMoney(n) {
+  if (n == null || isNaN(n)) return "—";
+  const locale = getLang() === "ar" ? "ar-EG" : "en-US";
+  return Number(n).toLocaleString(locale, { maximumFractionDigits: 0 });
+}
 
 function openModal(id) {
   const m = document.getElementById(id);
@@ -120,12 +126,9 @@ function closeModal(id) {
   if (m) m.classList.remove("open");
 }
 
-/* ─── Init on DOM ready ────────────────────────────────────────────────────── */
-
 document.addEventListener("DOMContentLoaded", () => {
   initUserDropdown();
-
-  // Close modal on backdrop click
+  initLangToggle();
   document.querySelectorAll(".modal-backdrop").forEach(m => {
     m.addEventListener("click", (e) => {
       if (e.target === m) m.classList.remove("open");

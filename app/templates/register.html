@@ -1,45 +1,50 @@
 {% extends "base.html" %}
-{% block title %}إنشاء حساب — Ain KPI{% endblock %}
+{% block title %}{{ "إنشاء حساب" }} — Ain KPI{% endblock %}
 
 {% block content %}
 <div class="auth-page">
   <div class="auth-card">
     <div class="auth-logo">
       <div class="auth-logo-icon">A</div>
-      <div class="auth-logo-text">Ain Real Estate</div>
+      <div class="auth-logo-text" data-i18n="app.name">Ain Real Estate</div>
     </div>
-    <p class="auth-subtitle">إنشاء حساب جديد كـ Sales</p>
+    <p class="auth-subtitle" data-i18n="auth.subtitle_register">إنشاء حساب جديد كـ Sales</p>
+
+    <div class="auth-lang-row">
+      <button id="langToggleBtn" class="lang-toggle">EN</button>
+    </div>
 
     <div class="error-msg" id="errorMsg"></div>
 
     <form id="registerForm">
       <div class="field">
-        <label>الاسم الكامل</label>
+        <label data-i18n="auth.full_name">الاسم الكامل</label>
         <input type="text" id="full_name" required autofocus>
       </div>
       <div class="field">
-        <label>اسم المستخدم <small>(للدخول)</small></label>
-        <input type="text" id="username" pattern="[a-z0-9_.]{3,}" title="أحرف إنجليزية صغيرة وأرقام فقط، 3 أحرف على الأقل" required>
+        <label><span data-i18n="auth.username">اسم المستخدم</span></label>
+        <input type="text" id="username" pattern="[a-z0-9_.]{3,}" required>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>البريد الإلكتروني <small>(اختياري)</small></label>
+          <label><span data-i18n="auth.email">البريد الإلكتروني</span> <small data-i18n="auth.optional">اختياري</small></label>
           <input type="email" id="email">
         </div>
         <div class="field">
-          <label>رقم الموبايل <small>(اختياري)</small></label>
+          <label><span data-i18n="auth.phone">رقم الموبايل</span> <small data-i18n="auth.optional">اختياري</small></label>
           <input type="tel" id="phone">
         </div>
       </div>
       <div class="field">
-        <label>كلمة المرور</label>
+        <label data-i18n="auth.password">كلمة المرور</label>
         <input type="password" id="password" minlength="4" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-full" id="btn">إنشاء الحساب</button>
+      <button type="submit" class="btn btn-primary btn-full" id="btn" data-i18n="auth.register_btn">إنشاء الحساب</button>
     </form>
 
     <div class="auth-switch">
-      لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a>
+      <span data-i18n="auth.have_account">لديك حساب بالفعل؟</span>
+      <a href="/login" data-i18n="auth.login_here">تسجيل الدخول</a>
     </div>
   </div>
 </div>
@@ -55,7 +60,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.classList.remove("show");
   btn.disabled = true;
-  btn.textContent = "جاري الإنشاء...";
+  btn.textContent = t("common.saving");
 
   try {
     await api("/api/auth/register", {
@@ -68,13 +73,13 @@ form.addEventListener("submit", async (e) => {
         password: document.getElementById("password").value,
       },
     });
-    toast("تم إنشاء الحساب! جاري التحويل لتسجيل الدخول...", "success");
+    toast(t("common.saved"), "success");
     setTimeout(() => window.location.href = "/login", 1500);
   } catch (err) {
-    errorMsg.textContent = err.message || "حدث خطأ";
+    errorMsg.textContent = err.message || t("common.error");
     errorMsg.classList.add("show");
     btn.disabled = false;
-    btn.textContent = "إنشاء الحساب";
+    btn.textContent = t("auth.register_btn");
   }
 });
 </script>
