@@ -167,34 +167,33 @@ function renderSummary(rows) {
 
   document.getElementById("summaryCards").innerHTML = `
     <div class="stat success">
-      <div class="stat-label" data-i18n="dash.sales_count">عدد الـ Sales</div>
+      <div class="stat-label">${t("dash.sales_count")}</div>
       <div class="stat-value">${n}</div>
     </div>
     <div class="stat ${avg >= 55 ? 'success' : 'danger'}">
-      <div class="stat-label" data-i18n="dash.avg_kpi">متوسط KPI</div>
+      <div class="stat-label">${t("dash.avg_kpi")}</div>
       <div class="stat-value" style="color:${avg >= 55 ? 'var(--brand-2)' : 'var(--danger)'}">${avg.toFixed(1)}%</div>
       <div class="stat-sub">${t("rating." + getRating(avg))}</div>
     </div>
     <div class="stat accent">
-      <div class="stat-label" data-i18n="dash.top">الأول</div>
+      <div class="stat-label">${t("dash.top")}</div>
       <div class="stat-value sm">${top ? top.user_name : "—"}</div>
       <div class="stat-sub">${top ? parseFloat(top.total_score).toFixed(1) + "%" : ""}</div>
     </div>
     <div class="stat danger">
-      <div class="stat-label" data-i18n="dash.needs_attention">يحتاج متابعة</div>
+      <div class="stat-label">${t("dash.needs_attention")}</div>
       <div class="stat-value" style="color:var(--danger)">${below55}</div>
-      <div class="stat-sub" data-i18n="dash.below_55">أقل من 55%</div>
+      <div class="stat-sub">${t("dash.below_55")}</div>
     </div>
     <div class="stat">
-      <div class="stat-label" data-i18n="dash.sales_submitted">Sales سلّموا</div>
+      <div class="stat-label">${t("dash.sales_submitted")}</div>
       <div class="stat-value">${salesDone}/${n}</div>
     </div>
     <div class="stat">
-      <div class="stat-label" data-i18n="dash.eval_done">تم التقييم</div>
+      <div class="stat-label">${t("dash.eval_done")}</div>
       <div class="stat-value">${deDone}/${n}</div>
     </div>
   `;
-  applyLang();
 }
 
 function renderCharts(rows) {
@@ -285,10 +284,9 @@ function renderTable(rows) {
         ${r.sales_submitted_at ? '<span class="text-success">S&#10003;</span>' : '<span class="text-dim">S&#10007;</span>'}
         ${r.dataentry_submitted_at ? '<span class="text-success">D&#10003;</span>' : '<span class="text-dim">D&#10007;</span>'}
       </td>
-      <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')" data-i18n="common.details">تفاصيل</button></td>
+      <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')">${t("common.details")}</button></td>
     </tr>`;
   }).join("");
-  applyLang();
 }
 
 function fmtCell(kpi) {
@@ -334,7 +332,7 @@ function showDetail(userId, month) {
           <div class="stat-value lg text-${scoreColor(score)}">${score.toFixed(1)}%</div>
           <div class="stat-label">${t("sales.prelim_score")}</div>
         </div>
-        <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')" data-i18n="common.close">إغلاق</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')">${t("common.close")}</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -344,7 +342,6 @@ function showDetail(userId, month) {
     <div class="kpi-grid stagger">${kpiHTML}</div>
   </div>`;
   panel.scrollIntoView({ behavior: "smooth" });
-  applyLang();
 
   setTimeout(() => {
     Charts.drawRadarChart("detailRadar", {
