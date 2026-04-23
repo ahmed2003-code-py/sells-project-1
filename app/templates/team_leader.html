@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Team Leader KPI — Ain KPI{% endblock %}
+
+{% block main_class %}narrow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="tl.title">KPI التيم ليدر</h1>
+    <p class="page-subtitle" data-i18n="tl.subtitle">تقرير أداء الفريق الشهري</p>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label data-i18n="common.month">الشهر</label>
+    <input type="month" id="month" onchange="loadKPI()">
+  </div>
+  <div class="spacer"></div>
+  <div id="teamBadge" class="text-muted" style="font-size:13px"></div>
+</div>
+
+<div id="scorePreview" class="hidden">
+  <div class="score-display">
+    <div class="num" id="scoreNum">—</div>
+    <div class="label" id="scoreLabel" data-i18n="tl.score">نتيجتك الكلية</div>
+    <div class="sublabel" id="ratingLabel"></div>
+  </div>
+</div>
+
+<div id="noTeam" class="hidden">
+  <div class="empty-state">
+    <div class="empty-icon">⚠️</div>
+    <div data-i18n="tl.no_team">لا يوجد فريق مرتبط</div>
+  </div>
+</div>
+
+<div id="kpiContent" class="hidden">
+  <div class="form-section">
+    <div class="form-section-title" data-i18n="tl.auto_section">بيانات مجمّعة من الفريق</div>
+    <div id="autoRows"></div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title" data-i18n="tl.manual_section">تقييم السيلز مانيجر</div>
+    <div id="manualRows"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TL_ID = {{ user.id }};
+let cfg = null;
+let kpiData = null;
+
+async function init() {
+  cfg = await api("/api/kpi/config");
+  const now = new Date();
+  document.getElementById("month").value =
+    now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  loadKPI();
+}
+
+async function loadKPI() {
+  const month = document.getElementById("month").value;
+  if (!month) return;
+
+  document.getElementById("scorePreview").classList.add("hidden");
+  document.getElementById("kpiContent").classList.add("hidden");
+  document.getElementById("noTeam").classList.add("hidden");
+
+  try {
+    kpiData = await api(`/api/kpi/tl-kpi/${TL_ID}/${month}`);
+    render(kpiData);
+  } catch (e) {
+    if (e.message && e.message.includes("فريق")) {
+      document.getElementById("noTeam").classList.remove("hidden");
+    } else {
+      toast(e.message || "خطأ", "error");
+    }
+  }
+}
+
+function render(data) {
+  const lang = (localStorage.getItem("ain_lang") || "ar");
+  const lbl = key => data.breakdown[key]
+    ? (lang === "ar" ? data.breakdown[key].label_ar : data.breakdown[key].label_en)
+    : key;
+
+  // Score
+  document.getElementById("scorePreview").classList.remove("hidden");
+  document.getElementById("scoreNum").textContent = data.total_score.toFixed(1);
+  document.getElementById("ratingLabel").textContent = data.rating;
+  document.getElementById("scoreNum").className = "num " + ratingClass(data.total_score);
+
+  // Team badge
+  const t = lang === "ar" ? "من" : "of";
+  document.getElementById("teamBadge").textContent =
+    `${data.team_submitted} ${t} ${data.team_size} ${lang === "ar" ? "سلّموا" : "submitted"}`;
+
+  // Auto fields
+  const autoKeys = (cfg && cfg.tl_auto_fields) || [];
+  document.getElementById("autoRows").innerHTML = autoKeys.map(key => {
+    const b = data.breakdown[key];
+    if (!b) return "";
+    const pct = b.achievement_pct;
+    return `
+      <div class="kpi-row">
+        <div class="kpi-label">${lbl(key)}</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${barColor(pct)}"></div>
+        </div>
+        <div class="kpi-nums">
+          <span class="actual">${fmtNum(b.actual)}</span>
+          <span class="sep">/</span>
+          <span class="target">${fmtNum(b.target)}</span>
+          <span class="pct">${pct}%</span>
+          <span class="weight">${b.weight}pt → ${b.weighted_score.toFixed(1)}</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  // Manual fields
+  const manualKeys = (cfg && cfg.tl_manual_fields) || [];
+  const isPending = !data.tl_entry || !data.tl_entry.dataentry_submitted_at;
+  document.getElementById("manualRows").innerHTML = isPending
+    ? `<div class="text-muted" style="padding:12px" data-i18n="tl.pending_eval">في انتظار تقييم المانيجر</div>`
+    : manualKeys.map(key => {
+        const b = data.breakdown[key];
+        if (!b) return "";
+        const pct = b.achievement_pct;
+        return `
+          <div class="kpi-row">
+            <div class="kpi-label">${lbl(key)}</div>
+            <div class="kpi-bar-wrap">
+              <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${barColor(pct)}"></div>
+            </div>
+            <div class="kpi-nums">
+              <span class="actual">${fmtNum(b.actual)}</span>
+              <span class="sep">/</span>
+              <span class="target">${fmtNum(b.target)}</span>
+              <span class="pct">${pct}%</span>
+              <span class="weight">${b.weight}pt → ${b.weighted_score.toFixed(1)}</span>
+            </div>
+          </div>`;
+      }).join("");
+
+  document.getElementById("kpiContent").classList.remove("hidden");
+  applyI18n();
+}
+
+function fmtNum(n) {
+  if (n === undefined || n === null) return "—";
+  return Number.isInteger(n) ? n : n.toFixed(1);
+}
+
+function ratingClass(score) {
+  if (score >= 90) return "excellent";
+  if (score >= 75) return "vgood";
+  if (score >= 55) return "good";
+  if (score >= 40) return "medium";
+  return "weak";
+}
+
+function barColor(pct) {
+  if (pct >= 90) return "var(--success)";
+  if (pct >= 70) return "var(--warning)";
+  return "var(--danger)";
+}
+
+init();
+</script>
+{% endblock %}

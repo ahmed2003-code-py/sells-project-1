@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}TL Evaluation — Ain KPI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="tl_eval.title">تقييم التيم ليدر</h1>
+    <p class="page-subtitle" data-i18n="tl_eval.subtitle">أدخل التقييم الشهري لكل تيم ليدر</p>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label data-i18n="common.month">الشهر</label>
+    <input type="month" id="month" onchange="loadAll()">
+  </div>
+  <div class="spacer"></div>
+  <div id="progress" class="text-muted" style="font-size:13px"></div>
+</div>
+
+<div id="list" class="stagger"></div>
+
+<!-- Modal -->
+<div id="evalModal" class="modal-overlay hidden" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modalTitle">تقييم</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveEval()" data-i18n="tl_eval.save">حفظ التقييم</button>
+      <button class="btn btn-ghost" onclick="closeModal()" data-i18n="common.cancel">إلغاء</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let leaders = [];
+let currentTL = null;
+let tlKpiData = null;
+const PASSFAIL = ["attitude", "presentation", "behaviour", "appearance", "hr_roles", "attendance_pct"];
+
+async function loadAll() {
+  const month = document.getElementById("month").value;
+  if (!month) return;
+  try {
+    leaders = await api(`/api/kpi/team-leaders?month=${month}`);
+    render();
+  } catch (e) { toast(e.message, "error"); }
+}
+
+function render() {
+  const month = document.getElementById("month").value;
+  const lang = localStorage.getItem("ain_lang") || "ar";
+  const evaluated = leaders.filter(l => l.dataentry_submitted_at).length;
+  document.getElementById("progress").textContent =
+    lang === "ar"
+      ? `تم تقييم ${evaluated} من ${leaders.length}`
+      : `Evaluated ${evaluated} of ${leaders.length}`;
+
+  document.getElementById("list").innerHTML = leaders.length === 0
+    ? `<div class="empty-state"><div data-i18n="admin.no_users">لا يوجد تيم ليدر</div></div>`
+    : leaders.map(l => {
+        const done = !!l.dataentry_submitted_at;
+        const teamName = l.team_name || (lang === "ar" ? "بدون فريق" : "No team");
+        return `
+          <div class="card" style="margin-bottom:12px">
+            <div class="card-body" style="display:flex;align-items:center;gap:16px">
+              <div class="avatar">${(l.full_name||"?")[0]}</div>
+              <div style="flex:1">
+                <div style="font-weight:600">${l.full_name}</div>
+                <div style="font-size:12px;color:var(--text-muted)">${teamName}</div>
+              </div>
+              <span class="badge ${done ? "badge-success" : "badge-warning"}">
+                ${done
+                  ? (lang==="ar"?"تم التقييم":"Evaluated")
+                  : (lang==="ar"?"لم يُقيَّم":"Pending")}
+              </span>
+              <button class="btn btn-sm btn-primary" onclick="openModal(${l.id}, '${l.full_name}', '${month}')">
+                ${done ? (lang==="ar"?"تعديل":"Edit") : (lang==="ar"?"تقييم":"Evaluate")}
+              </button>
+            </div>
+          </div>`;
+      }).join("");
+  applyI18n();
+}
+
+async function openModal(tlId, tlName, month) {
+  currentTL = { id: tlId, name: tlName, month };
+  document.getElementById("modalTitle").textContent = tlName;
+  document.getElementById("modalBody").innerHTML = `<div data-i18n="common.loading">جاري التحميل...</div>`;
+  document.getElementById("evalModal").classList.remove("hidden");
+  applyI18n();
+
+  try {
+    tlKpiData = await api(`/api/kpi/tl-kpi/${tlId}/${month}`).catch(() => null);
+    const entry = tlKpiData ? tlKpiData.tl_entry : {};
+    const autoSection = tlKpiData ? renderAutoSection(tlKpiData) : "";
+    renderForm(entry, autoSection);
+  } catch (e) {
+    renderForm({}, "");
+  }
+}
+
+function renderAutoSection(data) {
+  if (!data || !data.breakdown) return "";
+  const lang = localStorage.getItem("ain_lang") || "ar";
+  const autoKeys = ["calls", "meetings", "deals", "reservations", "followup_pct"];
+  const rows = autoKeys.map(key => {
+    const b = data.breakdown[key];
+    if (!b) return "";
+    const lbl = lang === "ar" ? b.label_ar : b.label_en;
+    return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border-subtle)">
+      <span>${lbl}</span>
+      <span style="color:${b.achievement_pct>=90?"var(--success)":b.achievement_pct>=70?"var(--warning)":"var(--danger)"}">
+        ${b.actual} / ${b.target} (${b.achievement_pct}%)
+      </span>
+    </div>`;
+  }).join("");
+  const lang2 = lang;
+  return `
+    <div class="form-section" style="margin-bottom:16px">
+      <div class="form-section-title" data-i18n="tl.auto_section">${lang2==="ar"?"بيانات الفريق (للمعلومية)":"Team Data (Info)"}</div>
+      ${rows}
+    </div>`;
+}
+
+function renderForm(entry, autoHtml) {
+  const lang = localStorage.getItem("ain_lang") || "ar";
+  const v = (key, def="0") => entry[key] !== undefined ? entry[key] : def;
+
+  document.getElementById("modalBody").innerHTML = `
+    ${autoHtml}
+    <div class="form-section">
+      <div class="form-section-title" data-i18n="tl_eval.manual_fields">${lang==="ar"?"الحقول اليدوية":"Manual Fields"}</div>
+      <div class="field-row">
+        <div class="field">
+          <label>${lang==="ar"?"CRM % (بتاعه هو)":"CRM % (own)"}</label>
+          <input type="number" min="0" max="100" id="f_crm_pct" value="${v("crm_pct")}">
+        </div>
+        <div class="field">
+          <label>${lang==="ar"?"التقارير (Reporting)":"Reporting (count)"}</label>
+          <input type="number" min="0" id="f_reports" value="${v("reports")}">
+        </div>
+      </div>
+      <div class="field">
+        <label>${lang==="ar"?"Clients Pipeline %":"Clients Pipeline %"}</label>
+        <input type="number" min="0" max="100" id="f_clients_pipeline" value="${v("clients_pipeline")}">
+      </div>
+
+      <div class="form-section-title" style="margin-top:12px">${lang==="ar"?"التقييم الشخصي":"Personal Evaluation"}</div>
+      <div class="field-row">
+        ${passfailField("f_attitude", lang==="ar"?"السلوك":"Attitude", v("attitude"))}
+        ${passfailField("f_presentation", lang==="ar"?"العرض":"Presentation", v("presentation"))}
+      </div>
+      <div class="field-row">
+        ${passfailField("f_behaviour", lang==="ar"?"التصرف":"Behaviour", v("behaviour"))}
+        ${passfailField("f_appearance", lang==="ar"?"المظهر":"Appearance", v("appearance"))}
+      </div>
+      <div class="field-row">
+        ${passfailField("f_attendance_pct", lang==="ar"?"الحضور":"Attendance", v("attendance_pct"))}
+        ${passfailField("f_hr_roles", lang==="ar"?"التزامات HR":"HR Roles", v("hr_roles"))}
+      </div>
+
+      <div class="field" style="margin-top:8px">
+        <label data-i18n="de.notes">${lang==="ar"?"ملاحظات":"Notes"}</label>
+        <textarea id="f_notes" rows="2" style="width:100%">${entry.notes||""}</textarea>
+      </div>
+    </div>`;
+  applyI18n();
+}
+
+function passfailField(id, label, val) {
+  const lang = localStorage.getItem("ain_lang") || "ar";
+  const passLbl = lang==="ar"?"ناجح":"Pass";
+  const failLbl = lang==="ar"?"راسب":"Fail";
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <select id="${id}">
+        <option value="100" ${val==100?"selected":""}>${passLbl}</option>
+        <option value="0" ${val!=100?"selected":""}>${failLbl}</option>
+      </select>
+    </div>`;
+}
+
+async function saveEval() {
+  if (!currentTL) return;
+  const body = {
+    user_id:          currentTL.id,
+    month:            currentTL.month,
+    crm_pct:          parseFloat(document.getElementById("f_crm_pct").value)||0,
+    reports:          parseInt(document.getElementById("f_reports").value)||0,
+    clients_pipeline: parseFloat(document.getElementById("f_clients_pipeline").value)||0,
+    attitude:         parseInt(document.getElementById("f_attitude").value)||0,
+    presentation:     parseInt(document.getElementById("f_presentation").value)||0,
+    behaviour:        parseInt(document.getElementById("f_behaviour").value)||0,
+    appearance:       parseInt(document.getElementById("f_appearance").value)||0,
+    attendance_pct:   parseFloat(document.getElementById("f_attendance_pct").value)||0,
+    hr_roles:         parseInt(document.getElementById("f_hr_roles").value)||0,
+    notes:            document.getElementById("f_notes").value||"",
+  };
+  try {
+    await api("/api/kpi/submit/tl-evaluation", { method:"POST", body: JSON.stringify(body) });
+    toast(localStorage.getItem("ain_lang")==="ar"?"تم الحفظ":"Saved", "success");
+    closeModal();
+    loadAll();
+  } catch (e) { toast(e.message, "error"); }
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById("evalModal")) return;
+  document.getElementById("evalModal").classList.add("hidden");
+  currentTL = null;
+}
+
+// Init
+const now = new Date();
+document.getElementById("month").value =
+  now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+loadAll();
+</script>
+{% endblock %}

@@ -32,6 +32,7 @@ def create_app():
     from app.blueprints.pages_bp import pages_bp
     from app.blueprints.propfinder_bp import propfinder_bp
     from app.blueprints.finance_bp import finance_bp
+    from app.blueprints.teams_bp import teams_bp
 
     app.register_blueprint(pages_bp)
     app.register_blueprint(auth_bp)
@@ -39,6 +40,7 @@ def create_app():
     app.register_blueprint(kpi_bp)
     app.register_blueprint(propfinder_bp)
     app.register_blueprint(finance_bp)
+    app.register_blueprint(teams_bp)
 
     # Error handlers
     @app.errorhandler(404)

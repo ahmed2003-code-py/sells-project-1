@@ -155,6 +155,7 @@ def init_all_tables():
                 ("training_hours", "ALTER TABLE kpi_entries ADD COLUMN IF NOT EXISTS training_hours INTEGER DEFAULT 0"),
                 ("client_compliments", "ALTER TABLE kpi_entries ADD COLUMN IF NOT EXISTS client_compliments INTEGER DEFAULT 0"),
                 ("client_complaints", "ALTER TABLE kpi_entries ADD COLUMN IF NOT EXISTS client_complaints INTEGER DEFAULT 0"),
+                ("clients_pipeline", "ALTER TABLE kpi_entries ADD COLUMN IF NOT EXISTS clients_pipeline NUMERIC(5,2) DEFAULT 0"),
             ]:
                 if not column_exists(conn, "kpi_entries", col):
                     cur.execute(ddl)

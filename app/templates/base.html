@@ -24,17 +24,23 @@
           <a href="/sales" class="topnav-link {% if request.path == '/sales' %}active{% endif %}" data-i18n="nav.sales">بياناتي</a>
         {% endif %}
 
+        {% if user.role == 'team_leader' %}
+          <a href="/team-leader" class="topnav-link {% if request.path == '/team-leader' %}active{% endif %}" data-i18n="nav.team_leader">KPI بتاعي</a>
+        {% endif %}
+
         {% if user.role in ['admin', 'manager', 'dataentry'] %}
           <a href="/dashboard" class="topnav-link {% if request.path == '/dashboard' %}active{% endif %}" data-i18n="nav.dashboard">لوحة المدير</a>
           <a href="/data-entry" class="topnav-link {% if request.path == '/data-entry' %}active{% endif %}" data-i18n="nav.dataentry">تقييم</a>
         {% endif %}
 
         {% if user.role in ['admin', 'manager'] %}
+          <a href="/tl-evaluation" class="topnav-link {% if request.path == '/tl-evaluation' %}active{% endif %}" data-i18n="nav.tl_eval">تقييم التيم ليدر</a>
           <a href="/finance" class="topnav-link {% if request.path == '/finance' %}active{% endif %}" data-i18n="nav.finance">التقرير المالي</a>
         {% endif %}
 
         {% if user.role == 'admin' %}
           <a href="/admin" class="topnav-link {% if request.path == '/admin' %}active{% endif %}" data-i18n="nav.admin">المستخدمون</a>
+          <a href="/teams" class="topnav-link {% if request.path == '/teams' %}active{% endif %}" data-i18n="nav.teams">الفرق</a>
         {% endif %}
 
         <a href="/propfinder" class="topnav-link {% if request.path == '/propfinder' %}active{% endif %}" data-i18n="nav.propfinder">PropFinder</a>

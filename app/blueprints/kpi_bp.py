@@ -10,7 +10,8 @@ from flask import Blueprint, request, session, Response
 from app.database import get_conn
 from app.auth import login_required, role_required
 from app.kpi_logic import (
-    KPI_CONFIG, SALES_FIELDS, DATAENTRY_FIELDS, compute_score
+    KPI_CONFIG, SALES_FIELDS, DATAENTRY_FIELDS, compute_score,
+    TL_KPI_CONFIG, TL_AUTO_FIELDS, TL_MANUAL_FIELDS, compute_tl_score,
 )
 
 log = logging.getLogger(__name__)
@@ -64,6 +65,9 @@ def get_config():
         "kpis": KPI_CONFIG,
         "sales_fields": SALES_FIELDS,
         "dataentry_fields": DATAENTRY_FIELDS,
+        "tl_kpis": TL_KPI_CONFIG,
+        "tl_auto_fields": TL_AUTO_FIELDS,
+        "tl_manual_fields": TL_MANUAL_FIELDS,
     })
 
 
@@ -371,4 +375,161 @@ def summary():
         return _json(s)
     except Exception as e:
         log.error(f"summary error: {e}")
+        return _json({"error": str(e)}, 500)
+
+
+# ─── Sales Manager submits TL manual evaluation ────────────────────────────────
+
+@kpi_bp.route("/submit/tl-evaluation", methods=["POST"])
+@role_required("manager", "admin")
+def submit_tl_evaluation():
+    data = request.get_json() or {}
+    tl_user_id = data.get("user_id")
+    month = data.get("month")
+    if not tl_user_id or not month:
+        return _json({"error": "user_id والشهر مطلوبان"}, 400)
+
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    INSERT INTO kpi_entries (user_id, month)
+                    VALUES (%s, %s)
+                    ON CONFLICT (user_id, month) DO NOTHING
+                """, (tl_user_id, month))
+
+                cur.execute("""
+                    UPDATE kpi_entries SET
+                        crm_pct          = %(crm_pct)s,
+                        reports          = %(reports)s,
+                        clients_pipeline = %(clients_pipeline)s,
+                        attitude         = %(attitude)s,
+                        presentation     = %(presentation)s,
+                        behaviour        = %(behaviour)s,
+                        appearance       = %(appearance)s,
+                        attendance_pct   = %(attendance_pct)s,
+                        hr_roles         = %(hr_roles)s,
+                        notes            = %(notes)s,
+                        dataentry_by     = %(dataentry_by)s,
+                        dataentry_submitted_at = NOW(),
+                        updated_at       = NOW()
+                    WHERE user_id = %(user_id)s AND month = %(month)s
+                    RETURNING id
+                """, {
+                    "user_id":          tl_user_id,
+                    "month":            month,
+                    "crm_pct":          float(data.get("crm_pct") or 0),
+                    "reports":          int(data.get("reports") or 0),
+                    "clients_pipeline": float(data.get("clients_pipeline") or 0),
+                    "attitude":         int(data.get("attitude") or 0),
+                    "presentation":     int(data.get("presentation") or 0),
+                    "behaviour":        int(data.get("behaviour") or 0),
+                    "appearance":       int(data.get("appearance") or 0),
+                    "attendance_pct":   float(data.get("attendance_pct") or 0),
+                    "hr_roles":         int(data.get("hr_roles") or 0),
+                    "notes":            data.get("notes") or None,
+                    "dataentry_by":     session["user_id"],
+                })
+            conn.commit()
+        finally:
+            conn.close()
+        log.info(f"✅ TL evaluation submit: tl={tl_user_id} month={month}")
+        return _json({"message": "تم الحفظ"})
+    except Exception as e:
+        log.error(f"TL evaluation submit error: {e}")
+        return _json({"error": str(e)}, 500)
+
+
+# ─── Get computed TL KPI ───────────────────────────────────────────────────────
+
+@kpi_bp.route("/tl-kpi/<int:tl_user_id>/<month>", methods=["GET"])
+@login_required
+def get_tl_kpi(tl_user_id, month):
+    role = session.get("role")
+    if role == "sales":
+        return _json({"error": "Forbidden"}, 403)
+    if role == "team_leader" and session["user_id"] != tl_user_id:
+        return _json({"error": "Forbidden"}, 403)
+
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # TL's own entry (manual fields)
+                cur.execute("""
+                    SELECT e.* FROM kpi_entries e
+                    WHERE e.user_id = %s AND e.month = %s
+                """, (tl_user_id, month))
+                tl_row = cur.fetchone()
+                tl_entry = dict(tl_row) if tl_row else {}
+
+                # Find TL's team
+                cur.execute("""
+                    SELECT id FROM teams WHERE leader_id = %s
+                """, (tl_user_id,))
+                team_row = cur.fetchone()
+                if not team_row:
+                    return _json({"error": "لا يوجد فريق مرتبط بهذا التيم ليدر"}, 404)
+                team_id = team_row["id"]
+
+                # Team size
+                cur.execute("""
+                    SELECT COUNT(*) AS cnt FROM users
+                    WHERE team_id = %s AND role = 'sales' AND active = true
+                """, (team_id,))
+                team_size = cur.fetchone()["cnt"]
+
+                # Submitted team entries for this month
+                cur.execute("""
+                    SELECT e.* FROM kpi_entries e
+                    JOIN users u ON u.id = e.user_id
+                    WHERE u.team_id = %s AND u.role = 'sales' AND u.active = true
+                    AND e.month = %s
+                """, (team_id, month))
+                team_entries = [dict(r) for r in cur.fetchall()]
+
+        finally:
+            conn.close()
+
+        total, rating, breakdown = compute_tl_score(tl_entry, team_entries)
+        return _json({
+            "tl_entry": tl_entry,
+            "team_size": team_size,
+            "team_submitted": len(team_entries),
+            "total_score": total,
+            "rating": rating,
+            "breakdown": breakdown,
+        })
+    except Exception as e:
+        log.error(f"get_tl_kpi error: {e}")
+        return _json({"error": str(e)}, 500)
+
+
+# ─── List team leaders (for manager evaluation page) ──────────────────────────
+
+@kpi_bp.route("/team-leaders", methods=["GET"])
+@role_required("manager", "admin")
+def list_team_leaders():
+    month = request.args.get("month")
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT u.id, u.full_name, u.username,
+                           t.id AS team_id, t.name AS team_name,
+                           e.dataentry_submitted_at, e.notes
+                    FROM users u
+                    LEFT JOIN teams t ON t.leader_id = u.id
+                    LEFT JOIN kpi_entries e ON e.user_id = u.id AND e.month = %s
+                    WHERE u.role = 'team_leader' AND u.active = true
+                    ORDER BY u.full_name
+                """, (month,))
+                rows = [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+        return _json(rows)
+    except Exception as e:
+        log.error(f"list_team_leaders error: {e}")
         return _json({"error": str(e)}, 500)

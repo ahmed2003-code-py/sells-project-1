@@ -64,6 +64,24 @@ def profile_page():
     return render_template("profile.html", user=current_user())
 
 
+@pages_bp.route("/teams")
+@role_required("admin")
+def teams_page():
+    return render_template("teams.html", user=current_user())
+
+
+@pages_bp.route("/team-leader")
+@role_required("team_leader", "manager", "admin")
+def team_leader_page():
+    return render_template("team_leader.html", user=current_user())
+
+
+@pages_bp.route("/tl-evaluation")
+@role_required("manager", "admin")
+def tl_evaluation_page():
+    return render_template("tl_evaluation.html", user=current_user())
+
+
 @pages_bp.route("/propfinder")
 @login_required
 def propfinder_page():

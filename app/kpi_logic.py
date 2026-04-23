@@ -95,6 +95,89 @@ def compute_score(entry: dict):
     return total, rating_en, breakdown
 
 
+# ─── Team Leader KPI Config ────────────────────────────────────────────────────
+
+TL_KPI_CONFIG = {
+    "calls":            {"weight": 15, "label_en": "Team Calls",        "label_ar": "مكالمات الفريق",   "source": "team_sum",       "base_target": 2000,  "threshold_pct": 0.90},
+    "meetings":         {"weight": 7,  "label_en": "Team Meetings",     "label_ar": "اجتماعات الفريق",  "source": "team_leads_sum", "leads_pct": 0.20,    "threshold_pct": 0.90},
+    "deals":            {"weight": 8,  "label_en": "Team Deals",        "label_ar": "صفقات الفريق",     "source": "team_leads_sum", "leads_pct": 0.03,    "threshold_pct": 0.70},
+    "reports":          {"weight": 8,  "label_en": "Reporting",         "label_ar": "التقارير",         "source": "manual",         "target": 4},
+    "reservations":     {"weight": 5,  "label_en": "Team Reservations", "label_ar": "حجوزات الفريق",    "source": "team_leads_sum", "leads_pct": 0.07,    "threshold_pct": 0.70},
+    "clients_pipeline": {"weight": 10, "label_en": "Clients Pipeline",  "label_ar": "قائمة العملاء",    "source": "manual",         "target": 80},
+    "crm_pct":          {"weight": 10, "label_en": "CRM Follow-up",     "label_ar": "متابعة CRM",       "source": "team_plus_self", "target_each": 95},
+    "attitude":         {"weight": 3,  "label_en": "Attitude",          "label_ar": "السلوك",           "source": "manual",         "target": 100, "passfail": True},
+    "presentation":     {"weight": 3,  "label_en": "Presentation",      "label_ar": "العرض",            "source": "manual",         "target": 100, "passfail": True},
+    "followup_pct":     {"weight": 15, "label_en": "Team Follow-up",    "label_ar": "متابعة الفريق",    "source": "team_sum",       "base_target": 100,   "threshold_pct": 1.00},
+    "behaviour":        {"weight": 3,  "label_en": "Behaviour",         "label_ar": "التصرف",           "source": "manual",         "target": 100, "passfail": True},
+    "appearance":       {"weight": 3,  "label_en": "Appearance",        "label_ar": "المظهر",           "source": "manual",         "target": 100, "passfail": True},
+    "attendance_pct":   {"weight": 7,  "label_en": "Attendance",        "label_ar": "الحضور",           "source": "manual",         "target": 100, "passfail": True},
+    "hr_roles":         {"weight": 3,  "label_en": "HR Roles",          "label_ar": "التزامات HR",      "source": "manual",         "target": 100, "passfail": True},
+}
+
+TL_AUTO_FIELDS   = ["calls", "meetings", "deals", "reservations", "followup_pct", "crm_pct"]
+TL_MANUAL_FIELDS = ["reports", "clients_pipeline", "attitude", "presentation",
+                    "behaviour", "appearance", "attendance_pct", "hr_roles"]
+
+
+def compute_tl_score(tl_entry: dict, team_entries: list):
+    """
+    Compute KPI score for a Team Leader.
+    tl_entry: TL's own kpi_entries row (manual fields + own crm_pct).
+    team_entries: kpi_entries rows for all submitted sales under the TL.
+    """
+    n = len(team_entries)
+    breakdown = {}
+    total = 0.0
+
+    for key, cfg in TL_KPI_CONFIG.items():
+        source = cfg["source"]
+        weight = cfg["weight"]
+
+        if source == "team_sum":
+            actual = sum(float(e.get(key) or 0) for e in team_entries)
+            raw_target = n * cfg["base_target"]
+            target = raw_target * cfg["threshold_pct"]
+            achievement = min(actual / target, 1.0) if target > 0 else 0.0
+
+        elif source == "team_leads_sum":
+            actual = sum(float(e.get(key) or 0) for e in team_entries)
+            team_leads = sum(float(e.get("fresh_leads") or 0) for e in team_entries)
+            raw_target = team_leads * cfg["leads_pct"]
+            target = raw_target * cfg["threshold_pct"]
+            achievement = min(actual / target, 1.0) if target > 0 else 0.0
+
+        elif source == "team_plus_self":
+            actual = sum(float(e.get(key) or 0) for e in team_entries) + float(tl_entry.get(key) or 0)
+            target = (n + 1) * cfg["target_each"]
+            achievement = min(actual / target, 1.0) if target > 0 else 0.0
+
+        else:  # manual
+            actual = float(tl_entry.get(key) or 0)
+            target = float(cfg["target"])
+            if cfg.get("passfail"):
+                achievement = actual / 100.0
+            else:
+                achievement = min(actual / target, 1.0) if target > 0 else 0.0
+
+        weighted = achievement * weight
+        total += weighted
+
+        breakdown[key] = {
+            "label_en": cfg["label_en"],
+            "label_ar": cfg["label_ar"],
+            "actual": round(actual, 2),
+            "target": round(target, 2),
+            "achievement_pct": round(achievement * 100, 1),
+            "weight": weight,
+            "weighted_score": round(weighted, 2),
+            "source": source,
+        }
+
+    total = round(total, 2)
+    rating_en, _ = get_rating(total)
+    return total, rating_en, breakdown
+
+
 def compute_financials(entry: dict, settings: dict = None):
     """
     Translate KPI numbers into financial projections.
