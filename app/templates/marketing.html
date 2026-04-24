@@ -83,9 +83,9 @@
       <table id="scenTable">
         <thead><tr>
           <th>السيناريو</th>
-          <th>% التكلفة من صافي العمولة</th>
-          <th>Target Cost per Deal</th>
-          <th>Target CPL</th>
+          <th>نسبة تكلفة الديل من صافي العمولة</th>
+          <th>Target Cost/Deal (جنيه)</th>
+          <th>Target CPL (جنيه)</th>
           <th>Expected Leads</th>
           <th>Expected Deals</th>
           <th>Target Deals</th>
@@ -99,11 +99,12 @@
       <table id="funnelTable">
         <thead><tr>
           <th>السيناريو</th>
-          <th>Expected Meetings</th>
+          <th>Target Deals</th>
+          <th>Exp. Meetings</th>
           <th>Min Meetings</th>
           <th>Max Meetings</th>
-          <th>Expected Qualified Leads</th>
-          <th>Expected Follow-ups</th>
+          <th>Exp. Qualified Leads</th>
+          <th>Exp. Follow-ups</th>
           <th>Min Follow-ups</th>
           <th>Max Follow-ups</th>
         </tr></thead>
@@ -328,44 +329,57 @@ function renderPhase1(c, calc) {
     const commType = c.commission_type === 'percentage' ? `${c.commission_input}% من سعر الوحدة` : `${fmt(c.commission_input)} جنيه ثابت`;
 
     // Overview
+    const taxRate = parseFloat(c.tax_rate);
+    const taxAmt  = gross * taxRate;
+    const commPct = c.commission_type === 'percentage' ? parseFloat(c.commission_input) : null;
     document.getElementById('ovGrid').innerHTML = [
         ['اسم الحملة', c.campaign_name, ''],
         ['متوسط سعر الوحدة', fmt(c.avg_unit_price) + ' جنيه', ''],
-        ['العمولة الإجمالية', fmt2(gross) + ' جنيه', commType],
-        ['الضريبة', (parseFloat(c.tax_rate)*100).toFixed(0) + '%', ''],
+        [commPct != null ? `العمولة الإجمالية (${commPct}%)` : 'العمولة الإجمالية', fmt2(gross) + ' جنيه', commType],
+        [`الضريبة (${(taxRate*100).toFixed(0)}%)`, fmt2(taxAmt) + ' جنيه', ''],
         ['صافي العمولة', fmt2(net) + ' جنيه', ''],
-        ['نسبة الإغلاق المتوقعة', fmtp(parseFloat(c.expected_close_rate)*100), ''],
+        ['نسبة الغلق المتوقعة', fmtp(parseFloat(c.expected_close_rate)*100), ''],
         ['ميزانية الحملة', fmt(c.campaign_budget) + ' جنيه', ''],
     ].map(([l,v,s]) => `<div class="ov-item"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div style="font-size:11px;color:var(--text-muted)">${s}</div>`:''}</div>`).join('');
 
-    // KPI Cards
-    document.getElementById('kpiCards').innerHTML = [
-        ['صافي العمولة', fmt2(net) + ' جنيه', ''],
-        ['Cost/Deal — Conservative 15%', fmt2(scenarios[0].cpd) + ' جنيه', ''],
-        ['Cost/Deal — Balanced 16%', fmt2(scenarios[1].cpd) + ' جنيه', ''],
-        ['Cost/Deal — Aggressive 17%', fmt2(scenarios[2].cpd) + ' جنيه', ''],
-        ['CPL — Conservative', fmt2(scenarios[0].cpl) + ' جنيه', ''],
-        ['CPL — Balanced', fmt2(scenarios[1].cpl) + ' جنيه', '★ مُوصى'],
-        ['CPL — Aggressive', fmt2(scenarios[2].cpl) + ' جنيه', ''],
-        ['Expected Deals — Conservative', scenarios[0].td + ' صفقة', ''],
-        ['Expected Deals — Balanced', scenarios[1].td + ' صفقة', '★ مُوصى'],
-        ['Expected Deals — Aggressive', scenarios[2].td + ' صفقة', ''],
-    ].map(([l,v,s]) => `<div class="kpi-card"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div class="sub" style="color:var(--accent)">${s}</div>`:''}</div>`).join('');
+    // KPI Cards — colors: conservative/balanced = accent, aggressive = orange
+    const scenColor = ['var(--accent)', 'var(--accent)', '#f59e0b'];
+    const scenBadge = [
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--accent);color:var(--accent)">Conservative</span>`,
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid #22c55e;color:#22c55e">Balanced</span>`,
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid #f59e0b;color:#f59e0b">Aggressive</span>`,
+    ];
+    const kpiCards = [
+        {lbl:'صافي العمولة',              val:fmt2(net)+' جنيه',                  sub:'',        color:'var(--text)'},
+        {lbl:'تكلفة الديل المستهدفة (15%)', val:fmt2(scenarios[0].cpd),             sub:'Conservative — جنيه', color:scenColor[0]},
+        {lbl:'تكلفة الديل المستهدفة (16%)', val:fmt2(scenarios[1].cpd),             sub:'Balanced — جنيه',     color:scenColor[1]},
+        {lbl:'تكلفة الديل المستهدفة (17%)', val:fmt2(scenarios[2].cpd),             sub:'Aggressive — جنيه',   color:scenColor[2]},
+        {lbl:'المستهدف CPL — Conservative', val:fmt2(scenarios[0].cpl)+' جنيه',    sub:'',        color:scenColor[0]},
+        {lbl:'المستهدف CPL — Balanced',     val:fmt2(scenarios[1].cpl)+' جنيه',    sub:'',        color:scenColor[1]},
+        {lbl:'المستهدف CPL — Aggressive',   val:fmt2(scenarios[2].cpl)+' جنيه',    sub:'',        color:scenColor[2]},
+        {lbl:'ديلات متوقعة — Conservative', val:scenarios[0].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[0]},
+        {lbl:'ديلات متوقعة — Balanced',     val:scenarios[1].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[1]},
+        {lbl:'ديلات متوقعة — Aggressive',   val:scenarios[2].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[2]},
+    ];
+    document.getElementById('kpiCards').innerHTML = kpiCards.map(k =>
+        `<div class="kpi-card"><div class="lbl">${k.lbl}</div><div class="val" style="color:${k.color}">${k.val}</div>${k.sub?`<div class="sub">${k.sub}</div>`:''}</div>`
+    ).join('');
 
     // Scenario Table
-    document.getElementById('scenBody').innerHTML = scenarios.map(s => `<tr>
-        <td><strong>${s.label}</strong></td>
+    document.getElementById('scenBody').innerHTML = scenarios.map((s,i) => `<tr>
+        <td>${scenBadge[i]}</td>
         <td>${(s.ratio*100).toFixed(0)}%</td>
         <td>${fmt2(s.cpd)} ج</td>
         <td>${fmt2(s.cpl)} ج</td>
         <td>${fmt(s.expL)}</td>
-        <td>${s.expD.toFixed(1)}</td>
+        <td>${s.expD.toFixed(2)}</td>
         <td><strong>${s.td}</strong></td>
     </tr>`).join('');
 
     // Funnel Table
-    document.getElementById('funnelBody').innerHTML = scenarios.map(s => `<tr>
-        <td><strong>${s.label}</strong></td>
+    document.getElementById('funnelBody').innerHTML = scenarios.map((s,i) => `<tr>
+        <td>${scenBadge[i]}</td>
+        <td><strong>${s.td}</strong></td>
         <td>${s.expMeet}</td><td>${s.minMeet}</td><td>${s.maxMeet}</td>
         <td>${s.expQL}</td>
         <td>${s.expFU}</td><td>${s.minFU}</td><td>${s.maxFU}</td>
