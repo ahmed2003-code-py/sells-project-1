@@ -1,50 +1,50 @@
 {% extends "base.html" %}
-{% block title %}{{ "Admin" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="admin.title">إدارة المستخدمين</h1>
-    <p class="page-subtitle" data-i18n="admin.subtitle">إضافة / تعديل / تفعيل / حذف المستخدمين والصلاحيات</p>
+    <h1 class="page-title" data-i18n="admin.title"></h1>
+    <p class="page-subtitle" data-i18n="admin.subtitle"></p>
   </div>
-  <button class="btn btn-primary" onclick="openNew()" data-i18n="admin.add_user">+ إضافة مستخدم</button>
+  <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="admin.add_user"></button>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="admin.filter_role">فلترة بالدور</label>
+    <label data-i18n="admin.filter_role"></label>
     <select id="roleFilter" onchange="render()">
-      <option value="all" data-i18n="common.all">الكل</option>
-      <option value="admin" data-i18n="role.admin">Admin</option>
-      <option value="manager" data-i18n="role.manager">Sales Manager</option>
-      <option value="team_leader" data-i18n="role.team_leader">Team Leader</option>
-      <option value="marketing" data-i18n="role.marketing">Marketing</option>
-      <option value="dataentry" data-i18n="role.dataentry">Data Entry</option>
-      <option value="sales" data-i18n="role.sales">Sales</option>
+      <option value="all" data-i18n="common.all"></option>
+      <option value="admin" data-i18n="role.admin"></option>
+      <option value="manager" data-i18n="role.manager"></option>
+      <option value="team_leader" data-i18n="role.team_leader"></option>
+      <option value="marketing" data-i18n="role.marketing"></option>
+      <option value="dataentry" data-i18n="role.dataentry"></option>
+      <option value="sales" data-i18n="role.sales"></option>
     </select>
   </div>
   <div class="field">
-    <label data-i18n="admin.filter_status">الحالة</label>
+    <label data-i18n="admin.filter_status"></label>
     <select id="statusFilter" onchange="render()">
-      <option value="all" data-i18n="common.all">الكل</option>
-      <option value="active" data-i18n="common.active">نشط</option>
-      <option value="inactive" data-i18n="common.inactive">معطل</option>
+      <option value="all" data-i18n="common.all"></option>
+      <option value="active" data-i18n="common.active"></option>
+      <option value="inactive" data-i18n="common.inactive"></option>
     </select>
   </div>
   <div class="field" style="flex:1">
-    <label data-i18n="common.search">بحث</label>
+    <label data-i18n="common.search"></label>
     <input type="text" id="searchBox" data-i18n-placeholder="admin.search_ph" oninput="render()">
   </div>
 </div>
 
-<div class="table-wrap">
+<div class="table-wrap reveal">
   <table>
     <thead><tr>
-      <th data-i18n="admin.user">المستخدم</th>
-      <th data-i18n="admin.role">الدور</th>
-      <th data-i18n="admin.contact">البريد / الموبايل</th>
-      <th data-i18n="common.active">الحالة</th>
-      <th data-i18n="admin.actions">إجراءات</th>
+      <th data-i18n="admin.user"></th>
+      <th data-i18n="admin.role"></th>
+      <th data-i18n="admin.contact"></th>
+      <th data-i18n="common.active"></th>
+      <th data-i18n="admin.actions"></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -54,52 +54,55 @@
 <div class="modal-backdrop" id="userModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="modalTitle">User</div>
+      <div class="modal-title" id="modalTitle"></div>
       <button class="modal-close" onclick="closeModal('userModal')">✕</button>
     </div>
-    <form id="userForm">
+    <form id="userForm" novalidate>
       <div class="modal-body">
         <div class="error-msg" id="mError"></div>
         <div class="field-row">
           <div class="field">
-            <label data-i18n="auth.full_name">الاسم الكامل</label>
-            <input type="text" id="mName" required>
+            <label data-i18n="auth.full_name"></label>
+            <input type="text" id="mName" maxlength="150" required>
           </div>
           <div class="field">
-            <label data-i18n="auth.username">اسم المستخدم</label>
-            <input type="text" id="mUsername" pattern="[a-z0-9_.]{3,}" required>
+            <label data-i18n="auth.username"></label>
+            <input type="text" id="mUsername" pattern="[a-z0-9_.]{3,}" maxlength="50" required>
           </div>
         </div>
         <div class="field">
-          <label data-i18n="admin.role">الدور</label>
+          <label data-i18n="admin.role"></label>
           <select id="mRole" required>
-            <option value="sales" data-i18n="role.sales">Sales</option>
-            <option value="team_leader" data-i18n="role.team_leader">Team Leader</option>
-            <option value="marketing" data-i18n="role.marketing">Marketing</option>
-            <option value="dataentry" data-i18n="role.dataentry">Data Entry</option>
-            <option value="manager" data-i18n="role.manager">Sales Manager</option>
-            <option value="admin" data-i18n="role.admin">Admin</option>
+            <option value="sales" data-i18n="role.sales"></option>
+            <option value="team_leader" data-i18n="role.team_leader"></option>
+            <option value="marketing" data-i18n="role.marketing"></option>
+            <option value="dataentry" data-i18n="role.dataentry"></option>
+            <option value="manager" data-i18n="role.manager"></option>
+            <option value="admin" data-i18n="role.admin"></option>
           </select>
         </div>
         <div class="field-row">
           <div class="field">
-            <label><span data-i18n="auth.email">البريد</span> <small data-i18n="auth.optional">اختياري</small></label>
-            <input type="email" id="mEmail">
+            <label data-i18n="auth.email"></label>
+            <input type="email" id="mEmail" maxlength="150" required>
           </div>
           <div class="field">
-            <label><span data-i18n="auth.phone">الموبايل</span> <small data-i18n="auth.optional">اختياري</small></label>
-            <input type="tel" id="mPhone">
+            <label>
+              <span data-i18n="auth.phone"></span>
+              <small data-i18n="common.optional"></small>
+            </label>
+            <input type="tel" id="mPhone" maxlength="20">
           </div>
         </div>
         <div class="field">
-          <label data-i18n="auth.password">كلمة المرور</label>
-          <input type="password" id="mPassword" minlength="4">
-          <small class="text-dim" id="mPwHint" data-i18n="admin.pw_hint_new">يجب أن تكون 4 أحرف على الأقل</small>
+          <label data-i18n="auth.password"></label>
+          <input type="password" id="mPassword" minlength="8" maxlength="128" autocomplete="new-password">
+          <small class="text-dim" id="mPwHint"></small>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="submit" class="btn btn-primary" data-i18n="common.save">حفظ</button>
-        <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')" data-i18n="common.cancel">إلغاء</button>
+        <button type="submit" class="btn btn-primary hyper-btn" data-i18n="common.save"></button>
+        <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')" data-i18n="common.cancel"></button>
       </div>
     </form>
   </div>
@@ -113,7 +116,7 @@ let editingId = null;
 
 async function loadUsers() {
   try { users = await api("/api/users"); render(); }
-  catch (e) { toast(e.message, "error"); }
+  catch (e) { toastError(e); }
 }
 
 function render() {
@@ -138,28 +141,28 @@ function render() {
   tbody.innerHTML = rows.map(u => `<tr>
     <td>
       <div class="flex items-center gap-1">
-        <div class="avatar" style="width:30px;height:30px;font-size:11px">${(u.full_name || "?")[0]}</div>
+        <div class="avatar" style="width:30px;height:30px;font-size:11px">${escapeHTML((u.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:500">${u.full_name}</div>
-          <div class="text-muted" style="font-size:11px">@${u.username}</div>
+          <div style="font-weight:500">${escapeHTML(u.full_name)}</div>
+          <div class="text-muted" style="font-size:11px">@${escapeHTML(u.username)}</div>
         </div>
       </div>
     </td>
     <td><span class="badge badge-role-${u.role}">${t("role." + u.role)}</span></td>
     <td class="text-muted" style="font-size:12px">
-      ${u.email || "—"}${u.phone ? "<br>" + u.phone : ""}
+      ${escapeHTML(u.email || "—")}${u.phone ? "<br>" + escapeHTML(u.phone) : ""}
     </td>
     <td>${u.active
       ? '<span class="badge badge-excellent">' + t("common.active") + '</span>'
       : '<span class="badge badge-pending">' + t("common.inactive") + '</span>'}</td>
     <td>
       <div class="flex gap-1">
-        <button class="btn btn-sm" onclick="openEdit(${u.id})" data-i18n="common.edit">${t("common.edit")}</button>
+        <button class="btn btn-sm" onclick="openEdit(${u.id})">${t("common.edit")}</button>
         <button class="btn btn-sm" onclick="toggleActive(${u.id}, ${!u.active})">
           ${u.active ? t("admin.deactivate") : t("admin.activate")}
         </button>
         ${u.id != {{ user.id }}
-          ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" data-i18n="common.delete">${t("common.delete")}</button>`
+          ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">${t("common.delete")}</button>`
           : ''}
       </div>
     </td>
@@ -167,12 +170,18 @@ function render() {
   applyLang(true);
 }
 
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
 function openNew() {
   editingId = null;
   document.getElementById("modalTitle").textContent = t("admin.new_user");
   document.getElementById("userForm").reset();
   document.getElementById("mPassword").required = true;
-  document.getElementById("mPwHint").setAttribute("data-i18n", "admin.pw_hint_new");
+  document.getElementById("mPwHint").textContent = t("admin.pw_hint_new");
   document.getElementById("mError").classList.remove("show");
   applyLang(true);
   openModal("userModal");
@@ -190,7 +199,7 @@ function openEdit(id) {
   document.getElementById("mPhone").value = u.phone || "";
   document.getElementById("mPassword").value = "";
   document.getElementById("mPassword").required = false;
-  document.getElementById("mPwHint").setAttribute("data-i18n", "admin.pw_hint_edit");
+  document.getElementById("mPwHint").textContent = t("admin.pw_hint_edit");
   document.getElementById("mError").classList.remove("show");
   applyLang(true);
   openModal("userModal");
@@ -198,14 +207,43 @@ function openEdit(id) {
 
 document.getElementById("userForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const body = {
-    full_name: document.getElementById("mName").value.trim(),
-    username: document.getElementById("mUsername").value.trim().toLowerCase(),
-    role: document.getElementById("mRole").value,
-    email: document.getElementById("mEmail").value.trim(),
-    phone: document.getElementById("mPhone").value.trim(),
-  };
+  const mErr = document.getElementById("mError");
+  mErr.classList.remove("show");
+
+  const name = document.getElementById("mName").value.trim();
+  const username = document.getElementById("mUsername").value.trim().toLowerCase();
+  const email = document.getElementById("mEmail").value.trim().toLowerCase();
+  const phone = document.getElementById("mPhone").value.trim();
   const pw = document.getElementById("mPassword").value;
+
+  if (!name || !username || !email) {
+    mErr.textContent = t("errors.required_fields_missing");
+    mErr.classList.add("show"); return;
+  }
+  if (!/^[a-z0-9_.]{3,50}$/.test(username)) {
+    mErr.textContent = t("errors.username_too_short");
+    mErr.classList.add("show"); return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    mErr.textContent = t("errors.invalid_email");
+    mErr.classList.add("show"); return;
+  }
+  if (phone && !/^\+?[0-9][0-9\s\-]{6,19}$/.test(phone)) {
+    mErr.textContent = t("errors.invalid_phone");
+    mErr.classList.add("show"); return;
+  }
+  if (pw && (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw))) {
+    mErr.textContent = t("errors.weak_password");
+    mErr.classList.add("show"); return;
+  }
+
+  const body = {
+    full_name: name,
+    username,
+    role: document.getElementById("mRole").value,
+    email,
+    phone,
+  };
   if (pw) body.password = pw;
 
   try {
@@ -218,9 +256,8 @@ document.getElementById("userForm").addEventListener("submit", async (e) => {
     closeModal("userModal");
     loadUsers();
   } catch (err) {
-    const e = document.getElementById("mError");
-    e.textContent = err.message;
-    e.classList.add("show");
+    mErr.textContent = tError(err);
+    mErr.classList.add("show");
   }
 });
 
@@ -229,7 +266,7 @@ async function toggleActive(id, activate) {
   try {
     await api(`/api/users/${id}/${activate ? "activate" : "deactivate"}`, { method: "POST" });
     loadUsers();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 async function deleteUser(id) {
@@ -237,9 +274,9 @@ async function deleteUser(id) {
   if (!confirm(t("admin.confirm_delete") + " " + (u ? u.full_name : "") + "?")) return;
   try {
     await api(`/api/users/${id}`, { method: "DELETE" });
-    toast(t("common.saved"), "success");
+    toast(t("common.deleted"), "success");
     loadUsers();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 function onLangChange() { render(); }

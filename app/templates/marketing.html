@@ -1,112 +1,111 @@
 {% extends "base.html" %}
-{% block title %}Marketing KPI — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block head %}
 <style>
 .tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px}
-.tab-btn{padding:10px 24px;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:.2s}
+.tab-btn{padding:10px 24px;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:.2s;font-family:inherit}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 .tab-pane{display:none}.tab-pane.active{display:block}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
-.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px}
-.kpi-card .lbl{font-size:11px;color:var(--text-muted);margin-bottom:4px}
-.kpi-card .val{font-size:20px;font-weight:700;color:var(--accent)}
-.kpi-card .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+.mkt-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.mkt-kpi-card{background:var(--surface);border:.5px solid var(--outline-variant);border-radius:12px;padding:16px;transition:all .25s var(--ease)}
+.mkt-kpi-card:hover{transform:translateY(-2px);border-color:rgba(69,241,187,0.18);box-shadow:var(--shadow-sm)}
+.mkt-kpi-card .lbl{font-size:11px;color:var(--text-muted);margin-bottom:4px}
+.mkt-kpi-card .val{font-size:20px;font-weight:700;color:var(--accent);font-family:var(--font-mono)}
+.mkt-kpi-card .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
 .status-on{color:#22c55e;font-weight:600}
 .status-warn{color:#f59e0b;font-weight:600}
 .status-crit{color:#ef4444;font-weight:600}
 .status-pend{color:var(--text-muted)}
 .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px}
-.ov-item{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px}
+.ov-item{background:var(--surface);border:.5px solid var(--outline-variant);border-radius:10px;padding:12px 16px;transition:transform .25s var(--ease)}
+.ov-item:hover{transform:translateY(-2px)}
 .ov-item .lbl{font-size:11px;color:var(--text-muted)}
-.ov-item .val{font-size:15px;font-weight:600;margin-top:2px}
-.insight-item{padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.ov-item .val{font-size:15px;font-weight:600;margin-top:2px;font-family:var(--font-mono)}
+.insight-item{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:8px;align-items:flex-start}
 .insight-icon{font-size:15px;margin-top:1px}
-.action-item{padding:6px 12px;background:var(--bg-hover);border-radius:6px;font-size:13px;margin-bottom:6px}
-.rec-box{background:var(--accent-subtle);border:1px solid var(--accent);border-radius:12px;padding:20px;margin-top:16px}
+.action-item{padding:6px 12px;background:var(--surface-3);border-radius:6px;font-size:13px;margin-bottom:6px}
+.rec-box{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:20px;margin-top:16px}
 .rec-title{font-weight:700;font-size:15px;color:var(--accent);margin-bottom:12px}
 .rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 .rec-item .lbl{font-size:11px;color:var(--text-muted)}
-.rec-item .val{font-weight:700;font-size:16px}
-.actual-input{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,var(--bg-card));color:inherit;font-size:14px}
-.actual-input:focus{outline:none;border-color:var(--accent)}
+.rec-item .val{font-weight:700;font-size:16px;font-family:var(--font-mono)}
+.actual-input{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:inherit;font-size:14px;font-family:inherit}
+.actual-input:focus{outline:none;border-color:var(--brand)}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">لوحة KPI التسويق</h1>
-    <p class="page-subtitle">تخطيط الحملات — المستهدفات والمتابعة الفعلية</p>
+    <h1 class="page-title" data-i18n="mk.title"></h1>
+    <p class="page-subtitle" data-i18n="mk.subtitle"></p>
   </div>
-  <button class="btn btn-primary" onclick="openNew()">+ حملة جديدة</button>
+  <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="mk.new_campaign"></button>
 </div>
 
 <!-- Campaign selector -->
 <div class="controls" style="margin-bottom:20px">
   <div class="field" style="min-width:280px">
-    <label>الحملة</label>
-    <select id="campSelect" onchange="selectCampaign()">
-      <option value="">— اختر حملة —</option>
-    </select>
+    <label data-i18n="mk.campaign"></label>
+    <select id="campSelect" onchange="selectCampaign()"></select>
   </div>
   <div id="campActions" class="hidden" style="display:flex;gap:8px;align-items:flex-end">
-    <button class="btn btn-sm" onclick="editCurrent()">تعديل</button>
-    <button class="btn btn-sm btn-danger" onclick="deleteCurrent()">حذف</button>
+    <button class="btn btn-sm" onclick="editCurrent()" data-i18n="common.edit"></button>
+    <button class="btn btn-sm btn-danger" onclick="deleteCurrent()" data-i18n="common.delete"></button>
   </div>
 </div>
 
 <!-- Empty state -->
 <div id="emptyState" class="empty-state">
-  <div class="empty-icon">📊</div>
-  <div>اختر حملة أو أنشئ حملة جديدة للبدء</div>
+  <div class="empty-state-icon">📊</div>
+  <div data-i18n="mk.empty_state"></div>
 </div>
 
 <!-- Dashboard -->
 <div id="dashboard" class="hidden">
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('phase1',this)">المرحلة الأولى — المستهدفات</button>
-    <button class="tab-btn" onclick="switchTab('phase2',this)">المرحلة الثانية — التتبع الفعلي</button>
+    <button class="tab-btn active" onclick="switchTab('phase1',this)" data-i18n="mk.phase1"></button>
+    <button class="tab-btn" onclick="switchTab('phase2',this)" data-i18n="mk.phase2"></button>
   </div>
 
-  <!-- ═══ PHASE 1 ═══════════════════════════════════════════════════════ -->
+  <!-- PHASE 1 -->
   <div class="tab-pane active" id="phase1">
-
-    <div class="form-section-title" style="margin-bottom:12px">نظرة عامة على الحملة</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.overview"></div>
     <div class="ov-grid" id="ovGrid"></div>
 
-    <div class="form-section-title" style="margin-bottom:12px">بطاقات KPI</div>
-    <div class="kpi-grid" id="kpiCards"></div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.kpi_cards"></div>
+    <div class="mkt-kpi-grid" id="kpiCards"></div>
 
-    <div class="form-section-title" style="margin-bottom:12px">مقارنة السيناريوهات الثلاثة</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.scenarios_compare"></div>
     <div class="table-wrap" style="margin-bottom:24px">
-      <table id="scenTable">
+      <table>
         <thead><tr>
-          <th>السيناريو</th>
-          <th>نسبة تكلفة الديل من صافي العمولة</th>
-          <th>Target Cost/Deal (جنيه)</th>
-          <th>Target CPL (جنيه)</th>
-          <th>Expected Leads</th>
-          <th>Expected Deals</th>
-          <th>Target Deals</th>
+          <th data-i18n="mk.scenario"></th>
+          <th data-i18n="mk.scenario_ratio"></th>
+          <th data-i18n="mk.target_cpd"></th>
+          <th data-i18n="mk.target_cpl"></th>
+          <th data-i18n="mk.exp_leads"></th>
+          <th data-i18n="mk.exp_deals"></th>
+          <th data-i18n="mk.target_deals"></th>
         </tr></thead>
         <tbody id="scenBody"></tbody>
       </table>
     </div>
 
-    <div class="form-section-title" style="margin-bottom:12px">متطلبات الفانل</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.funnel_req"></div>
     <div class="table-wrap" style="margin-bottom:24px">
-      <table id="funnelTable">
+      <table>
         <thead><tr>
-          <th>السيناريو</th>
-          <th>Target Deals</th>
-          <th>Exp. Meetings</th>
-          <th>Min Meetings</th>
-          <th>Max Meetings</th>
-          <th>Exp. Qualified Leads</th>
-          <th>Exp. Follow-ups</th>
-          <th>Min Follow-ups</th>
-          <th>Max Follow-ups</th>
+          <th data-i18n="mk.scenario"></th>
+          <th data-i18n="mk.target_deals"></th>
+          <th data-i18n="mk.exp_meetings"></th>
+          <th data-i18n="mk.min_meetings"></th>
+          <th data-i18n="mk.max_meetings"></th>
+          <th data-i18n="mk.exp_ql"></th>
+          <th data-i18n="mk.exp_fu"></th>
+          <th data-i18n="mk.min_fu"></th>
+          <th data-i18n="mk.max_fu"></th>
         </tr></thead>
         <tbody id="funnelBody"></tbody>
       </table>
@@ -115,91 +114,98 @@
     <div class="rec-box" id="recBox"></div>
 
     <div style="text-align:center;margin-top:24px">
-      <button class="btn btn-primary" onclick="switchTab('phase2', document.querySelectorAll('.tab-btn')[1])">
-        انتقل للمرحلة الثانية — إدخال الأرقام الفعلية ←
-      </button>
+      <button class="btn btn-primary hyper-btn" onclick="switchTab('phase2', document.querySelectorAll('.tab-btn')[1])"
+              data-i18n="mk.goto_phase2"></button>
     </div>
   </div>
 
-  <!-- ═══ PHASE 2 ═══════════════════════════════════════════════════════ -->
+  <!-- PHASE 2 -->
   <div class="tab-pane" id="phase2">
-
-    <div class="form-section-title" style="margin-bottom:12px">المستهدفات النهائية (Balanced Scenario)</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.final_targets"></div>
     <div class="table-wrap" style="margin-bottom:24px">
-      <table id="targetSheet">
-        <thead><tr><th>KPI</th><th>القيمة المستهدفة</th><th>الوحدة</th><th>ملاحظة</th></tr></thead>
+      <table>
+        <thead><tr>
+          <th data-i18n="mk.kpi"></th>
+          <th data-i18n="mk.target_value"></th>
+          <th data-i18n="mk.unit"></th>
+          <th data-i18n="mk.note"></th>
+        </tr></thead>
         <tbody id="targetBody"></tbody>
       </table>
     </div>
 
-    <div class="form-section-title" style="margin-bottom:12px">إدخال الأرقام الفعلية</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.actuals_entry"></div>
     <div class="card" style="margin-bottom:24px">
-      <div class="card-body">
+      <div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
           <div class="field">
-            <label>Actual Spend (جنيه)</label>
+            <label data-i18n="mk.actual_spend"></label>
             <input type="number" min="0" class="actual-input" id="a_spend" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label>Actual Leads</label>
+            <label data-i18n="mk.actual_leads"></label>
             <input type="number" min="0" class="actual-input" id="a_leads" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label>Actual Qualified Leads</label>
+            <label data-i18n="mk.actual_ql"></label>
             <input type="number" min="0" class="actual-input" id="a_ql" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label>Actual Meetings</label>
+            <label data-i18n="mk.actual_meetings"></label>
             <input type="number" min="0" class="actual-input" id="a_meet" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label>Actual Follow-ups</label>
+            <label data-i18n="mk.actual_fu"></label>
             <input type="number" min="0" class="actual-input" id="a_fu" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label>Actual Deals</label>
+            <label data-i18n="mk.actual_deals"></label>
             <input type="number" min="0" class="actual-input" id="a_deals" oninput="calcActuals()">
           </div>
         </div>
         <div style="margin-top:16px;display:flex;gap:10px">
-          <button class="btn btn-primary" onclick="saveActuals()">حفظ الأرقام الفعلية</button>
+          <button class="btn btn-primary hyper-btn" onclick="saveActuals()" data-i18n="mk.save_actuals"></button>
         </div>
-        <!-- Auto-calculated -->
         <div style="margin-top:16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--text-muted)">
-          <span>Actual CPL: <strong id="disp_cpl">—</strong></span>
-          <span>Actual Close Rate: <strong id="disp_cr">—</strong></span>
-          <span>Actual Cost/Deal: <strong id="disp_cpd">—</strong></span>
-          <span>Actual Revenue Proxy: <strong id="disp_rev">—</strong></span>
+          <span><span data-i18n="mk.actual_cpl"></span>: <strong id="disp_cpl">—</strong></span>
+          <span><span data-i18n="mk.actual_cr"></span>: <strong id="disp_cr">—</strong></span>
+          <span><span data-i18n="mk.actual_cpd"></span>: <strong id="disp_cpd">—</strong></span>
+          <span><span data-i18n="mk.actual_rev_proxy"></span>: <strong id="disp_rev">—</strong></span>
         </div>
       </div>
     </div>
 
-    <div class="form-section-title" style="margin-bottom:12px">لوحة المقارنة — Actual vs Target</div>
+    <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.compare_title"></div>
     <div class="table-wrap" style="margin-bottom:24px">
-      <table id="compTable">
+      <table>
         <thead><tr>
-          <th>KPI</th><th>Target</th><th>Actual</th>
-          <th>Variance</th><th>Variance %</th><th>Achievement %</th><th>Status</th>
+          <th data-i18n="mk.kpi"></th>
+          <th data-i18n="mk.col_target"></th>
+          <th data-i18n="mk.col_actual"></th>
+          <th data-i18n="mk.col_variance"></th>
+          <th data-i18n="mk.col_variance_pct"></th>
+          <th data-i18n="mk.col_achievement"></th>
+          <th data-i18n="mk.col_status"></th>
         </tr></thead>
         <tbody id="compBody"></tbody>
       </table>
     </div>
 
     <div id="insightsSection" class="hidden">
-      <div class="form-section-title" style="margin-bottom:12px">تحليل الأداء</div>
+      <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.analysis"></div>
       <div class="card" style="margin-bottom:24px">
-        <div class="card-body" id="insightsBody"></div>
+        <div id="insightsBody"></div>
       </div>
 
-      <div class="form-section-title" style="margin-bottom:12px">خطة التصحيح</div>
+      <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.correction_plan"></div>
       <div class="card" style="margin-bottom:24px">
-        <div class="card-body" id="actionBody"></div>
+        <div id="actionBody"></div>
       </div>
     </div>
 
     <div style="margin-top:8px;margin-bottom:24px">
-      <div class="form-section-title">### المعادلات المستخدمة</div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:2" id="formulaBox"></div>
+      <div class="form-section-title" data-i18n="mk.formulas"></div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:2;font-family:var(--font-mono)" id="formulaBox"></div>
     </div>
   </div>
 </div>
@@ -208,56 +214,56 @@
 <div class="modal-backdrop" id="campModal">
   <div class="modal" style="max-width:540px">
     <div class="modal-header">
-      <div class="modal-title" id="campModalTitle">حملة جديدة</div>
+      <div class="modal-title" id="campModalTitle"></div>
       <button class="modal-close" onclick="closeModal('campModal')">✕</button>
     </div>
     <div class="modal-body">
       <div class="error-msg" id="campErr"></div>
       <div class="field">
-        <label>اسم الحملة <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="f_name" style="width:100%">
+        <label><span data-i18n="mk.field_name"></span> <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f_name" style="width:100%" maxlength="200">
       </div>
       <div class="field-row">
         <div class="field">
-          <label>متوسط سعر الوحدة (جنيه)</label>
+          <label data-i18n="mk.field_price"></label>
           <input type="number" min="0" id="f_price">
         </div>
         <div class="field">
-          <label>ميزانية الحملة (جنيه)</label>
+          <label data-i18n="mk.field_budget"></label>
           <input type="number" min="0" id="f_budget">
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>العمولة</label>
-          <input type="number" min="0" id="f_comm">
+          <label data-i18n="mk.field_comm"></label>
+          <input type="number" min="0" step="0.01" id="f_comm">
         </div>
         <div class="field">
-          <label>نوع العمولة</label>
+          <label data-i18n="mk.field_ctype"></label>
           <select id="f_ctype">
-            <option value="percentage">نسبة % من سعر الوحدة</option>
-            <option value="fixed">مبلغ ثابت</option>
+            <option value="percentage" data-i18n="mk.ctype_pct"></option>
+            <option value="fixed" data-i18n="mk.ctype_fixed"></option>
           </select>
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>نسبة الإغلاق المتوقعة % (Close Rate)</label>
+          <label data-i18n="mk.field_cr"></label>
           <input type="number" min="0" max="100" step="0.1" id="f_cr">
         </div>
         <div class="field">
-          <label>الضريبة % (افتراضي 19)</label>
+          <label data-i18n="mk.field_tax"></label>
           <input type="number" min="0" max="100" id="f_tax" value="19">
         </div>
       </div>
       <div class="field">
-        <label>الشهر (اختياري)</label>
+        <label data-i18n="mk.field_month"></label>
         <input type="month" id="f_month">
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveCampaign()">حفظ الحملة</button>
-      <button class="btn btn-ghost" onclick="closeModal('campModal')">إلغاء</button>
+      <button class="btn btn-primary hyper-btn" onclick="saveCampaign()" data-i18n="mk.save_campaign"></button>
+      <button class="btn btn-ghost" onclick="closeModal('campModal')" data-i18n="common.cancel"></button>
     </div>
   </div>
 </div>
@@ -269,15 +275,16 @@ let campaigns = [];
 let currentCamp = null;
 let editingCampId = null;
 
-// ─── Formatting helpers ────────────────────────────────────────────────────────
-const fmt  = n => n == null ? '—' : Number(n).toLocaleString('ar-EG', {maximumFractionDigits:0});
-const fmt2 = n => n == null ? '—' : Number(n).toLocaleString('ar-EG', {maximumFractionDigits:2});
+const fmt  = n => n == null ? '—' : Number(n).toLocaleString(getLang()==='ar' ? 'ar-EG' : 'en-US', {maximumFractionDigits:0});
+const fmt2 = n => n == null ? '—' : Number(n).toLocaleString(getLang()==='ar' ? 'ar-EG' : 'en-US', {maximumFractionDigits:2});
 const fmtp = n => n == null ? '—' : Number(n).toFixed(1) + '%';
 
-// ─── Core KPI calculation ──────────────────────────────────────────────────────
+function egp(v) { return fmt2(v) + ' ' + t("mk.unit_egp"); }
+
+// ─── Core KPI calculation ──────────────────────────────────────────
 function calcKPIs(c) {
-    const tax      = parseFloat(c.tax_rate);           // already decimal (0.19)
-    const cr       = parseFloat(c.expected_close_rate);// already decimal (e.g. 0.02)
+    const tax      = parseFloat(c.tax_rate);
+    const cr       = parseFloat(c.expected_close_rate);
     const budget   = parseFloat(c.campaign_budget);
     const commIn   = parseFloat(c.commission_input);
     const price    = parseFloat(c.avg_unit_price);
@@ -302,11 +309,10 @@ function calcKPIs(c) {
             minFU: td*40, maxFU: td*50, expFU: td*45,
         };
     });
-
-    return { gross, net, tax, cr, budget, scenarios, rec: scenarios[1] }; // balanced
+    return { gross, net, tax, cr, budget, scenarios, rec: scenarios[1] };
 }
 
-// ─── Status helper ─────────────────────────────────────────────────────────────
+// ─── Status helper ─────────────────────────────────────────────────
 function status(actual, target, lessIsBetter) {
     if (actual == null || actual === '' || target === 0) return 'pend';
     const r = actual / target;
@@ -314,69 +320,70 @@ function status(actual, target, lessIsBetter) {
         if (r <= 1)    return 'on';
         if (r <= 1.10) return 'warn';
         return 'crit';
-    } else {
-        if (r >= 0.95) return 'on';
-        if (r >= 0.80) return 'warn';
-        return 'crit';
     }
+    if (r >= 0.95) return 'on';
+    if (r >= 0.80) return 'warn';
+    return 'crit';
 }
-const statusLabel = {on:'✅ على المسار', warn:'⚠️ تحذير', crit:'🔴 حرج', pend:'—'};
-const statusClass = {on:'status-on', warn:'status-warn', crit:'status-crit', pend:'status-pend'};
 
-// ─── Render Phase 1 ───────────────────────────────────────────────────────────
+function statusLabel(code) {
+  return { on:'✅ ' + t("mk.status_on"), warn:'⚠️ ' + t("mk.status_warn"),
+           crit:'🔴 ' + t("mk.status_crit"), pend:'—' }[code];
+}
+const statusClass = { on:'status-on', warn:'status-warn', crit:'status-crit', pend:'status-pend' };
+
+// ─── Render Phase 1 ────────────────────────────────────────────────
 function renderPhase1(c, calc) {
     const {net, gross, rec, scenarios} = calc;
-    const commType = c.commission_type === 'percentage' ? `${c.commission_input}% من سعر الوحدة` : `${fmt(c.commission_input)} جنيه ثابت`;
-
-    // Overview
     const taxRate = parseFloat(c.tax_rate);
     const taxAmt  = gross * taxRate;
     const commPct = c.commission_type === 'percentage' ? parseFloat(c.commission_input) : null;
+    const commType = c.commission_type === 'percentage'
+        ? `${c.commission_input}${t("mk.ct_pct_of_unit")}`
+        : `${fmt(c.commission_input)} ${t("mk.ct_fixed_egp")}`;
+
     document.getElementById('ovGrid').innerHTML = [
-        ['اسم الحملة', c.campaign_name, ''],
-        ['متوسط سعر الوحدة', fmt(c.avg_unit_price) + ' جنيه', ''],
-        [commPct != null ? `العمولة الإجمالية (${commPct}%)` : 'العمولة الإجمالية', fmt2(gross) + ' جنيه', commType],
-        [`الضريبة (${(taxRate*100).toFixed(0)}%)`, fmt2(taxAmt) + ' جنيه', ''],
-        ['صافي العمولة', fmt2(net) + ' جنيه', ''],
-        ['نسبة الغلق المتوقعة', fmtp(parseFloat(c.expected_close_rate)*100), ''],
-        ['ميزانية الحملة', fmt(c.campaign_budget) + ' جنيه', ''],
+        [t("mk.ov_name"), escapeHTML(c.campaign_name), ''],
+        [t("mk.ov_avg_price"), egp(c.avg_unit_price), ''],
+        [commPct != null ? `${t("mk.ov_gross_commission")} (${commPct}%)` : t("mk.ov_gross_commission"), egp(gross), commType],
+        [`${t("mk.ov_tax")} (${(taxRate*100).toFixed(0)}%)`, egp(taxAmt), ''],
+        [t("mk.ov_net_commission"), egp(net), ''],
+        [t("mk.ov_close_rate"), fmtp(parseFloat(c.expected_close_rate)*100), ''],
+        [t("mk.ov_budget"), egp(c.campaign_budget), ''],
     ].map(([l,v,s]) => `<div class="ov-item"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div style="font-size:11px;color:var(--text-muted)">${s}</div>`:''}</div>`).join('');
 
-    // KPI Cards — colors: conservative/balanced = accent, aggressive = orange
-    const scenColor = ['var(--accent)', 'var(--accent)', '#f59e0b'];
+    const scenColor = ['var(--accent)', 'var(--brand)', '#f59e0b'];
     const scenBadge = [
         `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--accent);color:var(--accent)">Conservative</span>`,
-        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid #22c55e;color:#22c55e">Balanced</span>`,
+        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--brand);color:var(--brand)">Balanced</span>`,
         `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid #f59e0b;color:#f59e0b">Aggressive</span>`,
     ];
     const kpiCards = [
-        {lbl:'صافي العمولة',              val:fmt2(net)+' جنيه',                  sub:'',        color:'var(--text)'},
-        {lbl:'تكلفة الديل المستهدفة (15%)', val:fmt2(scenarios[0].cpd),             sub:'Conservative — جنيه', color:scenColor[0]},
-        {lbl:'تكلفة الديل المستهدفة (16%)', val:fmt2(scenarios[1].cpd),             sub:'Balanced — جنيه',     color:scenColor[1]},
-        {lbl:'تكلفة الديل المستهدفة (17%)', val:fmt2(scenarios[2].cpd),             sub:'Aggressive — جنيه',   color:scenColor[2]},
-        {lbl:'المستهدف CPL — Conservative', val:fmt2(scenarios[0].cpl)+' جنيه',    sub:'',        color:scenColor[0]},
-        {lbl:'المستهدف CPL — Balanced',     val:fmt2(scenarios[1].cpl)+' جنيه',    sub:'',        color:scenColor[1]},
-        {lbl:'المستهدف CPL — Aggressive',   val:fmt2(scenarios[2].cpl)+' جنيه',    sub:'',        color:scenColor[2]},
-        {lbl:'ديلات متوقعة — Conservative', val:scenarios[0].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[0]},
-        {lbl:'ديلات متوقعة — Balanced',     val:scenarios[1].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[1]},
-        {lbl:'ديلات متوقعة — Aggressive',   val:scenarios[2].expD.toFixed(2)+' ديل', sub:'',      color:scenColor[2]},
+        {lbl:t("mk.card_net_comm"),      val:egp(net), sub:'', color:'var(--text)'},
+        {lbl:t("mk.card_cpd_cons"),      val:fmt2(scenarios[0].cpd), sub:'Conservative — ' + t("mk.unit_egp"), color:scenColor[0]},
+        {lbl:t("mk.card_cpd_bal"),       val:fmt2(scenarios[1].cpd), sub:'Balanced — ' + t("mk.unit_egp"),     color:scenColor[1]},
+        {lbl:t("mk.card_cpd_agg"),       val:fmt2(scenarios[2].cpd), sub:'Aggressive — ' + t("mk.unit_egp"),   color:scenColor[2]},
+        {lbl:t("mk.card_cpl_cons"),      val:egp(scenarios[0].cpl), sub:'', color:scenColor[0]},
+        {lbl:t("mk.card_cpl_bal"),       val:egp(scenarios[1].cpl), sub:'', color:scenColor[1]},
+        {lbl:t("mk.card_cpl_agg"),       val:egp(scenarios[2].cpl), sub:'', color:scenColor[2]},
+        {lbl:t("mk.card_deals_cons"),    val:scenarios[0].expD.toFixed(2)+' '+t("mk.unit_deal"), sub:'', color:scenColor[0]},
+        {lbl:t("mk.card_deals_bal"),     val:scenarios[1].expD.toFixed(2)+' '+t("mk.unit_deal"), sub:'', color:scenColor[1]},
+        {lbl:t("mk.card_deals_agg"),     val:scenarios[2].expD.toFixed(2)+' '+t("mk.unit_deal"), sub:'', color:scenColor[2]},
     ];
     document.getElementById('kpiCards').innerHTML = kpiCards.map(k =>
-        `<div class="kpi-card"><div class="lbl">${k.lbl}</div><div class="val" style="color:${k.color}">${k.val}</div>${k.sub?`<div class="sub">${k.sub}</div>`:''}</div>`
+        `<div class="mkt-kpi-card"><div class="lbl">${k.lbl}</div><div class="val" style="color:${k.color}">${k.val}</div>${k.sub?`<div class="sub">${k.sub}</div>`:''}</div>`
     ).join('');
 
-    // Scenario Table
     document.getElementById('scenBody').innerHTML = scenarios.map((s,i) => `<tr>
         <td>${scenBadge[i]}</td>
         <td>${(s.ratio*100).toFixed(0)}%</td>
-        <td>${fmt2(s.cpd)} ج</td>
-        <td>${fmt2(s.cpl)} ج</td>
+        <td>${fmt2(s.cpd)}</td>
+        <td>${fmt2(s.cpl)}</td>
         <td>${fmt(s.expL)}</td>
         <td>${s.expD.toFixed(2)}</td>
         <td><strong>${s.td}</strong></td>
     </tr>`).join('');
 
-    // Funnel Table
     document.getElementById('funnelBody').innerHTML = scenarios.map((s,i) => `<tr>
         <td>${scenBadge[i]}</td>
         <td><strong>${s.td}</strong></td>
@@ -385,46 +392,42 @@ function renderPhase1(c, calc) {
         <td>${s.expFU}</td><td>${s.minFU}</td><td>${s.maxFU}</td>
     </tr>`).join('');
 
-    // Recommendation
     document.getElementById('recBox').innerHTML = `
-        <div class="rec-title">★ السيناريو الموصى به — Balanced (16%)</div>
+        <div class="rec-title">${t("mk.rec_title")}</div>
         <div class="rec-grid">
           ${[
-            ['السيناريو المُوصى', 'Balanced — 16%'],
-            ['Target CPL', fmt2(rec.cpl)+' جنيه'],
-            ['Target Deals', rec.td+' صفقة'],
-            ['Expected Meetings', rec.expMeet],
-            ['Expected Qualified Leads', rec.expQL],
-            ['Expected Follow-ups', rec.expFU],
+            [t("mk.scenario"), 'Balanced — 16%'],
+            [t("mk.target_cpl"), egp(rec.cpl)],
+            [t("mk.target_deals"), rec.td+' '+t("mk.unit_deals")],
+            [t("mk.exp_meetings"), rec.expMeet],
+            [t("mk.exp_ql"), rec.expQL],
+            [t("mk.exp_fu"), rec.expFU],
           ].map(([l,v])=>`<div class="rec-item"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('')}
         </div>`;
 }
 
-// ─── Render Phase 2 ───────────────────────────────────────────────────────────
+// ─── Render Phase 2 ────────────────────────────────────────────────
 function renderPhase2(c, calc) {
     const {net, rec} = calc;
-
-    // Target Sheet
     document.getElementById('targetBody').innerHTML = [
-        ['ميزانية الحملة',          fmt(c.campaign_budget),             'جنيه',  ''],
-        ['Target CPL',              fmt2(rec.cpl),                      'جنيه',  'Balanced Scenario'],
-        ['Target Cost per Deal',    fmt2(rec.cpd),                      'جنيه',  '16% من صافي العمولة'],
-        ['Target Leads',            fmt(rec.expL),                      'عدد',   ''],
-        ['Target Deals',            rec.td,                             'صفقة',  ''],
-        ['Target Meetings',         rec.expMeet,                        'اجتماع',''],
-        ['Target Qualified Leads',  rec.expQL,                          'عدد',   ''],
-        ['Target Follow-ups',       rec.expFU,                          'عدد',   ''],
-        ['Target Close Rate',       fmtp(parseFloat(c.expected_close_rate)*100),'%',''],
-        ['صافي العمولة',            fmt2(net),                          'جنيه',  ''],
-        ['Max Allowed Cost/Deal %', '16%',                              '',      ''],
-        ['Expected Revenue Proxy',  fmt2(rec.td * net),                 'جنيه',  'Target Deals × صافي العمولة'],
+        [t("mk.ov_budget"),          fmt(c.campaign_budget),           t("mk.unit_egp"),  ''],
+        [t("mk.target_cpl"),         fmt2(rec.cpl),                    t("mk.unit_egp"),  t("mk.bal_scenario")],
+        [t("mk.target_cpd"),         fmt2(rec.cpd),                    t("mk.unit_egp"),  '16% ' + t("mk.from_net")],
+        ['Target Leads',             fmt(rec.expL),                    t("mk.unit_count"),''],
+        [t("mk.target_deals"),       rec.td,                           t("mk.unit_deals"),''],
+        [t("mk.exp_meetings"),       rec.expMeet,                      t("mk.unit_meet"), ''],
+        [t("mk.exp_ql"),             rec.expQL,                        t("mk.unit_count"),''],
+        [t("mk.exp_fu"),             rec.expFU,                        t("mk.unit_count"),''],
+        ['Target Close Rate',        fmtp(parseFloat(c.expected_close_rate)*100), '%', ''],
+        [t("mk.ov_net_commission"),  fmt2(net),                        t("mk.unit_egp"),  ''],
+        ['Max Allowed Cost/Deal %',  '16%',                            '',                ''],
+        ['Expected Revenue Proxy',   fmt2(rec.td * net),               t("mk.unit_egp"),  t("mk.targets_revenue_note")],
     ].map(([k,v,u,n])=>`<tr><td>${k}</td><td><strong>${v}</strong></td><td>${u}</td><td class="text-muted" style="font-size:12px">${n}</td></tr>`).join('');
 
-    // Comparison table — placeholder rows (filled by calcActuals)
     calcActuals();
 }
 
-// ─── Calc actuals live ─────────────────────────────────────────────────────────
+// ─── Calc actuals live ────────────────────────────────────────────
 function calcActuals() {
     if (!currentCamp) return;
     const calc = calcKPIs(currentCamp);
@@ -442,23 +445,23 @@ function calcActuals() {
     const aCPD   = deals  && spend  ? spend / deals  : null;
     const aRev   = deals            ? deals * net    : null;
 
-    document.getElementById('disp_cpl').textContent = aCPL  ? fmt2(aCPL) + ' ج' : '—';
+    document.getElementById('disp_cpl').textContent = aCPL  ? egp(aCPL) : '—';
     document.getElementById('disp_cr').textContent  = aCR   ? fmtp(aCR*100)      : '—';
-    document.getElementById('disp_cpd').textContent = aCPD  ? fmt2(aCPD) + ' ج' : '—';
-    document.getElementById('disp_rev').textContent = aRev  ? fmt2(aRev) + ' ج' : '—';
+    document.getElementById('disp_cpd').textContent = aCPD  ? egp(aCPD) : '—';
+    document.getElementById('disp_rev').textContent = aRev  ? egp(aRev) : '—';
 
     const budget = parseFloat(currentCamp.campaign_budget);
     const rows = [
-        {kpi:'Actual Spend',          act:spend, tgt:budget,     lib:true},
-        {kpi:'Actual Leads',          act:leads, tgt:rec.expL,   lib:false},
-        {kpi:'Actual Qualified Leads',act:ql,    tgt:rec.expQL,  lib:false},
-        {kpi:'Actual Meetings',       act:meet,  tgt:rec.expMeet,lib:false},
-        {kpi:'Actual Follow-ups',     act:fu,    tgt:rec.expFU,  lib:false},
-        {kpi:'Actual Deals',          act:deals, tgt:rec.td,     lib:false},
-        {kpi:'Actual Close Rate %',   act:aCR!=null?aCR*100:null, tgt:parseFloat(currentCamp.expected_close_rate)*100, lib:false},
-        {kpi:'Actual CPL',            act:aCPL,  tgt:rec.cpl,    lib:true},
-        {kpi:'Actual Cost per Deal',  act:aCPD,  tgt:rec.cpd,    lib:true},
-        {kpi:'Actual Revenue Proxy',  act:aRev,  tgt:rec.td*net, lib:false},
+        {kpi:t("mk.actual_spend"),    act:spend, tgt:budget,     lib:true},
+        {kpi:t("mk.actual_leads"),    act:leads, tgt:rec.expL,   lib:false},
+        {kpi:t("mk.actual_ql"),       act:ql,    tgt:rec.expQL,  lib:false},
+        {kpi:t("mk.actual_meetings"), act:meet,  tgt:rec.expMeet,lib:false},
+        {kpi:t("mk.actual_fu"),       act:fu,    tgt:rec.expFU,  lib:false},
+        {kpi:t("mk.actual_deals"),    act:deals, tgt:rec.td,     lib:false},
+        {kpi:t("mk.actual_cr"),       act:aCR!=null?aCR*100:null, tgt:parseFloat(currentCamp.expected_close_rate)*100, lib:false},
+        {kpi:t("mk.actual_cpl"),      act:aCPL,  tgt:rec.cpl,    lib:true},
+        {kpi:t("mk.actual_cpd"),      act:aCPD,  tgt:rec.cpd,    lib:true},
+        {kpi:t("mk.actual_rev_proxy"),act:aRev,  tgt:rec.td*net, lib:false},
     ];
 
     document.getElementById('compBody').innerHTML = rows.map(r => {
@@ -470,18 +473,17 @@ function calcActuals() {
         return `<tr>
             <td>${r.kpi}</td>
             <td>${fmt2(tgt)}</td>
-            <td>${a != null ? fmt2(a) : '[يُدخل لاحقاً]'}</td>
+            <td>${a != null ? fmt2(a) : '—'}</td>
             <td>${var_ != null ? (var_>=0?'+':'')+fmt2(var_) : '—'}</td>
             <td>${varP != null ? (varP>=0?'+':'')+varP.toFixed(1)+'%' : '—'}</td>
             <td>${achP != null ? achP.toFixed(1)+'%' : '—'}</td>
-            <td class="${statusClass[st]}">${statusLabel[st]}</td>
+            <td class="${statusClass[st]}">${statusLabel(st)}</td>
         </tr>`;
     }).join('');
 
     renderInsights(calc, {spend, leads, ql, meet, fu, deals, aCPL, aCR, aCPD, aRev});
 }
 
-// ─── Performance Insights ──────────────────────────────────────────────────────
 function renderInsights(calc, a) {
     if (!a.leads && !a.deals) {
         document.getElementById('insightsSection').classList.add('hidden');
@@ -491,71 +493,74 @@ function renderInsights(calc, a) {
     const {rec} = calc;
     const budget = parseFloat(currentCamp.campaign_budget);
     const crTarget = parseFloat(currentCamp.expected_close_rate);
+    const isAr = getLang() === 'ar';
+
+    const M = {
+      spendOk:    isAr ? `الإنفاق الفعلي (${egp(a.spend)}) تحت السيطرة`         : `Actual spend (${egp(a.spend)}) is within budget`,
+      spendBad:   isAr ? `الإنفاق الفعلي (${egp(a.spend)}) تجاوز الميزانية (${egp(budget)})` : `Actual spend (${egp(a.spend)}) exceeded the budget (${egp(budget)})`,
+      spendNone:  isAr ? 'لم يُدخل الإنفاق بعد'                                  : 'No spend entered yet',
+      cplOk:      isAr ? `CPL الفعلي (${egp(a.aCPL)}) أفضل من المستهدف (${egp(rec.cpl)})` : `Actual CPL (${egp(a.aCPL)}) is better than target (${egp(rec.cpl)})`,
+      cplBad:     isAr ? `CPL الفعلي (${egp(a.aCPL)}) أعلى من المستهدف (${egp(rec.cpl)})` : `Actual CPL (${egp(a.aCPL)}) is above target (${egp(rec.cpl)})`,
+      cplNone:    isAr ? 'لم يُدخل CPL بعد'                                      : 'No CPL data yet',
+      crOk:       isAr ? `Close Rate الفعلي (${fmtp(a.aCR*100)}) يحقق الخطة (${fmtp(crTarget*100)})` : `Actual close rate (${fmtp(a.aCR*100)}) meets the plan (${fmtp(crTarget*100)})`,
+      crBad:      isAr ? `Close Rate الفعلي (${fmtp(a.aCR*100)}) أقل من المستهدف (${fmtp(crTarget*100)})` : `Actual close rate (${fmtp(a.aCR*100)}) is below target (${fmtp(crTarget*100)})`,
+      crNone:     isAr ? 'لم يُدخل Close Rate بعد'                                : 'No close-rate data yet',
+      leadsOk:    isAr ? `عدد الـ Leads كافٍ (${fmt(a.leads)} من ${fmt(rec.expL)})` : `Leads count is sufficient (${fmt(a.leads)} of ${fmt(rec.expL)})`,
+      leadsBad:   isAr ? `عدد الـ Leads غير كافٍ — ${fmt(a.leads)} من ${fmt(rec.expL)}` : `Not enough leads — ${fmt(a.leads)} of ${fmt(rec.expL)}`,
+      leadsNone:  isAr ? 'لم يُدخل Leads بعد'                                     : 'No leads data yet',
+      qlOk:       isAr ? `لا يوجد Bottleneck في Qualified Leads (${fmt(a.ql)} من ${fmt(rec.expQL)})` : `No bottleneck in qualified leads (${fmt(a.ql)} of ${fmt(rec.expQL)})`,
+      qlBad:      isAr ? `Bottleneck في Qualified Leads — ${fmt(a.ql)} من ${fmt(rec.expQL)}` : `Bottleneck in qualified leads — ${fmt(a.ql)} of ${fmt(rec.expQL)}`,
+      qlNone:     isAr ? 'لم يُدخل Qualified Leads بعد'                           : 'No qualified leads data yet',
+      meetOk:     isAr ? `لا يوجد Bottleneck في Meetings (${a.meet} من ${rec.expMeet})` : `No bottleneck in meetings (${a.meet} of ${rec.expMeet})`,
+      meetBad:    isAr ? `Bottleneck في Meetings — ${a.meet} من ${rec.expMeet}`   : `Bottleneck in meetings — ${a.meet} of ${rec.expMeet}`,
+      meetNone:   isAr ? 'لم يُدخل Meetings بعد'                                   : 'No meetings data yet',
+      dealsOk:    isAr ? `عدد الـ Deals (${a.deals}) على المسار الصحيح (هدف ${rec.td})` : `Deals count (${a.deals}) is on track (target ${rec.td})`,
+      dealsBad:   isAr ? `عدد الـ Deals (${a.deals}) أقل من الهدف (${rec.td})`    : `Deals count (${a.deals}) is below target (${rec.td})`,
+      dealsNone:  isAr ? 'لم يُدخل Deals بعد'                                     : 'No deals data yet',
+    };
 
     const insights = [
-        a.spend != null
-            ? (a.spend <= budget
-                ? {icon:'✅', txt:`الصرف الفعلي (${fmt2(a.spend)} ج) تحت السيطرة — ضمن الميزانية`}
-                : {icon:'🔴', txt:`الصرف الفعلي (${fmt2(a.spend)} ج) تجاوز الميزانية (${fmt(budget)} ج)`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات الصرف بعد'},
-        a.aCPL != null
-            ? (a.aCPL <= rec.cpl
-                ? {icon:'✅', txt:`الـ CPL الفعلي (${fmt2(a.aCPL)} ج) أفضل من المستهدف (${fmt2(rec.cpl)} ج)`}
-                : {icon:'⚠️', txt:`الـ CPL الفعلي (${fmt2(a.aCPL)} ج) أعلى من المستهدف (${fmt2(rec.cpl)} ج)`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات CPL بعد'},
-        a.aCR != null
-            ? (a.aCR >= crTarget
-                ? {icon:'✅', txt:`الـ Close Rate الفعلي (${fmtp(a.aCR*100)}) يحقق الخطة (${fmtp(crTarget*100)})`}
-                : {icon:'⚠️', txt:`الـ Close Rate الفعلي (${fmtp(a.aCR*100)}) أقل من المستهدف (${fmtp(crTarget*100)})`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات Close Rate بعد'},
-        a.leads != null
-            ? (a.leads >= rec.expL
-                ? {icon:'✅', txt:`عدد الـ Leads كافٍ (${fmt(a.leads)} من ${fmt(rec.expL)} مستهدف)`}
-                : {icon:'⚠️', txt:`عدد الـ Leads غير كافٍ — ${fmt(a.leads)} من ${fmt(rec.expL)} مستهدف`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات Leads بعد'},
-        a.ql != null
-            ? (a.ql >= rec.expQL
-                ? {icon:'✅', txt:`لا يوجد Bottleneck في Qualified Leads (${fmt(a.ql)} من ${fmt(rec.expQL)})`}
-                : {icon:'⚠️', txt:`Bottleneck في Qualified Leads — ${fmt(a.ql)} من ${fmt(rec.expQL)} مستهدف`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات Qualified Leads بعد'},
-        a.meet != null
-            ? (a.meet >= rec.expMeet
-                ? {icon:'✅', txt:`لا يوجد Bottleneck في Meetings (${a.meet} من ${rec.expMeet})`}
-                : {icon:'⚠️', txt:`Bottleneck في Meetings — ${a.meet} من ${rec.expMeet} مستهدف`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات Meetings بعد'},
-        a.deals != null
-            ? (a.deals >= rec.td
-                ? {icon:'✅', txt:`عدد الـ Deals (${a.deals}) على المسار الصحيح (هدف ${rec.td})`}
-                : {icon:'⚠️', txt:`عدد الـ Deals (${a.deals}) أقل من الهدف (${rec.td} صفقة)`})
-            : {icon:'⚪', txt:'لم يُدخل بيانات Deals بعد'},
+        a.spend != null ? (a.spend <= budget ? {icon:'✅',txt:M.spendOk} : {icon:'🔴',txt:M.spendBad}) : {icon:'⚪',txt:M.spendNone},
+        a.aCPL != null ? (a.aCPL <= rec.cpl ? {icon:'✅',txt:M.cplOk}   : {icon:'⚠️',txt:M.cplBad})   : {icon:'⚪',txt:M.cplNone},
+        a.aCR != null ?  (a.aCR >= crTarget ? {icon:'✅',txt:M.crOk}    : {icon:'⚠️',txt:M.crBad})    : {icon:'⚪',txt:M.crNone},
+        a.leads != null ? (a.leads >= rec.expL ? {icon:'✅',txt:M.leadsOk} : {icon:'⚠️',txt:M.leadsBad}) : {icon:'⚪',txt:M.leadsNone},
+        a.ql != null ?    (a.ql >= rec.expQL ? {icon:'✅',txt:M.qlOk}  : {icon:'⚠️',txt:M.qlBad}) : {icon:'⚪',txt:M.qlNone},
+        a.meet != null ?  (a.meet >= rec.expMeet ? {icon:'✅',txt:M.meetOk} : {icon:'⚠️',txt:M.meetBad}) : {icon:'⚪',txt:M.meetNone},
+        a.deals != null ? (a.deals >= rec.td ? {icon:'✅',txt:M.dealsOk} : {icon:'⚠️',txt:M.dealsBad}) : {icon:'⚪',txt:M.dealsNone},
     ];
 
     document.getElementById('insightsBody').innerHTML = insights
         .map(i=>`<div class="insight-item"><span class="insight-icon">${i.icon}</span><span>${i.txt}</span></div>`)
         .join('');
 
+    const ACT = {
+      cplH:   isAr ? '↑ CPL أعلى من المستهدف:' : '↑ CPL above target:',
+      cplA:   isAr ? ['راجع استهداف الإعلانات وقلّل التكاليف على الجماهير الضعيفة', 'حسّن جودة المحتوى الإعلاني والصور', 'اختبر قنوات إعلانية بديلة'] :
+                    ['Review ad targeting and cut spend on weak audiences', 'Improve ad creative quality', 'Test cheaper alternative channels'],
+      crH:    isAr ? '↓ Close Rate أقل من المستهدف:' : '↓ Close rate below target:',
+      crA:    isAr ? ['حسّن جودة Leads عبر استهداف أدق', 'راجع سرعة استجابة فريق المبيعات', 'ادعم المبيعات بمحتوى أقوى'] :
+                    ['Improve lead quality with tighter targeting', 'Review sales response speed', 'Equip sales with stronger content'],
+      meetH:  isAr ? '↓ Meetings أقل من المطلوب:' : '↓ Meetings below target:',
+      meetA:  isAr ? ['راجع معدلات Follow-up', 'ضع KPI يومي للاجتماعات', 'قدّم حوافز على الاجتماعات المحددة'] :
+                    ['Review follow-up rates', 'Set a daily meetings KPI', 'Incentivize confirmed meetings'],
+      qlH:    isAr ? '↓ Qualified Leads أقل من المطلوب:' : '↓ Qualified leads below target:',
+      qlA:    isAr ? ['حسّن نموذج التأهيل', 'راجع جودة الإعلانات', 'قدّم محتوى يجذب العملاء الجادين'] :
+                    ['Improve the qualification form', 'Review ad quality and audience', 'Publish content that attracts serious buyers'],
+    };
     const actions = [];
-    if (a.aCPL && a.aCPL > rec.cpl) {
-        actions.push('↑ CPL أعلى من المستهدف:', '&nbsp;&nbsp;• راجع استهداف الإعلانات وقلّل التكاليف على الجماهير ذات الأداء الضعيف', '&nbsp;&nbsp;• حسّن جودة المحتوى الإعلاني وصور الوحدات', '&nbsp;&nbsp;• اختبر قنوات إعلانية بديلة بتكلفة أقل');
-    }
-    if (a.aCR && a.aCR < crTarget) {
-        actions.push('↓ Close Rate أقل من المستهدف:', '&nbsp;&nbsp;• حسّن جودة Leads عبر استهداف أكثر دقة', '&nbsp;&nbsp;• راجع سرعة استجابة فريق المبيعات للـ Leads', '&nbsp;&nbsp;• وفّر للمبيعات محتوى دعم أقوى (تفاصيل وحدات، مقاطع)');
-    }
-    if (a.meet && a.meet < rec.expMeet) {
-        actions.push('↓ Meetings أقل من المطلوب:', '&nbsp;&nbsp;• راجع معدلات Follow-up مع الـ Leads الواردة', '&nbsp;&nbsp;• ضع KPI واضحاً لعدد الاجتماعات اليومية للمبيعات', '&nbsp;&nbsp;• قدّم حوافز للمبيعات على الاجتماعات المحددة');
-    }
-    if (a.ql && a.ql < rec.expQL) {
-        actions.push('↓ Qualified Leads أقل من المطلوب:', '&nbsp;&nbsp;• حسّن نموذج التأهيل — اسأل عن الجدية والميزانية فوراً', '&nbsp;&nbsp;• راجع جودة الإعلانات الواردة ونوعية الجماهير', '&nbsp;&nbsp;• قدّم محتوى يجذب العملاء الجادين (الأسعار، الموقع)');
-    }
+    function push(h, arr) { actions.push(h, ...arr.map(x => '&nbsp;&nbsp;• ' + x)); }
+    if (a.aCPL && a.aCPL > rec.cpl) push(ACT.cplH, ACT.cplA);
+    if (a.aCR && a.aCR < crTarget)   push(ACT.crH, ACT.crA);
+    if (a.meet && a.meet < rec.expMeet) push(ACT.meetH, ACT.meetA);
+    if (a.ql && a.ql < rec.expQL)    push(ACT.qlH, ACT.qlA);
 
     document.getElementById('actionBody').innerHTML = actions.length
-        ? actions.map(a=>a.startsWith('↑')||a.startsWith('↓')
-            ? `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">${a}</div>`
-            : `<div class="action-item">${a}</div>`).join('')
-        : '<div class="text-muted">لا توجد إجراءات مطلوبة — كل شيء على المسار الصحيح ✅</div>';
+        ? actions.map(l => (l.startsWith('↑')||l.startsWith('↓'))
+            ? `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">${l}</div>`
+            : `<div class="action-item">${l}</div>`).join('')
+        : `<div class="text-muted">${t("mk.all_on_track")}</div>`;
 }
 
-// ─── Render full dashboard ─────────────────────────────────────────────────────
 function renderDashboard(c) {
     currentCamp = c;
     const calc = calcKPIs(c);
@@ -563,7 +568,6 @@ function renderDashboard(c) {
     renderPhase1(c, calc);
     renderPhase2(c, calc);
 
-    // Load saved actuals
     if (c.actual_spend != null) document.getElementById('a_spend').value = parseFloat(c.actual_spend) || '';
     if (c.actual_leads != null) document.getElementById('a_leads').value = c.actual_leads || '';
     if (c.actual_qualified_leads != null) document.getElementById('a_ql').value = c.actual_qualified_leads || '';
@@ -572,10 +576,9 @@ function renderDashboard(c) {
     if (c.actual_deals != null) document.getElementById('a_deals').value = c.actual_deals || '';
     calcActuals();
 
-    // Formulas
     document.getElementById('formulaBox').innerHTML = [
-        `Gross Commission = ${c.commission_type==='percentage'? 'سعر الوحدة × نسبة العمولة': 'مبلغ العمولة الثابت'}`,
-        `Net Commission = Gross Commission × (1 − ${(parseFloat(c.tax_rate)*100).toFixed(0)}%)`,
+        `Gross Commission = ${c.commission_type==='percentage' ? 'unit price × commission %' : 'fixed commission'}`,
+        `Net Commission = Gross × (1 − ${(parseFloat(c.tax_rate)*100).toFixed(0)}%)`,
         `Target Cost/Deal = Net Commission × 16% (Balanced)`,
         `Target CPL = Target Cost/Deal × Close Rate`,
         `Expected Leads = Budget ÷ Target CPL`,
@@ -590,18 +593,18 @@ function renderDashboard(c) {
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('campActions').classList.remove('hidden');
     document.getElementById('campActions').style.display = 'flex';
+    applyLang(true);
 }
 
-// ─── Campaign list & select ────────────────────────────────────────────────────
 async function loadCampaigns() {
     try {
         campaigns = await api('/api/marketing/campaigns');
         const sel = document.getElementById('campSelect');
         const prev = sel.value;
-        sel.innerHTML = '<option value="">— اختر حملة —</option>' +
-            campaigns.map(c=>`<option value="${c.id}">${c.campaign_name}${c.month?' ('+c.month+')':''}</option>`).join('');
+        sel.innerHTML = `<option value="">${t("mk.pick_campaign")}</option>` +
+            campaigns.map(c=>`<option value="${c.id}">${escapeHTML(c.campaign_name)}${c.month?' ('+c.month+')':''}</option>`).join('');
         if (prev) sel.value = prev;
-    } catch(e) { toast(e.message, 'error'); }
+    } catch(e) { toastError(e); }
 }
 
 async function selectCampaign() {
@@ -616,10 +619,9 @@ async function selectCampaign() {
     try {
         const c = await api(`/api/marketing/campaigns/${id}`);
         renderDashboard(c);
-    } catch(e) { toast(e.message, 'error'); }
+    } catch(e) { toastError(e); }
 }
 
-// ─── Save actuals ──────────────────────────────────────────────────────────────
 async function saveActuals() {
     if (!currentCamp) return;
     const body = {
@@ -631,27 +633,27 @@ async function saveActuals() {
         actual_deals:           parseInt(document.getElementById('a_deals').value)||0,
     };
     try {
-        await api(`/api/marketing/campaigns/${currentCamp.id}/actuals`, {method:'PUT', body:JSON.stringify(body)});
-        toast('تم حفظ الأرقام الفعلية', 'success');
-    } catch(e) { toast(e.message, 'error'); }
+        await api(`/api/marketing/campaigns/${currentCamp.id}/actuals`, { method:'PUT', body });
+        toast(t("mk.saved_actuals"), 'success');
+    } catch(e) { toastError(e); }
 }
 
-// ─── Campaign CRUD ─────────────────────────────────────────────────────────────
 function openNew() {
     editingCampId = null;
-    document.getElementById('campModalTitle').textContent = 'حملة جديدة';
+    document.getElementById('campModalTitle').textContent = t("mk.modal_title_new");
     document.getElementById('campErr').classList.remove('show');
     ['f_name','f_price','f_budget','f_comm','f_cr'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('f_tax').value = '19';
     document.getElementById('f_ctype').value = 'percentage';
     document.getElementById('f_month').value = '';
+    applyLang(true);
     openModal('campModal');
 }
 
 function editCurrent() {
     if (!currentCamp) return;
     editingCampId = currentCamp.id;
-    document.getElementById('campModalTitle').textContent = 'تعديل: ' + currentCamp.campaign_name;
+    document.getElementById('campModalTitle').textContent = t("mk.modal_title_edit") + ': ' + currentCamp.campaign_name;
     document.getElementById('campErr').classList.remove('show');
     document.getElementById('f_name').value   = currentCamp.campaign_name;
     document.getElementById('f_price').value  = currentCamp.avg_unit_price;
@@ -661,63 +663,81 @@ function editCurrent() {
     document.getElementById('f_cr').value     = (parseFloat(currentCamp.expected_close_rate)*100).toFixed(2);
     document.getElementById('f_tax').value    = (parseFloat(currentCamp.tax_rate)*100).toFixed(0);
     document.getElementById('f_month').value  = currentCamp.month || '';
+    applyLang(true);
     openModal('campModal');
 }
 
 async function saveCampaign() {
     const name = document.getElementById('f_name').value.trim();
+    const err = document.getElementById('campErr');
+    err.classList.remove('show');
     if (!name) {
-        const e = document.getElementById('campErr');
-        e.textContent = 'اسم الحملة مطلوب'; e.classList.add('show'); return;
+        err.textContent = t("errors.campaign_name_required"); err.classList.add('show'); return;
+    }
+    const price = parseFloat(document.getElementById('f_price').value);
+    const budget = parseFloat(document.getElementById('f_budget').value);
+    const comm = parseFloat(document.getElementById('f_comm').value);
+    const cr = parseFloat(document.getElementById('f_cr').value);
+    if (!(price > 0) || !(budget > 0) || !(comm > 0) || !(cr > 0)) {
+        err.textContent = t("errors.invalid_input"); err.classList.add('show'); return;
     }
     const body = {
         campaign_name:       name,
-        avg_unit_price:      parseFloat(document.getElementById('f_price').value)||0,
-        campaign_budget:     parseFloat(document.getElementById('f_budget').value)||0,
-        commission_input:    parseFloat(document.getElementById('f_comm').value)||0,
+        avg_unit_price:      price,
+        campaign_budget:     budget,
+        commission_input:    comm,
         commission_type:     document.getElementById('f_ctype').value,
-        expected_close_rate: parseFloat(document.getElementById('f_cr').value)||0,
+        expected_close_rate: cr,
         tax_rate:            parseFloat(document.getElementById('f_tax').value)||19,
         month:               document.getElementById('f_month').value||null,
     };
     try {
         let cid;
         if (editingCampId) {
-            await api(`/api/marketing/campaigns/${editingCampId}`, {method:'PUT', body:JSON.stringify(body)});
+            await api(`/api/marketing/campaigns/${editingCampId}`, { method:'PUT', body });
             cid = editingCampId;
         } else {
-            const r = await api('/api/marketing/campaigns', {method:'POST', body:JSON.stringify(body)});
+            const r = await api('/api/marketing/campaigns', { method:'POST', body });
             cid = r.id;
         }
-        toast('تم الحفظ', 'success');
+        toast(t("common.saved"), 'success');
         closeModal('campModal');
         await loadCampaigns();
         document.getElementById('campSelect').value = cid;
         selectCampaign();
     } catch(e) {
-        const err = document.getElementById('campErr');
-        err.textContent = e.message; err.classList.add('show');
+        err.textContent = tError(e); err.classList.add('show');
     }
 }
 
 async function deleteCurrent() {
-    if (!currentCamp || !confirm('حذف الحملة نهائياً؟')) return;
+    if (!currentCamp || !confirm(t("mk.confirm_delete"))) return;
     try {
         await api(`/api/marketing/campaigns/${currentCamp.id}`, {method:'DELETE'});
-        toast('تم الحذف', 'success');
+        toast(t("common.deleted"), 'success');
         currentCamp = null;
         document.getElementById('campSelect').value = '';
         await loadCampaigns();
         selectCampaign();
-    } catch(e) { toast(e.message, 'error'); }
+    } catch(e) { toastError(e); }
 }
 
-// ─── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(id, btn) {
     document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
+}
+
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+function onLangChange() {
+  if (currentCamp) renderDashboard(currentCamp);
+  loadCampaigns();
 }
 
 loadCampaigns();

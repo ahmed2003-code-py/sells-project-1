@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ "Finance" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block head %}
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -8,26 +8,26 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="fin.title">التقرير المالي</h1>
-    <p class="page-subtitle" data-i18n="fin.subtitle">الإيرادات والعمولات المتوقعة حسب الأداء</p>
+    <h1 class="page-title" data-i18n="fin.title"></h1>
+    <p class="page-subtitle" data-i18n="fin.subtitle"></p>
   </div>
   <div class="flex gap-2">
-    <button class="btn" onclick="window.print()" data-i18n="common.print">طباعة</button>
-    <button class="btn" onclick="exportCSV()" data-i18n="common.export">تصدير</button>
+    <button class="btn" onclick="window.print()" data-i18n="common.print"></button>
+    <button class="btn" onclick="exportCSV()" data-i18n="common.export"></button>
   </div>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="common.month">الشهر</label>
+    <label data-i18n="common.month"></label>
     <select id="selMonth" onchange="loadAll()"></select>
   </div>
   <div class="field">
-    <label data-i18n="fin.avg_deal">متوسط قيمة الصفقة</label>
+    <label data-i18n="fin.avg_deal"></label>
     <input type="number" id="avgDeal" value="2500000" onchange="loadAll()" style="width:180px">
   </div>
   <div class="field">
-    <label data-i18n="fin.commission_rate">نسبة العمولة (%)</label>
+    <label data-i18n="fin.commission_rate"></label>
     <input type="number" id="commissionRate" value="2.5" step="0.1" onchange="loadAll()" style="width:140px">
   </div>
   <div class="spacer"></div>
@@ -37,36 +37,36 @@
 
 <div class="chart-grid">
   <div class="chart-card">
-    <h3 data-i18n="fin.chart_revenue_by_sales">الإيرادات حسب الـ Sales</h3>
+    <h3 data-i18n="fin.chart_revenue_by_sales"></h3>
     <div id="chartRevenue" class="plotly-container"></div>
   </div>
   <div class="chart-card">
-    <h3 data-i18n="fin.chart_commission_split">توزيع العمولات</h3>
+    <h3 data-i18n="fin.chart_commission_split"></h3>
     <div id="chartCommission" class="plotly-container"></div>
   </div>
 </div>
 
 <div class="chart-card">
-  <h3 data-i18n="fin.chart_monthly_trend">الاتجاه الشهري</h3>
+  <h3 data-i18n="fin.chart_monthly_trend"></h3>
   <div id="chartTrend" class="plotly-container"></div>
 </div>
 
 <div class="chart-card">
-  <h3 data-i18n="fin.deals_vs_reservations">صفقات مقابل حجوزات</h3>
+  <h3 data-i18n="fin.deals_vs_reservations"></h3>
   <div id="chartDealsRes" class="plotly-container"></div>
 </div>
 
-<div class="table-wrap">
+<div class="table-wrap reveal">
   <table>
     <thead><tr>
       <th style="width:50px">#</th>
-      <th data-i18n="admin.user">Sales</th>
-      <th>Deals</th>
-      <th>Reservations</th>
-      <th data-i18n="fin.deal_revenue">إيراد الصفقات</th>
-      <th data-i18n="fin.reservation_revenue">إيراد الحجوزات</th>
-      <th data-i18n="fin.total_revenue">إجمالي الإيرادات</th>
-      <th data-i18n="fin.total_commission">إجمالي العمولات</th>
+      <th data-i18n="admin.user"></th>
+      <th data-i18n="fin.deals_count"></th>
+      <th data-i18n="fin.reservations_count"></th>
+      <th data-i18n="fin.deal_revenue"></th>
+      <th data-i18n="fin.reservation_revenue"></th>
+      <th data-i18n="fin.total_revenue"></th>
+      <th data-i18n="fin.total_commission"></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -100,22 +100,19 @@ async function loadAll() {
   const month = document.getElementById("selMonth").value;
   const avgDeal = parseFloat(document.getElementById("avgDeal").value) || 2500000;
   const commRate = (parseFloat(document.getElementById("commissionRate").value) || 2.5) / 100;
-
+  if (avgDeal <= 0 || commRate < 0) return toast(t("errors.invalid_input"), "error");
   try {
     const qs = `month=${month}&avg_deal_value_egp=${avgDeal}&commission_rate=${commRate}`;
     reportData = await api(`/api/finance/report?${qs}`);
     trendData = await api("/api/finance/trend?months_back=6");
     render();
-  } catch (e) {
-    toast(e.message, "error");
-  }
+  } catch (e) { toastError(e); }
 }
 
 function render() {
   if (!reportData) return;
   const totals = reportData.totals;
   const breakdown = reportData.breakdown;
-
   renderTotals(totals);
   renderCharts(breakdown);
   renderTable(breakdown);
@@ -135,15 +132,15 @@ function renderTotals(totals) {
       <div class="stat-sub">${t("fin.egp")}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Total Deals</div>
+      <div class="stat-label">${t("fin.total_deals")}</div>
       <div class="stat-value">${totals.total_deals}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Total Reservations</div>
+      <div class="stat-label">${t("fin.total_reservations")}</div>
       <div class="stat-value">${totals.total_reservations}</div>
     </div>
     <div class="stat warn">
-      <div class="stat-label">Avg Commission / Sales</div>
+      <div class="stat-label">${t("fin.avg_commission_per_sales")}</div>
       <div class="stat-value sm money">${fmtMoney(totals.avg_commission_per_sales)}</div>
     </div>
   `;
@@ -171,8 +168,8 @@ function renderCharts(rows) {
   const topRows = sortedByRev.slice(0, 8);
   Charts.drawStackedBar("chartDealsRes",
     [
-      { name: "Deals", values: topRows.map(r => r.deals_count), color: Charts.COLORS.brand },
-      { name: "Reservations", values: topRows.map(r => r.reservations_count), color: Charts.COLORS.accent },
+      { name: t("fin.deals_count"), values: topRows.map(r => r.deals_count), color: Charts.COLORS.brand },
+      { name: t("fin.reservations_count"), values: topRows.map(r => r.reservations_count), color: Charts.COLORS.accent },
     ],
     topRows.map(r => r.user_name),
     { showlegend: true }
@@ -181,7 +178,6 @@ function renderCharts(rows) {
 
 function renderTrend() {
   if (!trendData || !trendData.length) return;
-  const lang = getLang();
   const xLabels = trendData.map(t => fmtMonth(t.month));
 
   Charts.drawLineChart("chartTrend", [
@@ -205,7 +201,7 @@ function renderTrend() {
 function renderTable(rows) {
   const tbody = document.getElementById("tbody");
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">' + t("admin.no_users") + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">' + t("dash.no_data") + '</td></tr>';
     return;
   }
   const sorted = [...rows].sort((a,b) => b.total_revenue - a.total_revenue);
@@ -227,7 +223,9 @@ function renderTable(rows) {
 function exportCSV() {
   if (!reportData) return;
   const rows = reportData.breakdown;
-  const header = ["Sales", "Deals", "Reservations", "Deal Revenue", "Reservation Revenue", "Total Revenue", "Total Commission"];
+  const header = [t("admin.user"), t("fin.deals_count"), t("fin.reservations_count"),
+                  t("fin.deal_revenue"), t("fin.reservation_revenue"),
+                  t("fin.total_revenue"), t("fin.total_commission")];
   const lines = [header.join(",")];
   rows.forEach(r => {
     lines.push([r.user_name, r.deals_count, r.reservations_count,

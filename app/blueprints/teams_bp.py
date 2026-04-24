@@ -65,7 +65,7 @@ def get_team(team_id):
                 """, (team_id,))
                 team = cur.fetchone()
                 if not team:
-                    return jsonify({"error": "الفريق غير موجود"}), 404
+                    return jsonify({"error_code": "not_found", "error": "not_found"}), 404
 
                 cur.execute("""
                     SELECT id, full_name, username, role, active
@@ -94,7 +94,7 @@ def create_team():
     description = (data.get("description") or "").strip() or None
 
     if not name:
-        return jsonify({"error": "اسم الفريق مطلوب"}), 400
+        return jsonify({"error_code": "campaign_name_required", "error": "required"}), 400
 
     try:
         conn = get_conn()
@@ -116,10 +116,10 @@ def create_team():
         finally:
             conn.close()
         log.info(f"✅ Team created: {name} (id={team_id})")
-        return jsonify({"id": team_id, "message": "تم إنشاء الفريق"}), 201
+        return jsonify({"id": team_id}), 201
     except Exception as e:
         if "unique" in str(e).lower():
-            return jsonify({"error": "اسم الفريق موجود بالفعل"}), 409
+            return jsonify({"error_code": "username_taken", "error": "name_taken"}), 409
         return jsonify({"error": str(e)}), 500
 
 
@@ -136,7 +136,7 @@ def update_team(team_id):
                 cur.execute("SELECT leader_id FROM teams WHERE id = %s", (team_id,))
                 row = cur.fetchone()
                 if not row:
-                    return jsonify({"error": "الفريق غير موجود"}), 404
+                    return jsonify({"error_code": "not_found", "error": "not_found"}), 404
                 old_leader = row[0]
 
                 fields, params = [], []
@@ -166,7 +166,7 @@ def update_team(team_id):
             conn.commit()
         finally:
             conn.close()
-        return jsonify({"message": "تم التحديث"})
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -185,7 +185,7 @@ def set_members(team_id):
             with conn.cursor() as cur:
                 cur.execute("SELECT id FROM teams WHERE id = %s", (team_id,))
                 if not cur.fetchone():
-                    return jsonify({"error": "الفريق غير موجود"}), 404
+                    return jsonify({"error_code": "not_found", "error": "not_found"}), 404
 
                 # Remove all current sales members
                 cur.execute("""
@@ -203,7 +203,7 @@ def set_members(team_id):
             conn.commit()
         finally:
             conn.close()
-        return jsonify({"message": "تم تحديث الأعضاء"})
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -221,11 +221,11 @@ def delete_team(team_id):
                 cur.execute("UPDATE users SET team_id = NULL WHERE team_id = %s", (team_id,))
                 cur.execute("DELETE FROM teams WHERE id = %s", (team_id,))
                 if cur.rowcount == 0:
-                    return jsonify({"error": "الفريق غير موجود"}), 404
+                    return jsonify({"error_code": "not_found", "error": "not_found"}), 404
             conn.commit()
         finally:
             conn.close()
         log.info(f"✅ Team {team_id} deleted")
-        return jsonify({"message": "تم الحذف"})
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

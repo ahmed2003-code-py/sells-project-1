@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block head %}
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -8,31 +8,31 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="dash.title">لوحة أداء الفريق</h1>
-    <p class="page-subtitle" data-i18n="dash.subtitle">نظرة شاملة على KPI لكل Sales</p>
+    <h1 class="page-title" data-i18n="dash.title"></h1>
+    <p class="page-subtitle" data-i18n="dash.subtitle"></p>
   </div>
   <div class="flex gap-2">
-    <button class="btn" onclick="exportCSV()" data-i18n="common.export">تصدير</button>
-    <button class="btn" onclick="window.print()" data-i18n="common.print">طباعة</button>
+    <button class="btn" onclick="exportCSV()" data-i18n="common.export"></button>
+    <button class="btn" onclick="window.print()" data-i18n="common.print"></button>
   </div>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="common.month">الشهر</label>
+    <label data-i18n="common.month"></label>
     <select id="selMonth" onchange="loadAll()"></select>
   </div>
   <div class="field">
-    <label data-i18n="common.filter">فلترة</label>
+    <label data-i18n="common.filter"></label>
     <select id="selSort" onchange="render()">
-      <option value="score" data-i18n="dash.sort_by_score">ترتيب بالـ Score</option>
-      <option value="name" data-i18n="dash.sort_by_name">ترتيب بالاسم</option>
+      <option value="score" data-i18n="dash.sort_by_score"></option>
+      <option value="name" data-i18n="dash.sort_by_name"></option>
     </select>
   </div>
   <div class="field">
-    <label data-i18n="dash.rating">تقييم</label>
+    <label data-i18n="dash.rating"></label>
     <select id="selRating" onchange="render()">
-      <option value="all" data-i18n="common.all">الكل</option>
+      <option value="all" data-i18n="common.all"></option>
       <option value="Excellent">Excellent</option>
       <option value="V.Good">V.Good</option>
       <option value="Good">Good</option>
@@ -48,17 +48,17 @@
 
 <div class="chart-grid">
   <div class="chart-card">
-    <h3 data-i18n="dash.chart_performance">أداء الفريق</h3>
+    <h3 data-i18n="dash.chart_performance"></h3>
     <div id="chartTeamPerf" class="plotly-container"></div>
   </div>
   <div class="chart-card">
-    <h3 data-i18n="dash.chart_distribution">توزيع التقييمات</h3>
+    <h3 data-i18n="dash.chart_distribution"></h3>
     <div id="chartRatings" class="plotly-container"></div>
   </div>
 </div>
 
 <div class="chart-card">
-  <h3 data-i18n="dash.chart_breakdown">متوسط تحقيق كل KPI</h3>
+  <h3 data-i18n="dash.chart_breakdown"></h3>
   <div id="chartBreakdown" class="plotly-container"></div>
 </div>
 
@@ -66,15 +66,15 @@
   <table>
     <thead><tr>
       <th style="width:50px">#</th>
-      <th data-i18n="admin.user">Sales</th>
-      <th style="width:160px" data-i18n="dash.avg_kpi">KPI %</th>
-      <th style="width:100px" data-i18n="dash.rating">تقييم</th>
-      <th style="width:110px">Calls</th>
-      <th style="width:110px">Deals</th>
-      <th style="width:110px">Meetings</th>
-      <th style="width:110px">CRM %</th>
-      <th style="width:130px" data-i18n="dash.weakest">أضعف KPI</th>
-      <th style="width:90px" data-i18n="dash.status">الحالة</th>
+      <th data-i18n="admin.user"></th>
+      <th style="width:160px" data-i18n="dash.avg_kpi"></th>
+      <th style="width:100px" data-i18n="dash.rating"></th>
+      <th style="width:110px" data-i18n="dash.calls"></th>
+      <th style="width:110px" data-i18n="dash.deals"></th>
+      <th style="width:110px" data-i18n="dash.meetings"></th>
+      <th style="width:110px" data-i18n="dash.crm"></th>
+      <th style="width:130px" data-i18n="dash.weakest"></th>
+      <th style="width:90px" data-i18n="dash.status"></th>
       <th style="width:80px"></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
@@ -91,23 +91,7 @@ let allData = [];
 
 const KPI_KEYS = ["calls","meetings","crm_pct","deals","reports","reservations","attitude","presentation","followup_pct","behaviour","appearance","attendance_pct","hr_roles"];
 
-function kpiLabel(key, lang) {
-  const labels_ar = {
-    calls:"المكالمات", meetings:"الاجتماعات", crm_pct:"CRM",
-    deals:"الصفقات", reports:"التقارير", reservations:"الحجوزات",
-    attitude:"السلوك", presentation:"العرض", followup_pct:"Follow-up",
-    behaviour:"التصرف", appearance:"المظهر", attendance_pct:"الحضور",
-    hr_roles:"HR Roles"
-  };
-  const labels_en = {
-    calls:"Calls", meetings:"Meetings", crm_pct:"CRM",
-    deals:"Deals", reports:"Reports", reservations:"Reservations",
-    attitude:"Attitude", presentation:"Presentation", followup_pct:"Follow-up",
-    behaviour:"Behaviour", appearance:"Appearance", attendance_pct:"Attendance",
-    hr_roles:"HR Roles"
-  };
-  return (lang === "en" ? labels_en : labels_ar)[key] || key;
-}
+function kpiLabel(key) { return t("kpi." + key); }
 
 async function initMonths() {
   try {
@@ -131,7 +115,7 @@ async function loadAll() {
   try {
     allData = await api(`/api/kpi/report?month=${month}`);
     render();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 function render() {
@@ -234,7 +218,7 @@ function renderCharts(rows) {
   });
   const lang = getLang();
   Charts.drawBarChart("chartBreakdown", {
-    x: kpiAvgs.map(k => kpiLabel(k.key, lang)),
+    x: kpiAvgs.map(k => kpiLabel(k.key)),
     y: kpiAvgs.map(k => k.avg),
     colors: kpiAvgs.map(k => Charts.scoreColorHex(k.avg)),
     labels: kpiAvgs.map(k => k.avg.toFixed(0) + "%"),
@@ -244,7 +228,7 @@ function renderCharts(rows) {
 function renderTable(rows) {
   const tbody = document.getElementById("tbody");
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">' + t("admin.no_users") + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">' + t("dash.no_data") + '</td></tr>';
     return;
   }
 
@@ -264,7 +248,7 @@ function renderTable(rows) {
       <td><span class="rank ${rankCls}">${i + 1}</span></td>
       <td>
         <div style="font-weight:500">${r.user_name}</div>
-        <div class="text-dim" style="font-size:10px">Leads: ${fresh}</div>
+        <div class="text-dim" style="font-size:10px">${t("dash.fresh_leads_short")}: ${fresh}</div>
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
@@ -278,7 +262,7 @@ function renderTable(rows) {
       <td>${fmtCell(bd.meetings)}</td>
       <td>${fmtCell(bd.crm_pct)}</td>
       <td class="text-muted" style="font-size:11px">
-        ${kpiLabel(worstKey, lang)} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
+        ${kpiLabel(worstKey)} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
       </td>
       <td style="font-size:10px">
         ${r.sales_submitted_at ? '<span class="text-success">S&#10003;</span>' : '<span class="text-dim">S&#10007;</span>'}
@@ -309,7 +293,7 @@ function showDetail(userId, month) {
   let kpiHTML = Object.entries(bd).map(([k, v]) => {
     const col = scoreColor(v.achievement_pct);
     return `<div class="kpi-cell">
-      <div class="kpi-cell-label">${kpiLabel(k, lang)}</div>
+      <div class="kpi-cell-label">${kpiLabel(k)}</div>
       <div class="kpi-cell-value text-${col}">${v.achievement_pct.toFixed(0)}%</div>
       <div class="kpi-cell-detail">${t("sales.target")}: ${v.target} / ${v.actual}<br>${v.weighted_score}/${v.weight}</div>
       <div class="bar kpi-cell-bar"><div class="bar-fill ${col}" style="width:${v.achievement_pct}%"></div></div>
@@ -324,7 +308,7 @@ function showDetail(userId, month) {
         <div style="font-size:18px;font-weight:700">${entry.user_name}
           <span class="badge ${ratingClass(rating)}" style="margin-inline-start:8px">${t("rating." + rating)}</span>
         </div>
-        <div class="text-muted" style="font-size:12px">${fmtMonth(entry.month)} — Fresh Leads: ${L}</div>
+        <div class="text-muted" style="font-size:12px">${fmtMonth(entry.month)} — ${t("sales.fresh_leads")}: ${L}</div>
         ${entry.notes ? `<div class="text-muted mt-1" style="font-size:12px">${entry.notes}</div>` : ""}
       </div>
       <div class="flex items-center gap-2">
@@ -345,7 +329,7 @@ function showDetail(userId, month) {
 
   setTimeout(() => {
     Charts.drawRadarChart("detailRadar", {
-      labels: Object.keys(bd).map(k => kpiLabel(k, lang)),
+      labels: Object.keys(bd).map(k => kpiLabel(k)),
       values: Object.values(bd).map(v => v.achievement_pct),
     });
     Charts.drawGauge("detailGauge", score, { target: 75 });
@@ -354,8 +338,10 @@ function showDetail(userId, month) {
 
 function exportCSV() {
   const rows = allData;
-  if (!rows.length) return toast(t("admin.no_users"), "error");
-  const header = ["Rep", "Month", "Fresh Leads", ...Object.keys(rows[0].breakdown || {}), "Total %", "Rating"];
+  if (!rows.length) return toast(t("dash.no_data"), "error");
+  const header = [t("admin.user"), t("common.month"), t("sales.fresh_leads"),
+                  ...Object.keys(rows[0].breakdown || {}).map(k => t("kpi." + k)),
+                  t("dash.avg_kpi"), t("dash.rating")];
   const lines = [header.join(",")];
   rows.forEach(r => {
     const bd = r.breakdown || {};

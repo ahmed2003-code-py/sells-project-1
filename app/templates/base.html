@@ -21,33 +21,33 @@
 
       <div class="topnav-links">
         {% if user.role == 'sales' %}
-          <a href="/sales" class="topnav-link {% if request.path == '/sales' %}active{% endif %}" data-i18n="nav.sales">بياناتي</a>
+          <a href="/sales" class="topnav-link {% if request.path == '/sales' %}active{% endif %}" data-i18n="nav.sales"></a>
         {% endif %}
 
         {% if user.role in ['marketing', 'manager', 'admin'] %}
-          <a href="/marketing" class="topnav-link {% if request.path == '/marketing' %}active{% endif %}" data-i18n="nav.marketing">التسويق</a>
+          <a href="/marketing" class="topnav-link {% if request.path == '/marketing' %}active{% endif %}" data-i18n="nav.marketing"></a>
         {% endif %}
 
         {% if user.role == 'team_leader' %}
-          <a href="/team-leader" class="topnav-link {% if request.path == '/team-leader' %}active{% endif %}" data-i18n="nav.team_leader">KPI بتاعي</a>
+          <a href="/team-leader" class="topnav-link {% if request.path == '/team-leader' %}active{% endif %}" data-i18n="nav.team_leader"></a>
         {% endif %}
 
         {% if user.role in ['admin', 'manager', 'dataentry'] %}
-          <a href="/dashboard" class="topnav-link {% if request.path == '/dashboard' %}active{% endif %}" data-i18n="nav.dashboard">لوحة المدير</a>
-          <a href="/data-entry" class="topnav-link {% if request.path == '/data-entry' %}active{% endif %}" data-i18n="nav.dataentry">تقييم</a>
+          <a href="/dashboard" class="topnav-link {% if request.path == '/dashboard' %}active{% endif %}" data-i18n="nav.dashboard"></a>
+          <a href="/data-entry" class="topnav-link {% if request.path == '/data-entry' %}active{% endif %}" data-i18n="nav.dataentry"></a>
         {% endif %}
 
         {% if user.role in ['admin', 'manager'] %}
-          <a href="/tl-evaluation" class="topnav-link {% if request.path == '/tl-evaluation' %}active{% endif %}" data-i18n="nav.tl_eval">تقييم التيم ليدر</a>
-          <a href="/finance" class="topnav-link {% if request.path == '/finance' %}active{% endif %}" data-i18n="nav.finance">التقرير المالي</a>
+          <a href="/tl-evaluation" class="topnav-link {% if request.path == '/tl-evaluation' %}active{% endif %}" data-i18n="nav.tl_eval"></a>
+          <a href="/finance" class="topnav-link {% if request.path == '/finance' %}active{% endif %}" data-i18n="nav.finance"></a>
         {% endif %}
 
         {% if user.role == 'admin' %}
-          <a href="/admin" class="topnav-link {% if request.path == '/admin' %}active{% endif %}" data-i18n="nav.admin">المستخدمون</a>
-          <a href="/teams" class="topnav-link {% if request.path == '/teams' %}active{% endif %}" data-i18n="nav.teams">الفرق</a>
+          <a href="/admin" class="topnav-link {% if request.path == '/admin' %}active{% endif %}" data-i18n="nav.admin"></a>
+          <a href="/teams" class="topnav-link {% if request.path == '/teams' %}active{% endif %}" data-i18n="nav.teams"></a>
         {% endif %}
 
-        <a href="/propfinder" class="topnav-link {% if request.path == '/propfinder' %}active{% endif %}" data-i18n="nav.propfinder">PropFinder</a>
+        <a href="/propfinder" class="topnav-link {% if request.path == '/propfinder' %}active{% endif %}" data-i18n="nav.propfinder"></a>
       </div>
 
       <div class="topnav-actions">
@@ -59,9 +59,9 @@
             <span class="role" data-i18n="role.{{ user.role }}">{{ user.role }}</span>
           </div>
           <div class="dropdown">
-            <a href="/profile" class="dropdown-item" data-i18n="nav.profile">الملف الشخصي</a>
+            <a href="/profile" class="dropdown-item" data-i18n="nav.profile"></a>
             <div class="dropdown-divider"></div>
-            <button class="dropdown-item danger" onclick="logout()" data-i18n="nav.logout">تسجيل الخروج</button>
+            <button class="dropdown-item danger" onclick="logout()" data-i18n="nav.logout"></button>
           </div>
         </div>
       </div>

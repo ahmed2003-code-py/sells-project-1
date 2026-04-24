@@ -1011,3 +1011,147 @@ html[dir="ltr"]  { text-align: left; }
   body { background: white; color: black; }
   .card, .chart-card, .stat { border: 1px solid #ccc; background: white; color: black; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   HYPER MOTION — ripples, micro-interactions, reveal-on-scroll,
+   animated gradient pulses. Honours prefers-reduced-motion.
+   ══════════════════════════════════════════════════════════════════ */
+
+@keyframes hyperPop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); filter: blur(4px); }
+  60%  { filter: blur(0); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes hyperFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes hyperGlow {
+  0%, 100% { box-shadow: 0 0 22px rgba(69, 241, 187, 0.18), inset 0 0 0 0.5px rgba(255,255,255,0.10); }
+  50%      { box-shadow: 0 0 40px rgba(69, 241, 187, 0.38), inset 0 0 0 0.5px rgba(255,255,255,0.22); }
+}
+@keyframes ripple {
+  to { transform: scale(3.2); opacity: 0; }
+}
+@keyframes spinOnce { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes gradientSlide {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.hyper-pop {
+  animation: hyperPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.hyper-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s var(--ease), box-shadow 0.3s var(--ease), filter 0.25s var(--ease);
+}
+.hyper-btn:not(:disabled):hover {
+  transform: translateY(-2px) scale(1.02);
+  animation: hyperGlow 2.4s ease-in-out infinite;
+}
+.hyper-btn:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 0.08s;
+}
+
+/* Ripple injected by common.js on click */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  opacity: 0.7;
+  pointer-events: none;
+  animation: ripple 0.65s ease-out forwards;
+  mix-blend-mode: overlay;
+}
+
+/* Language toggle bounce */
+.lang-toggle.spin-once { animation: spinOnce 0.45s var(--ease-bounce); }
+
+/* Animated page-title gradient sheen */
+.page-title {
+  background-size: 200% 200%;
+  animation: gradientSlide 8s ease-in-out infinite, slideUp 0.5s var(--ease) both;
+}
+
+/* Reveal-on-scroll: base state is hidden, .revealed triggers the motion */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  will-change: opacity, transform;
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Float accent on hero/empty icons */
+.empty-state-icon { animation: hyperFloat 4.2s ease-in-out infinite; }
+
+/* Success message pill for auth pages */
+.success-msg {
+  background: rgba(69, 241, 187, 0.08);
+  border: 0.5px solid rgba(69, 241, 187, 0.30);
+  color: var(--brand-2);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 16px;
+  display: none;
+  animation: slideUp 0.35s var(--ease-bounce);
+}
+.success-msg.show { display: block; }
+
+/* Auth card gets a subtle floating glow */
+.auth-card { position: relative; }
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(69,241,187,0.22), rgba(198,191,255,0.22));
+  opacity: 0;
+  z-index: -1;
+  filter: blur(18px);
+  transition: opacity 0.6s var(--ease);
+}
+.auth-card:focus-within::before { opacity: 0.6; }
+
+/* Row hover lift on data tables */
+tbody tr { transition: background 0.18s var(--ease), transform 0.25s var(--ease); }
+tbody tr.clickable:hover { transform: translateX(2px); }
+html[dir="rtl"] tbody tr.clickable:hover { transform: translateX(-2px); }
+
+/* KPI cells spin-in the moment they mount */
+.kpi-cell { animation: hyperPop 0.45s var(--ease-bounce) both; }
+.kpi-cell:nth-child(odd) { animation-delay: 0.05s; }
+.kpi-cell:nth-child(even) { animation-delay: 0.10s; }
+
+/* Score display — pulse the number on mount */
+.score-display .num {
+  animation: countUp 0.6s var(--ease-bounce), hyperFloat 5s ease-in-out 0.6s infinite;
+}
+
+/* Focus-visible accessibility ring */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Accessibility: respect reduced-motion across the whole motion system */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}

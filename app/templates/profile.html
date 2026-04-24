@@ -1,72 +1,84 @@
 {% extends "base.html" %}
-{% block title %}{{ "Profile" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 {% block main_class %}narrow{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="profile.title">الملف الشخصي</h1>
-    <p class="page-subtitle" data-i18n="profile.subtitle">معلومات حسابك وتغيير كلمة المرور</p>
+    <h1 class="page-title" data-i18n="profile.title"></h1>
+    <p class="page-subtitle" data-i18n="profile.subtitle"></p>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-title" data-i18n="profile.account_info">معلومات الحساب</div>
+<div class="card reveal">
+  <div class="card-title" data-i18n="profile.account_info"></div>
   <div class="field-row">
     <div class="field">
-      <label data-i18n="auth.full_name">الاسم الكامل</label>
+      <label data-i18n="auth.full_name"></label>
       <input type="text" value="{{ user.full_name }}" readonly>
     </div>
     <div class="field">
-      <label data-i18n="auth.username">اسم المستخدم</label>
+      <label data-i18n="auth.username"></label>
       <input type="text" value="{{ user.username }}" readonly>
     </div>
   </div>
   <div class="field-row">
     <div class="field">
-      <label data-i18n="admin.role">الدور</label>
-      <input type="text" value="{{ user.role }}" readonly>
+      <label data-i18n="admin.role"></label>
+      <input type="text" id="roleDisplay" value="{{ user.role }}" readonly>
     </div>
     <div class="field">
-      <label data-i18n="auth.email">البريد</label>
+      <label data-i18n="auth.email"></label>
       <input type="text" value="{{ user.email or '—' }}" readonly>
     </div>
   </div>
-  <small class="text-dim" data-i18n="profile.contact_admin">لتعديل أي من هذه البيانات، تواصل مع Admin</small>
+  <small class="text-dim" data-i18n="profile.contact_admin"></small>
 </div>
 
-<div class="card">
-  <div class="card-title" data-i18n="profile.change_pw">تغيير كلمة المرور</div>
-  <form id="pwForm">
+<div class="card reveal">
+  <div class="card-title" data-i18n="profile.change_pw"></div>
+  <form id="pwForm" novalidate>
     <div class="field">
-      <label data-i18n="profile.old_pw">كلمة المرور الحالية</label>
-      <input type="password" id="oldPw" required>
+      <label data-i18n="profile.old_pw"></label>
+      <input type="password" id="oldPw" required autocomplete="current-password" maxlength="128">
     </div>
     <div class="field-row">
       <div class="field">
-        <label data-i18n="profile.new_pw">كلمة المرور الجديدة</label>
-        <input type="password" id="newPw" minlength="4" required>
+        <label data-i18n="profile.new_pw"></label>
+        <input type="password" id="newPw" minlength="8" required autocomplete="new-password" maxlength="128">
+        <small class="text-dim" data-i18n="auth.password_hint"></small>
       </div>
       <div class="field">
-        <label data-i18n="profile.confirm_pw">تأكيد كلمة المرور الجديدة</label>
-        <input type="password" id="confirmPw" minlength="4" required>
+        <label data-i18n="profile.confirm_pw"></label>
+        <input type="password" id="confirmPw" minlength="8" required autocomplete="new-password" maxlength="128">
       </div>
     </div>
-    <button type="submit" class="btn btn-primary" data-i18n="profile.change_btn">تغيير كلمة المرور</button>
+    <button type="submit" class="btn btn-primary hyper-btn" id="pwBtn"
+            data-i18n="profile.change_btn"></button>
   </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function onLangChange() {
+  const roleEl = document.getElementById("roleDisplay");
+  if (roleEl) roleEl.value = t("role.{{ user.role }}");
+}
+document.addEventListener("DOMContentLoaded", onLangChange);
+
 document.getElementById("pwForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const oldPw = document.getElementById("oldPw").value;
   const newPw = document.getElementById("newPw").value;
-  const confirm = document.getElementById("confirmPw").value;
+  const confirmPw = document.getElementById("confirmPw").value;
 
-  if (newPw !== confirm) return toast(t("profile.pw_mismatch"), "error");
+  if (newPw !== confirmPw) return toast(t("profile.pw_mismatch"), "error");
+  if (newPw.length < 8 || !/[A-Za-z]/.test(newPw) || !/\d/.test(newPw))
+    return toast(t("errors.weak_password"), "error");
 
+  const btn = document.getElementById("pwBtn");
+  btn.disabled = true;
   try {
     await api("/api/auth/change-password", {
       method: "POST",
@@ -74,7 +86,8 @@ document.getElementById("pwForm").addEventListener("submit", async (e) => {
     });
     toast(t("profile.pw_changed"), "success");
     document.getElementById("pwForm").reset();
-  } catch (err) { toast(err.message, "error"); }
+  } catch (err) { toastError(err); }
+  finally { btn.disabled = false; }
 });
 </script>
 {% endblock %}

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Teams — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="teams.title">إدارة الفرق</h1>
-    <p class="page-subtitle" data-i18n="teams.subtitle">إنشاء الفرق وتعيين القادة والأعضاء</p>
+    <h1 class="page-title" data-i18n="teams.title"></h1>
+    <p class="page-subtitle" data-i18n="teams.subtitle"></p>
   </div>
-  <button class="btn btn-primary" onclick="openNew()" data-i18n="teams.add">+ فريق جديد</button>
+  <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="teams.add"></button>
 </div>
 
 <div id="teamsList" class="stagger"></div>
@@ -16,34 +16,37 @@
 <div class="modal-backdrop" id="teamModal">
   <div class="modal" style="max-width:560px">
     <div class="modal-header">
-      <div class="modal-title" id="modalTitle">فريق</div>
+      <div class="modal-title" id="modalTitle"></div>
       <button class="modal-close" onclick="closeModal('teamModal')">✕</button>
     </div>
     <div class="modal-body">
       <div class="error-msg" id="mError"></div>
 
       <div class="field">
-        <label data-i18n="teams.name">اسم الفريق</label>
-        <input type="text" id="mName" required>
+        <label data-i18n="teams.name"></label>
+        <input type="text" id="mName" required maxlength="100">
       </div>
       <div class="field">
-        <label data-i18n="teams.description">وصف <small style="color:var(--text-muted)">(اختياري)</small></label>
-        <input type="text" id="mDesc">
+        <label>
+          <span data-i18n="teams.description"></span>
+          <small data-i18n="common.optional"></small>
+        </label>
+        <input type="text" id="mDesc" maxlength="200">
       </div>
       <div class="field">
-        <label data-i18n="teams.leader">التيم ليدر</label>
+        <label data-i18n="teams.leader"></label>
         <select id="mLeader">
-          <option value="" data-i18n="teams.pick_leader">اختر التيم ليدر</option>
+          <option value="" data-i18n="teams.pick_leader"></option>
         </select>
       </div>
       <div class="field">
-        <label data-i18n="teams.members">الأعضاء (Sales)</label>
+        <label data-i18n="teams.members"></label>
         <div id="membersList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px"></div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveTeam()" data-i18n="teams.save">حفظ الفريق</button>
-      <button class="btn btn-ghost" onclick="closeModal('teamModal')" data-i18n="common.cancel">إلغاء</button>
+      <button class="btn btn-primary hyper-btn" onclick="saveTeam()" data-i18n="teams.save"></button>
+      <button class="btn btn-ghost" onclick="closeModal('teamModal')" data-i18n="common.cancel"></button>
     </div>
   </div>
 </div>
@@ -64,16 +67,21 @@ async function loadAll() {
       api("/api/users?role=sales&active_only=true"),
     ]);
     render();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
+}
+
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
 }
 
 function render() {
-  const lang = localStorage.getItem("ain_lang") || "ar";
   const container = document.getElementById("teamsList");
 
   if (!teams.length) {
-    container.innerHTML = `<div class="empty-state"><div data-i18n="teams.no_teams">لا توجد فرق بعد</div></div>`;
-    applyLang(); return;
+    container.innerHTML = `<div class="empty-state"><div>${t("teams.no_teams")}</div></div>`;
+    return;
   }
 
   container.innerHTML = teams.map(team => {
@@ -81,51 +89,48 @@ function render() {
     const cnt = team.member_count || 0;
     return `
       <div class="card" style="margin-bottom:12px">
-        <div class="card-body">
-          <div style="display:flex;align-items:center;gap:16px">
-            <div style="width:44px;height:44px;border-radius:12px;background:var(--accent-subtle);display:flex;align-items:center;justify-content:center;font-size:20px">👥</div>
-            <div style="flex:1">
-              <div style="font-weight:600;font-size:16px">${team.name}</div>
-              ${team.description ? `<div class="text-muted" style="font-size:12px">${team.description}</div>` : ""}
-              <div style="margin-top:6px;display:flex;gap:16px;font-size:13px">
-                <span>
-                  <span class="text-muted">${t("teams.leader")}:</span>
-                  <strong style="margin-inline-start:4px">${leaderName}</strong>
-                </span>
-                <span>
-                  <span class="text-muted">${t("teams.members")}:</span>
-                  <strong style="margin-inline-start:4px">${cnt} ${t("teams.members_count")}</strong>
-                </span>
-              </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:20px">👥</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:600;font-size:16px">${escapeHTML(team.name)}</div>
+            ${team.description ? `<div class="text-muted" style="font-size:12px">${escapeHTML(team.description)}</div>` : ""}
+            <div style="margin-top:6px;display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+              <span>
+                <span class="text-muted">${t("teams.leader")}:</span>
+                <strong style="margin-inline-start:4px">${escapeHTML(leaderName)}</strong>
+              </span>
+              <span>
+                <span class="text-muted">${t("teams.members")}:</span>
+                <strong style="margin-inline-start:4px">${cnt} ${t("teams.members_count")}</strong>
+              </span>
             </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm" onclick="openEdit(${team.id})" data-i18n="common.edit">${t("common.edit")}</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.id})" data-i18n="common.delete">${t("common.delete")}</button>
-            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" onclick="openEdit(${team.id})">${t("common.edit")}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.id})">${t("common.delete")}</button>
           </div>
         </div>
       </div>`;
   }).join("");
-  applyLang();
 }
 
 function buildLeaderOptions(selectedId) {
   const sel = document.getElementById("mLeader");
   sel.innerHTML = `<option value="">${t("teams.pick_leader")}</option>` +
-    allLeaders.map(u => `<option value="${u.id}" ${u.id == selectedId ? "selected" : ""}>${u.full_name}</option>`).join("");
+    allLeaders.map(u => `<option value="${u.id}" ${u.id == selectedId ? "selected" : ""}>${escapeHTML(u.full_name)}</option>`).join("");
 }
 
 function buildMembersCheckboxes(selectedIds) {
   const box = document.getElementById("membersList");
   if (!allSales.length) {
-    box.innerHTML = `<div class="text-muted" style="font-size:13px">لا يوجد Sales متاح</div>`;
+    box.innerHTML = `<div class="text-muted" style="font-size:13px">${t("teams.no_sales")}</div>`;
     return;
   }
   box.innerHTML = allSales.map(u => `
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""} style="accent-color:var(--accent)">
-      <span>${u.full_name}</span>
-      <span class="text-muted" style="font-size:11px">@${u.username}</span>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""} style="accent-color:var(--brand)">
+      <span>${escapeHTML(u.full_name)}</span>
+      <span class="text-muted" style="font-size:11px">@${escapeHTML(u.username)}</span>
     </label>`).join("");
 }
 
@@ -142,7 +147,6 @@ async function openNew() {
   document.getElementById("mError").classList.remove("show");
   buildLeaderOptions(null);
   buildMembersCheckboxes([]);
-  applyLang();
   openModal("teamModal");
 }
 
@@ -156,16 +160,16 @@ async function openEdit(teamId) {
     document.getElementById("mError").classList.remove("show");
     buildLeaderOptions(team.leader_id);
     buildMembersCheckboxes((team.members || []).map(m => m.id));
-    applyLang();
     openModal("teamModal");
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 async function saveTeam() {
+  const err = document.getElementById("mError");
+  err.classList.remove("show");
   const name = document.getElementById("mName").value.trim();
   if (!name) {
-    const err = document.getElementById("mError");
-    err.textContent = t("teams.name") + " مطلوب";
+    err.textContent = t("teams.name_required");
     err.classList.add("show");
     return;
   }
@@ -180,18 +184,17 @@ async function saveTeam() {
   try {
     let teamId = editingId;
     if (editingId) {
-      await api(`/api/teams/${editingId}`, { method: "PUT", body: JSON.stringify(body) });
+      await api(`/api/teams/${editingId}`, { method: "PUT", body });
     } else {
-      const res = await api("/api/teams", { method: "POST", body: JSON.stringify(body) });
+      const res = await api("/api/teams", { method: "POST", body });
       teamId = res.id;
     }
-    await api(`/api/teams/${teamId}/members`, { method: "PUT", body: JSON.stringify({ member_ids: memberIds }) });
+    await api(`/api/teams/${teamId}/members`, { method: "PUT", body: { member_ids: memberIds } });
     toast(t("common.saved"), "success");
     closeModal("teamModal");
     loadAll();
   } catch (e) {
-    const err = document.getElementById("mError");
-    err.textContent = e.message;
+    err.textContent = tError(e);
     err.classList.add("show");
   }
 }
@@ -200,9 +203,9 @@ async function deleteTeam(teamId) {
   if (!confirm(t("teams.confirm_delete"))) return;
   try {
     await api(`/api/teams/${teamId}`, { method: "DELETE" });
-    toast(t("common.saved"), "success");
+    toast(t("common.deleted"), "success");
     loadAll();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 function onLangChange() { render(); }

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Team Leader KPI — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block main_class %}narrow{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="tl.title">KPI التيم ليدر</h1>
-    <p class="page-subtitle" data-i18n="tl.subtitle">تقرير أداء الفريق الشهري</p>
+    <h1 class="page-title" data-i18n="tl.title"></h1>
+    <p class="page-subtitle" data-i18n="tl.subtitle"></p>
   </div>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="common.month">الشهر</label>
+    <label data-i18n="common.month"></label>
     <input type="month" id="month" onchange="loadKPI()">
   </div>
   <div class="spacer"></div>
@@ -23,7 +23,7 @@
 <div id="scorePreview" class="hidden">
   <div class="score-display">
     <div class="num" id="scoreNum">—</div>
-    <div class="label" id="scoreLabel" data-i18n="tl.score">نتيجتك الكلية</div>
+    <div class="label" id="scoreLabel" data-i18n="tl.score"></div>
     <div class="sublabel" id="ratingLabel"></div>
   </div>
 </div>
@@ -31,18 +31,18 @@
 <div id="noTeam" class="hidden">
   <div class="empty-state">
     <div class="empty-icon">⚠️</div>
-    <div data-i18n="tl.no_team">لا يوجد فريق مرتبط</div>
+    <div data-i18n="tl.no_team"></div>
   </div>
 </div>
 
 <div id="kpiContent" class="hidden">
   <div class="form-section">
-    <div class="form-section-title" data-i18n="tl.auto_section">بيانات مجمّعة من الفريق</div>
+    <div class="form-section-title" data-i18n="tl.auto_section"></div>
     <div id="autoRows"></div>
   </div>
 
   <div class="form-section">
-    <div class="form-section-title" data-i18n="tl.manual_section">تقييم السيلز مانيجر</div>
+    <div class="form-section-title" data-i18n="tl.manual_section"></div>
     <div id="manualRows"></div>
   </div>
 </div>
@@ -74,30 +74,25 @@ async function loadKPI() {
     kpiData = await api(`/api/kpi/tl-kpi/${TL_ID}/${month}`);
     render(kpiData);
   } catch (e) {
-    if (e.message && e.message.includes("فريق")) {
+    if (e.error_code === "no_team_assigned") {
       document.getElementById("noTeam").classList.remove("hidden");
     } else {
-      toast(e.message || "خطأ", "error");
+      toastError(e);
     }
   }
 }
 
 function render(data) {
-  const lang = (localStorage.getItem("ain_lang") || "ar");
-  const lbl = key => data.breakdown[key]
-    ? (lang === "ar" ? data.breakdown[key].label_ar : data.breakdown[key].label_en)
-    : key;
+  const lbl = key => t("kpi." + key);
 
   // Score
   document.getElementById("scorePreview").classList.remove("hidden");
   document.getElementById("scoreNum").textContent = data.total_score.toFixed(1);
-  document.getElementById("ratingLabel").textContent = data.rating;
-  document.getElementById("scoreNum").className = "num " + ratingClass(data.total_score);
+  document.getElementById("ratingLabel").textContent = t("rating." + (data.rating || "Pending"));
+  document.getElementById("scoreNum").className = "num " + scoreKindClass(data.total_score);
 
-  // Team badge
-  const t = lang === "ar" ? "من" : "of";
   document.getElementById("teamBadge").textContent =
-    `${data.team_submitted} ${t} ${data.team_size} ${lang === "ar" ? "سلّموا" : "submitted"}`;
+    `${data.team_submitted} ${t("common.of")} ${data.team_size} ${t("tl.team_submitted_of")}`;
 
   // Auto fields
   const autoKeys = (cfg && cfg.tl_auto_fields) || [];
@@ -125,7 +120,7 @@ function render(data) {
   const manualKeys = (cfg && cfg.tl_manual_fields) || [];
   const isPending = !data.tl_entry || !data.tl_entry.dataentry_submitted_at;
   document.getElementById("manualRows").innerHTML = isPending
-    ? `<div class="text-muted" style="padding:12px" data-i18n="tl.pending_eval">في انتظار تقييم المانيجر</div>`
+    ? `<div class="text-muted" style="padding:12px">${t("tl.pending_eval")}</div>`
     : manualKeys.map(key => {
         const b = data.breakdown[key];
         if (!b) return "";
@@ -147,15 +142,16 @@ function render(data) {
       }).join("");
 
   document.getElementById("kpiContent").classList.remove("hidden");
-  applyLang();
 }
+
+function onLangChange() { loadKPI(); }
 
 function fmtNum(n) {
   if (n === undefined || n === null) return "—";
   return Number.isInteger(n) ? n : n.toFixed(1);
 }
 
-function ratingClass(score) {
+function scoreKindClass(score) {
   if (score >= 90) return "excellent";
   if (score >= 75) return "vgood";
   if (score >= 55) return "good";

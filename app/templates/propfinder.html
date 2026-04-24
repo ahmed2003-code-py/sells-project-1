@@ -1,37 +1,43 @@
 {% extends "base.html" %}
-{% block title %}PropFinder — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">PropFinder</h1>
-    <p class="page-subtitle">{{ "Properties synced from Master V" }}</p>
+    <h1 class="page-title" data-i18n="pf.title"></h1>
+    <p class="page-subtitle" data-i18n="pf.subtitle"></p>
   </div>
-  <button class="btn" onclick="triggerSync()" id="syncBtn">Trigger Sync</button>
+  <button class="btn hyper-btn" onclick="triggerSync()" id="syncBtn" data-i18n="pf.trigger_sync"></button>
 </div>
 
 <div class="stats-grid stagger" id="stats">
-  <div class="stat"><div class="stat-label">Total Units</div><div class="stat-value">—</div></div>
-  <div class="stat"><div class="stat-label">Sold</div><div class="stat-value">—</div></div>
-  <div class="stat"><div class="stat-label">Compounds</div><div class="stat-value">—</div></div>
-  <div class="stat"><div class="stat-label">Avg Price</div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label" data-i18n="pf.total_units"></div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label" data-i18n="pf.sold"></div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label" data-i18n="pf.compounds"></div><div class="stat-value">—</div></div>
+  <div class="stat"><div class="stat-label" data-i18n="pf.avg_price"></div><div class="stat-value">—</div></div>
 </div>
 
-<div class="card">
-  <div class="card-title">Sync Status</div>
-  <div id="syncStatus" class="text-muted">Loading...</div>
+<div class="card reveal">
+  <div class="card-title" data-i18n="pf.sync_status"></div>
+  <div id="syncStatus" class="text-muted"><span class="loading"></span></div>
 </div>
 
-<div class="card">
-  <div class="card-title">Units (latest 50)</div>
+<div class="card reveal">
+  <div class="card-title" data-i18n="pf.units_latest"></div>
   <div class="table-wrap" style="max-height:600px;overflow:auto">
     <table>
       <thead><tr>
-        <th>Compound</th><th>Developer</th><th>City</th><th>Type</th>
-        <th>Bedrooms</th><th>BUA</th><th>Price</th><th>Status</th>
+        <th data-i18n="pf.col_compound"></th>
+        <th data-i18n="pf.col_developer"></th>
+        <th data-i18n="pf.col_city"></th>
+        <th data-i18n="pf.col_type"></th>
+        <th data-i18n="pf.col_bedrooms"></th>
+        <th data-i18n="pf.col_bua"></th>
+        <th data-i18n="pf.col_price"></th>
+        <th data-i18n="pf.col_status"></th>
       </tr></thead>
       <tbody id="unitsBody">
-        <tr><td colspan="8" class="table-empty">Loading...</td></tr>
+        <tr><td colspan="8" class="table-empty"><span class="loading"></span></td></tr>
       </tbody>
     </table>
   </div>
@@ -40,25 +46,32 @@
 
 {% block scripts %}
 <script>
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
 async function loadStats() {
   try {
     const s = await api("/api/stats");
     if (!s.total) {
       document.getElementById("stats").innerHTML = `
         <div class="stat" style="grid-column:1/-1">
-          <div class="stat-label">No units data</div>
-          <div class="text-muted" style="font-size:12px;margin-top:4px">Sync has not run yet or units table is empty</div>
+          <div class="stat-label">${t("pf.no_data")}</div>
+          <div class="text-muted" style="font-size:12px;margin-top:4px">${t("pf.no_data_hint")}</div>
         </div>`;
       return;
     }
     document.getElementById("stats").innerHTML = `
-      <div class="stat success"><div class="stat-label">Total Units</div><div class="stat-value">${fmtNum(s.total)}</div></div>
-      <div class="stat warn"><div class="stat-label">Sold</div><div class="stat-value">${fmtNum(s.sold)}</div></div>
-      <div class="stat accent"><div class="stat-label">Compounds</div><div class="stat-value">${fmtNum(s.compounds)}</div></div>
-      <div class="stat"><div class="stat-label">Avg Price</div><div class="stat-value sm money">${s.avg_price ? fmtMoney(s.avg_price) : '—'}</div></div>`;
+      <div class="stat success"><div class="stat-label">${t("pf.total_units")}</div><div class="stat-value">${fmtNum(s.total)}</div></div>
+      <div class="stat warn"><div class="stat-label">${t("pf.sold")}</div><div class="stat-value">${fmtNum(s.sold)}</div></div>
+      <div class="stat accent"><div class="stat-label">${t("pf.compounds")}</div><div class="stat-value">${fmtNum(s.compounds)}</div></div>
+      <div class="stat"><div class="stat-label">${t("pf.avg_price")}</div><div class="stat-value sm money">${s.avg_price ? fmtMoney(s.avg_price) : '—'}</div></div>`;
   } catch (e) {
     document.getElementById("stats").innerHTML = `<div class="stat" style="grid-column:1/-1">
-      <div class="stat-label text-danger">Error</div><div class="text-muted" style="font-size:12px">${e.message}</div></div>`;
+      <div class="stat-label text-danger">${t("common.error")}</div>
+      <div class="text-muted" style="font-size:12px">${escapeHTML(tError(e))}</div></div>`;
   }
 }
 
@@ -67,21 +80,24 @@ async function loadUnits() {
     const units = await api("/api/units");
     const body = document.getElementById("unitsBody");
     if (!units.length) {
-      body.innerHTML = '<tr><td colspan="8" class="table-empty">No units</td></tr>';
+      body.innerHTML = `<tr><td colspan="8" class="table-empty">${t("pf.no_data")}</td></tr>`;
       return;
     }
     body.innerHTML = units.slice(-50).reverse().map(u => `<tr>
-      <td>${u.compound_name || "—"}</td>
-      <td>${u.developer_name || "—"}</td>
-      <td>${u.city_name || "—"}</td>
-      <td>${u.unit_type || "—"}</td>
+      <td>${escapeHTML(u.compound_name || "—")}</td>
+      <td>${escapeHTML(u.developer_name || "—")}</td>
+      <td>${escapeHTML(u.city_name || "—")}</td>
+      <td>${escapeHTML(u.unit_type || "—")}</td>
       <td>${u.bedrooms || "—"}</td>
       <td>${u.built_up_area_sqm ? u.built_up_area_sqm + " m²" : "—"}</td>
       <td>${u.total_price_egp ? fmtMoney(u.total_price_egp) : "—"}</td>
-      <td>${u.is_sold ? '<span class="badge badge-pending">Sold</span>' : '<span class="badge badge-excellent">Available</span>'}</td>
+      <td>${u.is_sold
+            ? '<span class="badge badge-pending">' + t("pf.sold") + '</span>'
+            : '<span class="badge badge-excellent">' + t("pf.available") + '</span>'}</td>
     </tr>`).join("");
   } catch (e) {
-    document.getElementById("unitsBody").innerHTML = `<tr><td colspan="8" class="table-empty text-danger">${e.message}</td></tr>`;
+    document.getElementById("unitsBody").innerHTML =
+      `<tr><td colspan="8" class="table-empty text-danger">${escapeHTML(tError(e))}</td></tr>`;
   }
 }
 
@@ -91,17 +107,18 @@ async function loadSyncStatus() {
     const btn = document.getElementById("syncBtn");
     let html = "";
     if (!s.enabled) {
-      html = '<span class="text-muted">● Sync is disabled</span>';
+      html = '<span class="text-muted">● ' + t("pf.sync_disabled") + '</span>';
       btn.disabled = true;
-      btn.textContent = "Sync disabled";
+      btn.textContent = t("pf.sync_disabled");
     } else if (s.running) {
-      html = '<span class="text-warn">● Running...</span>';
+      html = '<span class="text-warn">● ' + t("pf.running") + '</span>';
     } else if (s.error) {
-      html = `<span class="text-danger">● Error: ${s.error}</span>`;
+      html = `<span class="text-danger">● ${escapeHTML(s.error)}</span>`;
     } else if (s.last_run) {
-      html = `<span class="text-success">● Last: ${new Date(s.last_run).toLocaleString()}</span>`;
+      const locale = getLang() === "ar" ? "ar-EG" : "en-US";
+      html = `<span class="text-success">● ${t("pf.last_run")}: ${new Date(s.last_run).toLocaleString(locale)}</span>`;
     } else {
-      html = '<span class="text-muted">Not yet run</span>';
+      html = '<span class="text-muted">' + t("pf.not_yet_run") + '</span>';
     }
     document.getElementById("syncStatus").innerHTML = html;
   } catch (e) { console.error(e); }
@@ -109,14 +126,18 @@ async function loadSyncStatus() {
 
 async function triggerSync() {
   const btn = document.getElementById("syncBtn");
-  btn.disabled = true; btn.textContent = "Running...";
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.innerHTML = '<span class="loading"></span> ' + t("pf.running");
   try {
     await api("/api/sync/trigger", { method: "POST" });
-    toast("Sync started", "success");
+    toast(t("pf.sync_started"), "success");
     setTimeout(() => { loadSyncStatus(); loadStats(); loadUnits(); }, 3000);
-  } catch (e) { toast(e.message, "error"); }
-  finally { btn.disabled = false; btn.textContent = "Trigger Sync"; }
+  } catch (e) { toastError(e); }
+  finally { btn.disabled = false; btn.textContent = prev; }
 }
+
+function onLangChange() { loadStats(); loadUnits(); loadSyncStatus(); }
 
 loadStats(); loadUnits(); loadSyncStatus();
 setInterval(loadSyncStatus, 15000);

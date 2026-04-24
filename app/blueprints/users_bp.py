@@ -1,12 +1,24 @@
 """
-Users management blueprint — admin-only CRUD for users
+Users management blueprint — admin CRUD for users.
+All error responses use structured {error_code} payloads.
 """
 import logging
+
 import psycopg2
 import psycopg2.extras
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
+
+from app.auth import (
+    ROLES,
+    error_response,
+    hash_password,
+    role_required,
+    validate_email,
+    validate_password,
+    validate_phone,
+    validate_username,
+)
 from app.database import get_conn
-from app.auth import hash_password, role_required, ROLES
 
 log = logging.getLogger(__name__)
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
@@ -14,7 +26,7 @@ users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 
 def _user_to_dict(row):
     d = dict(row)
-    for k in ["created_at", "updated_at", "last_login"]:
+    for k in ("created_at", "updated_at", "last_login"):
         if d.get(k):
             d[k] = d[k].isoformat()
     d.pop("password_hash", None)
@@ -26,6 +38,10 @@ def _user_to_dict(row):
 def list_users():
     role_filter = request.args.get("role")
     active_only = request.args.get("active_only") == "true"
+    if role_filter and role_filter not in ROLES:
+        return error_response("invalid_role", 400)
+
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -41,15 +57,19 @@ def list_users():
             q += " ORDER BY role DESC, full_name ASC"
             cur.execute(q, params)
             users = [_user_to_dict(r) for r in cur.fetchall()]
-        conn.close()
         return jsonify(users)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("list_users: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("/<int:user_id>", methods=["GET"])
 @role_required("admin", "manager")
 def get_user(user_id):
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -59,137 +79,242 @@ def get_user(user_id):
                 FROM users WHERE id = %s
             """, (user_id,))
             row = cur.fetchone()
-        conn.close()
         if not row:
-            return jsonify({"error": "User not found"}), 404
+            return error_response("not_found", 404)
         return jsonify(_user_to_dict(row))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("get_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("", methods=["POST"])
 @role_required("admin")
 def create_user():
-    data = request.get_json() or {}
-    username = data.get("username", "").strip().lower()
-    full_name = data.get("full_name", "").strip()
-    password = data.get("password", "")
-    role = data.get("role", "sales")
-    email = data.get("email", "").strip() or None
-    phone = data.get("phone", "").strip() or None
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip().lower()
+    full_name = (data.get("full_name") or "").strip()
+    password = data.get("password") or ""
+    role = (data.get("role") or "sales").strip()
+    email = (data.get("email") or "").strip().lower() or None
+    phone = (data.get("phone") or "").strip() or None
 
-    if not username or not full_name or not password:
-        return jsonify({"error": "اسم المستخدم والاسم الكامل وكلمة المرور مطلوبة"}), 400
+    if not full_name:
+        return error_response("required_fields_missing", 400)
     if role not in ROLES:
-        return jsonify({"error": "الدور غير صحيح"}), 400
-    if len(password) < 4:
-        return jsonify({"error": "كلمة المرور يجب أن تكون 4 أحرف على الأقل"}), 400
+        return error_response("invalid_role", 400)
+    if (err := validate_username(username)):
+        return error_response(err, 400)
+    if (err := validate_email(email, required=True)):
+        return error_response(err, 400)
+    if (err := validate_phone(phone, required=False)):
+        return error_response(err, 400)
+    if (err := validate_password(password, username=username)):
+        return error_response(err, 400)
 
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO users (username, full_name, password_hash, role, email, phone)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (username, full_name, hash_password(password), role, email, phone))
-            new_id = cur.fetchone()[0]
+            cur.execute("SELECT 1 FROM users WHERE LOWER(email) = %s LIMIT 1", (email,))
+            if cur.fetchone():
+                return error_response("email_taken", 409)
+            try:
+                cur.execute("""
+                    INSERT INTO users (username, full_name, password_hash, role, email, phone)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (username, full_name[:150], hash_password(password), role, email, phone))
+                new_id = cur.fetchone()[0]
+            except psycopg2.IntegrityError:
+                conn.rollback()
+                return error_response("username_taken", 409)
         conn.commit()
-        conn.close()
-        log.info(f"✅ User created: {username} ({role})")
-        return jsonify({"id": new_id, "message": "تم إنشاء المستخدم"}), 201
-    except psycopg2.IntegrityError:
-        return jsonify({"error": "اسم المستخدم موجود بالفعل"}), 409
+        log.info("✅ User created: %s (%s)", username, role)
+        return jsonify({"id": new_id}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("create_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("/<int:user_id>", methods=["PUT"])
 @role_required("admin")
 def update_user(user_id):
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
+    conn = None
     try:
         conn = get_conn()
-        with conn.cursor() as cur:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Fetch existing to validate updates contextually
+            cur.execute("SELECT username, email, role FROM users WHERE id = %s", (user_id,))
+            existing = cur.fetchone()
+            if not existing:
+                return error_response("not_found", 404)
+
             fields = []
             params = []
-            for f in ["full_name", "role", "email", "phone", "active"]:
-                if f in data:
-                    fields.append(f"{f} = %s")
-                    params.append(data[f])
+
+            if "full_name" in data:
+                fn = (data["full_name"] or "").strip()
+                if not fn:
+                    return error_response("required_fields_missing", 400)
+                fields.append("full_name = %s")
+                params.append(fn[:150])
+
+            if "role" in data:
+                r = (data["role"] or "").strip()
+                if r not in ROLES:
+                    return error_response("invalid_role", 400)
+                # Guard against demoting the last admin
+                if existing["role"] == "admin" and r != "admin":
+                    cur.execute(
+                        "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = true AND id <> %s",
+                        (user_id,),
+                    )
+                    if cur.fetchone()["count"] == 0:
+                        return error_response("cannot_delete_last_admin", 400)
+                fields.append("role = %s")
+                params.append(r)
+
+            if "email" in data:
+                em = (data["email"] or "").strip().lower() or None
+                if (err := validate_email(em, required=True)):
+                    return error_response(err, 400)
+                if em and em != (existing["email"] or "").lower():
+                    cur.execute(
+                        "SELECT 1 FROM users WHERE LOWER(email) = %s AND id <> %s LIMIT 1",
+                        (em, user_id),
+                    )
+                    if cur.fetchone():
+                        return error_response("email_taken", 409)
+                fields.append("email = %s")
+                params.append(em)
+
+            if "phone" in data:
+                ph = (data["phone"] or "").strip() or None
+                if (err := validate_phone(ph, required=False)):
+                    return error_response(err, 400)
+                fields.append("phone = %s")
+                params.append(ph)
+
+            if "active" in data:
+                fields.append("active = %s")
+                params.append(bool(data["active"]))
+
             if data.get("password"):
-                if len(data["password"]) < 4:
-                    return jsonify({"error": "كلمة المرور يجب أن تكون 4 أحرف على الأقل"}), 400
+                if (err := validate_password(data["password"], username=existing["username"])):
+                    return error_response(err, 400)
                 fields.append("password_hash = %s")
                 params.append(hash_password(data["password"]))
+
             if not fields:
-                return jsonify({"error": "لا يوجد تعديلات"}), 400
+                return error_response("no_changes", 400)
+
             fields.append("updated_at = NOW()")
             params.append(user_id)
             cur.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = %s", params)
             if cur.rowcount == 0:
-                return jsonify({"error": "المستخدم غير موجود"}), 404
+                return error_response("not_found", 404)
         conn.commit()
-        conn.close()
-        log.info(f"✅ User {user_id} updated")
-        return jsonify({"message": "تم التحديث"})
+        log.info("✅ User %s updated", user_id)
+        return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("update_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
 @role_required("admin")
 def delete_user(user_id):
-    """Hard delete — removes user and all their KPI entries (CASCADE)"""
+    """Hard delete — removes user and all their KPI entries (CASCADE)."""
+    if user_id == session.get("user_id"):
+        return error_response("forbidden", 403)
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("SELECT role FROM users WHERE id = %s", (user_id,))
             row = cur.fetchone()
             if not row:
-                return jsonify({"error": "المستخدم غير موجود"}), 404
+                return error_response("not_found", 404)
             if row[0] == "admin":
-                cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = true")
+                cur.execute(
+                    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = true"
+                )
                 if cur.fetchone()[0] <= 1:
-                    return jsonify({"error": "لا يمكن حذف آخر مدير للنظام"}), 400
-
+                    return error_response("cannot_delete_last_admin", 400)
             cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
         conn.commit()
-        conn.close()
-        log.info(f"✅ User {user_id} deleted")
-        return jsonify({"message": "تم الحذف"})
+        log.info("✅ User %s deleted", user_id)
+        return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("delete_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("/<int:user_id>/deactivate", methods=["POST"])
 @role_required("admin")
 def deactivate_user(user_id):
-    """Soft delete — keeps data but disables login"""
+    if user_id == session.get("user_id"):
+        return error_response("forbidden", 403)
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("UPDATE users SET active = false, updated_at = NOW() WHERE id = %s", (user_id,))
-            if cur.rowcount == 0:
-                return jsonify({"error": "المستخدم غير موجود"}), 404
+            cur.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            if not row:
+                return error_response("not_found", 404)
+            if row[0] == "admin":
+                cur.execute(
+                    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = true"
+                )
+                if cur.fetchone()[0] <= 1:
+                    return error_response("cannot_delete_last_admin", 400)
+            cur.execute(
+                "UPDATE users SET active = false, updated_at = NOW() WHERE id = %s",
+                (user_id,),
+            )
         conn.commit()
-        conn.close()
-        return jsonify({"message": "تم تعطيل المستخدم"})
+        return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("deactivate_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @users_bp.route("/<int:user_id>/activate", methods=["POST"])
 @role_required("admin")
 def activate_user(user_id):
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("UPDATE users SET active = true, updated_at = NOW() WHERE id = %s", (user_id,))
+            cur.execute(
+                "UPDATE users SET active = true, updated_at = NOW(), "
+                "failed_logins = 0, locked_until = NULL WHERE id = %s",
+                (user_id,),
+            )
             if cur.rowcount == 0:
-                return jsonify({"error": "المستخدم غير موجود"}), 404
+                return error_response("not_found", 404)
         conn.commit()
-        conn.close()
-        return jsonify({"message": "تم تفعيل المستخدم"})
+        return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("activate_user: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()

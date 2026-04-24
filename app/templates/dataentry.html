@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}{{ "Evaluation" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="de.title">تقييم الفريق</h1>
-    <p class="page-subtitle" data-i18n="de.subtitle">سجّل تقييم المدير لكل Sales</p>
+    <h1 class="page-title" data-i18n="de.title"></h1>
+    <p class="page-subtitle" data-i18n="de.subtitle"></p>
   </div>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="common.month">الشهر</label>
+    <label data-i18n="common.month"></label>
     <input type="month" id="month" onchange="loadAll()">
   </div>
   <div class="field">
-    <label data-i18n="common.filter">فلترة</label>
+    <label data-i18n="common.filter"></label>
     <select id="filterStatus" onchange="render()">
-      <option value="all" data-i18n="de.all_team">كل الفريق</option>
-      <option value="pending" data-i18n="de.waiting_eval">لم يُقيَّم بعد</option>
-      <option value="done" data-i18n="de.evaluated">تم التقييم</option>
-      <option value="no-sales" data-i18n="de.missing_sales">Sales لم يسجل بعد</option>
+      <option value="all" data-i18n="de.all_team"></option>
+      <option value="pending" data-i18n="de.waiting_eval"></option>
+      <option value="done" data-i18n="de.evaluated"></option>
+      <option value="no-sales" data-i18n="de.missing_sales"></option>
     </select>
   </div>
   <div class="spacer"></div>
@@ -36,33 +36,36 @@ let users = [];
 let entries = {};
 const PASSFAIL = ["attitude", "presentation", "behaviour", "appearance", "hr_roles"];
 
+function escapeHTML(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
 async function loadAll() {
   const month = document.getElementById("month").value;
   if (!month) return;
   try {
-    const list = await api("/api/users?role=sales&active_only=true");
-    users = list;
+    users = await api("/api/users?role=sales&active_only=true");
     const report = await api(`/api/kpi/report?month=${month}`);
     entries = {};
     report.forEach(r => { entries[r.user_id] = r; });
     render();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 function render() {
   const filter = document.getElementById("filterStatus").value;
   const container = document.getElementById("list");
-  let rows = users.map(u => ({
-    user: u,
-    entry: entries[u.id] || null,
-  }));
+  let rows = users.map(u => ({ user: u, entry: entries[u.id] || null }));
 
   if (filter === "pending") rows = rows.filter(r => r.entry && r.entry.sales_submitted_at && !r.entry.dataentry_submitted_at);
   else if (filter === "done") rows = rows.filter(r => r.entry && r.entry.dataentry_submitted_at);
   else if (filter === "no-sales") rows = rows.filter(r => !r.entry || !r.entry.sales_submitted_at);
 
   const done = users.filter(u => entries[u.id] && entries[u.id].dataentry_submitted_at).length;
-  document.getElementById("progress").textContent = `${t("de.progress")} ${done} ${t("de.of")} ${users.length}`;
+  document.getElementById("progress").textContent =
+    `${t("de.progress")} ${done} ${t("de.of")} ${users.length}`;
 
   if (!rows.length) {
     container.innerHTML = `<div class="card text-center text-muted">${t("admin.no_users")}</div>`;
@@ -77,23 +80,23 @@ function renderCard(user, entry) {
   const isDone = entry && entry.dataentry_submitted_at;
   const score = entry ? parseFloat(entry.total_score) || 0 : 0;
   const statusBadges = [];
-  if (hasSales) statusBadges.push('<span class="badge badge-vgood">Sales &#10003;</span>');
-  else statusBadges.push('<span class="badge badge-pending">Sales &#10007;</span>');
-  if (isDone) statusBadges.push('<span class="badge badge-excellent">' + t("de.evaluated") + '</span>');
-  else statusBadges.push('<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
+  statusBadges.push(hasSales
+    ? '<span class="badge badge-vgood">' + t("de.sales_done") + '</span>'
+    : '<span class="badge badge-pending">' + t("de.sales_not_done") + '</span>');
+  statusBadges.push(isDone
+    ? '<span class="badge badge-excellent">' + t("de.evaluated") + '</span>'
+    : '<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
   if (isDone) statusBadges.push(`<span class="badge badge-excellent">${score.toFixed(1)}%</span>`);
 
   const freshLeads = entry ? (entry.fresh_leads || 0) : 0;
 
   let passfailHTML = PASSFAIL.map(k => {
-    const label_en = { attitude: "Attitude", presentation: "Presentation", behaviour: "Behaviour", appearance: "Appearance", hr_roles: "HR Roles" }[k];
-    const label_ar = { attitude: "السلوك", presentation: "العرض", behaviour: "التصرف", appearance: "المظهر", hr_roles: "HR Roles" }[k];
     const current = entry ? (entry[k] || 0) : 0;
     return `<div>
-      <div class="text-muted" style="font-size:11px;margin-bottom:4px" data-i18n-alt>${getLang() === 'ar' ? label_ar : label_en}</div>
+      <div class="text-muted" style="font-size:11px;margin-bottom:4px">${t("kpi." + k)}</div>
       <select id="${k}-${user.id}" class="pf-select">
         <option value="100" ${current == 100 ? 'selected' : ''}>${t("common.pass")}</option>
-        <option value="0" ${current == 0 ? 'selected' : ''}>${t("common.fail")}</option>
+        <option value="0"   ${current == 0 ? 'selected' : ''}>${t("common.fail")}</option>
       </select>
     </div>`;
   }).join("");
@@ -101,10 +104,10 @@ function renderCard(user, entry) {
   return `<div class="card fade-in" data-user-id="${user.id}">
     <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
       <div class="flex items-center gap-2">
-        <div class="avatar">${(user.full_name || "?")[0]}</div>
+        <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:500">${user.full_name}</div>
-          <div class="text-muted" style="font-size:11px">@${user.username}</div>
+          <div style="font-weight:500">${escapeHTML(user.full_name)}</div>
+          <div class="text-muted" style="font-size:11px">@${escapeHTML(user.username)}</div>
         </div>
       </div>
       <div class="flex gap-1" style="flex-wrap:wrap">${statusBadges.join("")}</div>
@@ -113,18 +116,19 @@ function renderCard(user, entry) {
     <div class="field-row" style="margin-bottom:12px">
       <div class="field">
         <label>${t("sales.fresh_leads")}</label>
-        <input type="number" id="fresh_leads-${user.id}" value="${freshLeads}">
+        <input type="number" id="fresh_leads-${user.id}" value="${freshLeads}" min="0">
       </div>
       <div class="field">
         <label>${t("de.notes")}</label>
-        <input type="text" id="notes-${user.id}" value="${entry && entry.notes ? entry.notes.replace(/"/g, '&quot;') : ''}" placeholder="${t("de.notes_ph")}">
+        <input type="text" id="notes-${user.id}" value="${escapeHTML(entry && entry.notes ? entry.notes : '')}"
+               placeholder="${t("de.notes_ph")}" maxlength="400">
       </div>
     </div>
 
     <div class="field-row five" style="margin-bottom:14px">${passfailHTML}</div>
 
     <div class="flex gap-1">
-      <button class="btn btn-primary btn-sm" onclick="saveEval(${user.id})">${t("de.save_eval")}</button>
+      <button class="btn btn-primary btn-sm hyper-btn" onclick="saveEval(${user.id})">${t("de.save_eval")}</button>
       ${entry ? `<button class="btn btn-sm" onclick="showDetail(${user.id})">${t("common.details")}</button>` : ''}
     </div>
   </div>`;
@@ -132,24 +136,25 @@ function renderCard(user, entry) {
 
 async function saveEval(userId) {
   const month = document.getElementById("month").value;
+  const fresh = parseInt(document.getElementById(`fresh_leads-${userId}`).value);
+  if (isNaN(fresh) || fresh < 0) return toast(t("errors.invalid_input"), "error");
+
   const body = {
     user_id: userId,
-    month: month,
-    fresh_leads: document.getElementById(`fresh_leads-${userId}`).value || 0,
+    month,
+    fresh_leads: fresh,
     notes: document.getElementById(`notes-${userId}`).value || "",
   };
   PASSFAIL.forEach(k => body[k] = document.getElementById(`${k}-${userId}`).value);
 
   try {
     const data = await api("/api/kpi/submit/evaluation", { method: "POST", body });
-    toast(t("common.saved") + ` — ${data.total_score}%`, "success");
+    toast(`${t("common.saved")} — ${data.total_score}%`, "success");
     loadAll();
-  } catch (e) { toast(e.message, "error"); }
+  } catch (e) { toastError(e); }
 }
 
 function showDetail(userId) {
-  const entry = entries[userId];
-  if (!entry) return;
   window.location.href = "/dashboard";
 }
 

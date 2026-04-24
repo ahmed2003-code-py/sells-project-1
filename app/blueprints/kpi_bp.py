@@ -103,7 +103,7 @@ def submit_sales():
     month = data.get("month")
 
     if not month:
-        return _json({"error": "الشهر مطلوب"}, 400)
+        return _json({"error_code": "required_fields_missing", "error": "month_required"}, 400)
 
     try:
         conn = get_conn()
@@ -149,7 +149,7 @@ def submit_sales():
         finally:
             conn.close()
         log.info(f"✅ Sales submit: user={user_id} month={month} score={total}")
-        return _json({"message": "تم الحفظ", "total_score": total, "rating": rating})
+        return _json({"ok": True, "total_score": total, "rating": rating})
     except Exception as e:
         log.error(f"Sales submit error: {e}")
         return _json({"error": str(e)}, 500)
@@ -164,7 +164,7 @@ def submit_evaluation():
     user_id = data.get("user_id")
     month = data.get("month")
     if not user_id or not month:
-        return _json({"error": "user_id والشهر مطلوبان"}, 400)
+        return _json({"error_code": "required_fields_missing", "error": "required"}, 400)
 
     try:
         conn = get_conn()
@@ -228,7 +228,7 @@ def submit_evaluation():
         finally:
             conn.close()
         log.info(f"✅ Evaluation submit: user={user_id} month={month} score={total}")
-        return _json({"message": "تم الحفظ", "total_score": total, "rating": rating})
+        return _json({"ok": True, "total_score": total, "rating": rating})
     except Exception as e:
         log.error(f"Evaluation submit error: {e}")
         return _json({"error": str(e)}, 500)
@@ -277,11 +277,11 @@ def delete_entry(entry_id):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM kpi_entries WHERE id = %s", (entry_id,))
                 if cur.rowcount == 0:
-                    return _json({"error": "السجل غير موجود"}, 404)
+                    return _json({"error_code": "not_found", "error": "not_found"}, 404)
             conn.commit()
         finally:
             conn.close()
-        return _json({"message": "تم الحذف"})
+        return _json({"ok": True})
     except Exception as e:
         return _json({"error": str(e)}, 500)
 
@@ -387,7 +387,7 @@ def submit_tl_evaluation():
     tl_user_id = data.get("user_id")
     month = data.get("month")
     if not tl_user_id or not month:
-        return _json({"error": "user_id والشهر مطلوبان"}, 400)
+        return _json({"error_code": "required_fields_missing", "error": "required"}, 400)
 
     try:
         conn = get_conn()
@@ -435,7 +435,7 @@ def submit_tl_evaluation():
         finally:
             conn.close()
         log.info(f"✅ TL evaluation submit: tl={tl_user_id} month={month}")
-        return _json({"message": "تم الحفظ"})
+        return _json({"ok": True})
     except Exception as e:
         log.error(f"TL evaluation submit error: {e}")
         return _json({"error": str(e)}, 500)
@@ -448,9 +448,9 @@ def submit_tl_evaluation():
 def get_tl_kpi(tl_user_id, month):
     role = session.get("role")
     if role == "sales":
-        return _json({"error": "Forbidden"}, 403)
+        return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
     if role == "team_leader" and session["user_id"] != tl_user_id:
-        return _json({"error": "Forbidden"}, 403)
+        return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
 
     try:
         conn = get_conn()
@@ -470,7 +470,7 @@ def get_tl_kpi(tl_user_id, month):
                 """, (tl_user_id,))
                 team_row = cur.fetchone()
                 if not team_row:
-                    return _json({"error": "لا يوجد فريق مرتبط بهذا التيم ليدر"}, 404)
+                    return _json({"error_code": "no_team_assigned", "error": "no_team_assigned"}, 404)
                 team_id = team_row["id"]
 
                 # Team size

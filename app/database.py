@@ -90,9 +90,33 @@ def init_all_tables():
                 ("team_id", "ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER"),
                 ("preferred_lang", "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_lang VARCHAR(5) DEFAULT 'ar'"),
                 ("preferred_theme", "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_theme VARCHAR(10) DEFAULT 'dark'"),
+                ("failed_logins", "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER DEFAULT 0"),
+                ("locked_until", "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP"),
             ]:
                 if not column_exists(conn, "users", col):
                     cur.execute(ddl)
+
+            # Case-insensitive uniqueness on email (when present)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
+                ON users (LOWER(email))
+                WHERE email IS NOT NULL AND email <> ''
+            """)
+
+            # ═══ PASSWORD RESET TOKENS ══════════════════════════════════════
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    token_hash VARCHAR(128) NOT NULL UNIQUE,
+                    expires_at TIMESTAMP NOT NULL,
+                    used_at TIMESTAMP,
+                    created_ip VARCHAR(64),
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_prt_exp ON password_reset_tokens(expires_at);")
 
             # ═══ TEAMS ══════════════════════════════════════════════════════
             cur.execute("""
@@ -278,12 +302,13 @@ def init_all_tables():
             count = cur.fetchone()[0]
             if count == 0:
                 cur.execute("""
-                    INSERT INTO users (username, full_name, password_hash, role)
-                    VALUES (%s, %s, %s, 'admin')
+                    INSERT INTO users (username, full_name, password_hash, role, email)
+                    VALUES (%s, %s, %s, 'admin', %s)
                 """, (
                     Config.DEFAULT_ADMIN_USER,
                     "System Administrator",
-                    hash_password(Config.DEFAULT_ADMIN_PASSWORD)
+                    hash_password(Config.DEFAULT_ADMIN_PASSWORD),
+                    Config.DEFAULT_ADMIN_EMAIL,
                 ))
                 conn.commit()
                 log.info(f"✅ Default admin created: {Config.DEFAULT_ADMIN_USER} / {Config.DEFAULT_ADMIN_PASSWORD}")

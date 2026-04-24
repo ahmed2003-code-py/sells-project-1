@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ "My KPI" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block main_class %}narrow{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title" data-i18n="sales.title">تسجيل KPI الشهري</h1>
-    <p class="page-subtitle" data-i18n="sales.subtitle">سجّل بياناتك الشهرية — يمكنك التعديل في أي وقت</p>
+    <h1 class="page-title" data-i18n="sales.title"></h1>
+    <p class="page-subtitle" data-i18n="sales.subtitle"></p>
   </div>
 </div>
 
 <div class="controls">
   <div class="field">
-    <label data-i18n="common.month">الشهر</label>
+    <label data-i18n="common.month"></label>
     <input type="month" id="month" onchange="loadEntry()">
   </div>
   <div class="spacer"></div>
@@ -23,63 +23,63 @@
 <div id="scorePreview" class="hidden">
   <div class="score-display">
     <div class="num" id="scoreNum">—</div>
-    <div class="label" id="scoreLabel" data-i18n="sales.prelim_score">نتيجتك المبدئية</div>
+    <div class="label" id="scoreLabel" data-i18n="sales.prelim_score"></div>
   </div>
 </div>
 
 <form id="salesForm">
   <div class="form-section">
-    <div class="form-section-title" data-i18n="sales.basic_data">البيانات الأساسية</div>
+    <div class="form-section-title" data-i18n="sales.basic_data"></div>
     <div class="field">
       <label>
-        <span data-i18n="sales.fresh_leads">Fresh Leads</span>
-        <small data-i18n="sales.fresh_leads_hint">إجمالي الـ Leads هذا الشهر</small>
+        <span data-i18n="sales.fresh_leads"></span>
+        <small data-i18n="sales.fresh_leads_hint"></small>
       </label>
       <input type="number" min="0" id="fresh_leads" required oninput="livePreview()">
     </div>
   </div>
 
   <div class="form-section">
-    <div class="form-section-title" data-i18n="sales.numeric_perf">الأداء الرقمي</div>
+    <div class="form-section-title" data-i18n="sales.numeric_perf"></div>
     <div class="field-row">
       <div class="field">
-        <label>Calls <small><span data-i18n="sales.target">الهدف</span>: 2000</small></label>
+        <label><span data-i18n="kpi.calls"></span> <small><span data-i18n="sales.target"></span>: 2000</small></label>
         <input type="number" min="0" id="calls" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Meetings <small>20% <span data-i18n="sales.of_leads">من Leads</span></small></label>
+        <label><span data-i18n="kpi.meetings"></span> <small>20% <span data-i18n="sales.of_leads"></span></small></label>
         <input type="number" min="0" id="meetings" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>CRM % <small><span data-i18n="sales.target">الهدف</span>: 95%</small></label>
+        <label><span data-i18n="kpi.crm_pct"></span> % <small><span data-i18n="sales.target"></span>: 95%</small></label>
         <input type="number" min="0" max="100" step="0.1" id="crm_pct" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Deals <small>3% <span data-i18n="sales.of_leads">من Leads</span></small></label>
+        <label><span data-i18n="kpi.deals"></span> <small>3% <span data-i18n="sales.of_leads"></span></small></label>
         <input type="number" min="0" id="deals" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Reports <small><span data-i18n="sales.target">الهدف</span>: 4</small></label>
+        <label><span data-i18n="kpi.reports"></span> <small><span data-i18n="sales.target"></span>: 4</small></label>
         <input type="number" min="0" id="reports" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Reservations <small>7% <span data-i18n="sales.of_leads">من Leads</span></small></label>
+        <label><span data-i18n="kpi.reservations"></span> <small>7% <span data-i18n="sales.of_leads"></span></small></label>
         <input type="number" min="0" id="reservations" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Follow-up % <small><span data-i18n="sales.target">الهدف</span>: 100%</small></label>
+        <label><span data-i18n="kpi.followup_pct"></span> % <small><span data-i18n="sales.target"></span>: 100%</small></label>
         <input type="number" min="0" max="100" step="0.1" id="followup_pct" oninput="livePreview()">
       </div>
       <div class="field">
-        <label>Attendance % <small><span data-i18n="sales.target">الهدف</span>: 100%</small></label>
+        <label><span data-i18n="kpi.attendance_pct"></span> % <small><span data-i18n="sales.target"></span>: 100%</small></label>
         <input type="number" min="0" max="100" step="0.1" id="attendance_pct" oninput="livePreview()">
       </div>
     </div>
   </div>
 
   <div class="flex gap-2">
-    <button type="submit" class="btn btn-primary" id="submitBtn" data-i18n="sales.submit">حفظ وتسليم</button>
-    <button type="button" class="btn btn-ghost" onclick="loadEntry()" data-i18n="sales.cancel_edits">إلغاء التعديلات</button>
+    <button type="submit" class="btn btn-primary hyper-btn" id="submitBtn" data-i18n="sales.submit"></button>
+    <button type="button" class="btn btn-ghost" onclick="loadEntry()" data-i18n="sales.cancel_edits"></button>
   </div>
 </form>
 {% endblock %}
@@ -120,7 +120,7 @@ async function loadEntry() {
     updateStatus(entry);
     livePreview();
   } catch (e) {
-    if (e.status !== 404) toast(e.message, "error");
+    if (e.status !== 404) toastError(e);
     clearForm();
     updateStatus(null);
     livePreview();
@@ -194,7 +194,7 @@ document.getElementById("salesForm").addEventListener("submit", async (e) => {
     toast(t("common.saved") + ` — ${data.total_score}%`, "success");
     setTimeout(loadEntry, 500);
   } catch (err) {
-    toast(err.message, "error");
+    toastError(err);
   } finally {
     btn.disabled = false;
     btn.textContent = prev;

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}{{ "تسجيل الدخول" }} — Ain KPI{% endblock %}
+{% block title %}Ain KPI{% endblock %}
 
 {% block content %}
 <div class="auth-page">
-  <div class="auth-card">
+  <div class="auth-card hyper-pop">
     <div class="auth-logo">
       <div class="auth-logo-icon">A</div>
       <div class="auth-logo-text" data-i18n="app.name">Ain Real Estate</div>
     </div>
-    <p class="auth-subtitle" data-i18n="auth.subtitle_login">تسجيل الدخول إلى نظام KPI</p>
+    <p class="auth-subtitle" data-i18n="auth.subtitle_login"></p>
 
     <div class="auth-lang-row">
       <button id="langToggleBtn" class="lang-toggle">EN</button>
@@ -16,21 +16,23 @@
 
     <div class="error-msg" id="errorMsg"></div>
 
-    <form id="loginForm">
+    <form id="loginForm" novalidate>
       <div class="field">
-        <label data-i18n="auth.username">اسم المستخدم</label>
-        <input type="text" id="username" autocomplete="username" required autofocus>
+        <label data-i18n="auth.username"></label>
+        <input type="text" id="username" autocomplete="username" required autofocus
+               maxlength="50">
       </div>
       <div class="field">
-        <label data-i18n="auth.password">كلمة المرور</label>
-        <input type="password" id="password" autocomplete="current-password" required>
+        <label data-i18n="auth.password"></label>
+        <input type="password" id="password" autocomplete="current-password" required
+               maxlength="128">
       </div>
-      <button type="submit" class="btn btn-primary btn-full" id="loginBtn" data-i18n="auth.login_btn">دخول</button>
+      <button type="submit" class="btn btn-primary btn-full hyper-btn" id="loginBtn"
+              data-i18n="auth.login_btn"></button>
     </form>
 
     <div class="auth-switch">
-      <span data-i18n="auth.no_account">ليس لديك حساب؟</span>
-      <a href="/register" data-i18n="auth.create_one">إنشاء حساب جديد</a>
+      <a href="/forgot-password" data-i18n="auth.forgot"></a>
     </div>
   </div>
 </div>
@@ -45,23 +47,28 @@ const btn = document.getElementById("loginBtn");
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorMsg.classList.remove("show");
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  if (!username || !password) {
+    errorMsg.textContent = t("errors.required_fields_missing");
+    errorMsg.classList.add("show");
+    return;
+  }
   btn.disabled = true;
-  btn.textContent = t("common.saving");
+  const prev = btn.textContent;
+  btn.innerHTML = '<span class="loading"></span>';
 
   try {
     const data = await api("/api/auth/login", {
       method: "POST",
-      body: {
-        username: document.getElementById("username").value.trim(),
-        password: document.getElementById("password").value,
-      },
+      body: { username, password },
     });
     window.location.href = data.redirect || "/";
   } catch (err) {
-    errorMsg.textContent = err.message || t("common.error");
+    errorMsg.textContent = tError(err);
     errorMsg.classList.add("show");
     btn.disabled = false;
-    btn.textContent = t("auth.login_btn");
+    btn.textContent = prev;
   }
 });
 </script>
