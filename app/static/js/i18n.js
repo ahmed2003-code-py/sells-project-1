@@ -168,6 +168,9 @@ const I18N = {
     "kpi.attendance_pct": "الحضور",
     "kpi.hr_roles": "التزامات HR",
     "kpi.clients_pipeline": "Clients Pipeline",
+    "kpi.crm_team": "متابعة CRM للفريق",
+    "kpi.crm_own": "متابعة CRM (الخاصة)",
+    "kpi.crm_pct_team": "متابعة CRM للفريق",
 
     /* ─── dashboard ─── */
     "dash.title": "لوحة أداء الفريق",
@@ -621,6 +624,9 @@ const I18N = {
     "kpi.attendance_pct": "Attendance",
     "kpi.hr_roles": "HR Roles",
     "kpi.clients_pipeline": "Clients Pipeline",
+    "kpi.crm_team": "Team CRM",
+    "kpi.crm_own": "CRM (Own)",
+    "kpi.crm_pct_team": "Team CRM",
 
     /* ─── dashboard ─── */
     "dash.title": "Team Performance Dashboard",

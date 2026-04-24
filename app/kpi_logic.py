@@ -98,24 +98,27 @@ def compute_score(entry: dict):
 # ─── Team Leader KPI Config ────────────────────────────────────────────────────
 
 TL_KPI_CONFIG = {
-    "calls":            {"weight": 15, "label_en": "Team Calls",        "label_ar": "مكالمات الفريق",   "source": "team_sum",       "base_target": 2000,  "threshold_pct": 0.90},
-    "meetings":         {"weight": 7,  "label_en": "Team Meetings",     "label_ar": "اجتماعات الفريق",  "source": "team_leads_sum", "leads_pct": 0.20,    "threshold_pct": 0.90},
-    "deals":            {"weight": 8,  "label_en": "Team Deals",        "label_ar": "صفقات الفريق",     "source": "team_leads_sum", "leads_pct": 0.03,    "threshold_pct": 0.70},
-    "reports":          {"weight": 8,  "label_en": "Reporting",         "label_ar": "التقارير",         "source": "manual",         "target": 4},
-    "reservations":     {"weight": 5,  "label_en": "Team Reservations", "label_ar": "حجوزات الفريق",    "source": "team_leads_sum", "leads_pct": 0.07,    "threshold_pct": 0.70},
-    "clients_pipeline": {"weight": 10, "label_en": "Clients Pipeline",  "label_ar": "قائمة العملاء",    "source": "manual",         "target": 80},
-    "crm_pct":          {"weight": 10, "label_en": "CRM Follow-up",     "label_ar": "متابعة CRM",       "source": "team_plus_self", "target_each": 95},
-    "attitude":         {"weight": 3,  "label_en": "Attitude",          "label_ar": "السلوك",           "source": "manual",         "target": 100, "passfail": True},
-    "presentation":     {"weight": 3,  "label_en": "Presentation",      "label_ar": "العرض",            "source": "manual",         "target": 100, "passfail": True},
-    "followup_pct":     {"weight": 15, "label_en": "Team Follow-up",    "label_ar": "متابعة الفريق",    "source": "team_sum",       "base_target": 100,   "threshold_pct": 1.00},
-    "behaviour":        {"weight": 3,  "label_en": "Behaviour",         "label_ar": "التصرف",           "source": "manual",         "target": 100, "passfail": True},
-    "appearance":       {"weight": 3,  "label_en": "Appearance",        "label_ar": "المظهر",           "source": "manual",         "target": 100, "passfail": True},
-    "attendance_pct":   {"weight": 7,  "label_en": "Attendance",        "label_ar": "الحضور",           "source": "manual",         "target": 100, "passfail": True},
-    "hr_roles":         {"weight": 3,  "label_en": "HR Roles",          "label_ar": "التزامات HR",      "source": "manual",         "target": 100, "passfail": True},
+    "calls":            {"weight": 15, "label_en": "Team Calls",        "label_ar": "مكالمات الفريق",    "source": "team_sum",       "base_target": 2000,  "threshold_pct": 0.90},
+    "meetings":         {"weight": 7,  "label_en": "Team Meetings",     "label_ar": "اجتماعات الفريق",   "source": "team_leads_sum", "leads_pct": 0.20,    "threshold_pct": 0.90},
+    "deals":            {"weight": 8,  "label_en": "Team Deals",        "label_ar": "صفقات الفريق",      "source": "team_leads_sum", "leads_pct": 0.03,    "threshold_pct": 0.70},
+    "reports":          {"weight": 8,  "label_en": "Reporting",         "label_ar": "التقارير",          "source": "manual",         "target": 4},
+    "reservations":     {"weight": 5,  "label_en": "Team Reservations", "label_ar": "حجوزات الفريق",     "source": "team_leads_sum", "leads_pct": 0.07,    "threshold_pct": 0.70},
+    "clients_pipeline": {"weight": 10, "label_en": "Clients Pipeline",  "label_ar": "قائمة العملاء",     "source": "manual",         "target": 80},
+    # CRM split: team-aggregate (auto from reports) vs TL's own (manual by manager).
+    "crm_pct_team":     {"weight": 5,  "label_en": "CRM (Team Avg)",    "label_ar": "متابعة CRM للفريق", "source": "team_avg",       "team_field": "crm_pct", "target": 95},
+    "crm_pct":          {"weight": 5,  "label_en": "CRM (Own)",         "label_ar": "متابعة CRM (الخاصة)","source": "manual",         "target": 95},
+    "attitude":         {"weight": 3,  "label_en": "Attitude",          "label_ar": "السلوك",            "source": "manual",         "target": 100, "passfail": True},
+    "presentation":     {"weight": 3,  "label_en": "Presentation",      "label_ar": "العرض",             "source": "manual",         "target": 100, "passfail": True},
+    "followup_pct":     {"weight": 15, "label_en": "Team Follow-up",    "label_ar": "متابعة الفريق",     "source": "team_sum",       "base_target": 100,   "threshold_pct": 1.00},
+    "behaviour":        {"weight": 3,  "label_en": "Behaviour",         "label_ar": "التصرف",            "source": "manual",         "target": 100, "passfail": True},
+    "appearance":       {"weight": 3,  "label_en": "Appearance",        "label_ar": "المظهر",            "source": "manual",         "target": 100, "passfail": True},
+    "attendance_pct":   {"weight": 7,  "label_en": "Attendance",        "label_ar": "الحضور",            "source": "manual",         "target": 100, "passfail": True},
+    "hr_roles":         {"weight": 3,  "label_en": "HR Roles",          "label_ar": "التزامات HR",       "source": "manual",         "target": 100, "passfail": True},
 }
 
-TL_AUTO_FIELDS   = ["calls", "meetings", "deals", "reservations", "followup_pct", "crm_pct"]
-TL_MANUAL_FIELDS = ["reports", "clients_pipeline", "attitude", "presentation",
+# Auto = pulled/aggregated from team. Manual = filled by Sales Manager on TL eval page.
+TL_AUTO_FIELDS   = ["calls", "meetings", "deals", "reservations", "followup_pct", "crm_pct_team"]
+TL_MANUAL_FIELDS = ["reports", "clients_pipeline", "crm_pct", "attitude", "presentation",
                     "behaviour", "appearance", "attendance_pct", "hr_roles"]
 
 
@@ -149,6 +152,16 @@ def compute_tl_score(tl_entry: dict, team_entries: list):
         elif source == "team_plus_self":
             actual = sum(float(e.get(key) or 0) for e in team_entries) + float(tl_entry.get(key) or 0)
             target = (n + 1) * cfg["target_each"]
+            achievement = min(actual / target, 1.0) if target > 0 else 0.0
+
+        elif source == "team_avg":
+            # Average a field across the team (e.g. team CRM%). `team_field`
+            # points to the column name in kpi_entries since the config key
+            # may differ (e.g. crm_pct_team → team_field="crm_pct").
+            team_key = cfg.get("team_field", key)
+            values = [float(e.get(team_key) or 0) for e in team_entries]
+            actual = (sum(values) / len(values)) if values else 0.0
+            target = float(cfg["target"])
             achievement = min(actual / target, 1.0) if target > 0 else 0.0
 
         else:  # manual
