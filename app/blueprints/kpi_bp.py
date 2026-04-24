@@ -90,20 +90,18 @@ def list_months():
         return _json({"error": str(e)}, 500)
 
 
-# ─── SALES submits own data ────────────────────────────────────────────────────
+# ─── Submit Sales numeric KPI (DataEntry / Admin / Manager) ───────────────────
+# Sales role no longer enters its own data — DataEntry enters on their behalf.
 
 @kpi_bp.route("/submit/sales", methods=["POST"])
-@role_required("sales", "admin", "manager")
+@role_required("dataentry", "admin", "manager")
 def submit_sales():
     data = request.get_json() or {}
-    if session["role"] == "sales":
-        user_id = session["user_id"]
-    else:
-        user_id = data.get("user_id", session["user_id"])
+    user_id = data.get("user_id")
     month = data.get("month")
 
-    if not month:
-        return _json({"error_code": "required_fields_missing", "error": "month_required"}, 400)
+    if not user_id or not month:
+        return _json({"error_code": "required_fields_missing", "error": "required"}, 400)
 
     try:
         conn = get_conn()
@@ -155,7 +153,26 @@ def submit_sales():
         return _json({"error": str(e)}, 500)
 
 
-# ─── Data Entry / Manager fills evaluation ─────────────────────────────────────
+# ─── DataEntry / Manager submits full KPI entry (numeric + pass/fail) ─────────
+# Since Sales no longer self-submit, DataEntry fills BOTH the numeric performance
+# fields AND the pass/fail evaluation in a single shot.
+
+_NUMERIC_FIELDS = (
+    "fresh_leads", "calls", "meetings", "crm_pct", "deals",
+    "reports", "reservations", "followup_pct", "attendance_pct",
+)
+_EVAL_FIELDS = ("attitude", "presentation", "behaviour", "appearance", "hr_roles")
+
+
+def _coerce(data, key, cast, default=0):
+    v = data.get(key)
+    if v is None or v == "":
+        return default
+    try:
+        return cast(v)
+    except (TypeError, ValueError):
+        return default
+
 
 @kpi_bp.route("/submit/evaluation", methods=["POST"])
 @role_required("dataentry", "manager", "admin")
@@ -170,57 +187,93 @@ def submit_evaluation():
         conn = get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                # Ensure entry exists
-                cur.execute("""
-                    INSERT INTO kpi_entries (user_id, month)
-                    VALUES (%s, %s)
-                    ON CONFLICT (user_id, month) DO NOTHING
-                """, (user_id, month))
+                # Upsert on (user_id, month). If the caller passed the numeric
+                # fields, write them AND flip sales_submitted_at so the entry
+                # counts as "delivered"; if only eval fields were sent, leave
+                # the numeric ones untouched.
+                has_numeric = any(k in data for k in _NUMERIC_FIELDS)
 
-                base_params = {
+                params = {
                     "user_id": user_id,
                     "month": month,
-                    "attitude": int(data.get("attitude") or 0),
-                    "presentation": int(data.get("presentation") or 0),
-                    "behaviour": int(data.get("behaviour") or 0),
-                    "appearance": int(data.get("appearance") or 0),
-                    "hr_roles": int(data.get("hr_roles") or 0),
                     "notes": data.get("notes") or None,
                     "dataentry_by": session["user_id"],
+                    # Numeric (only used if has_numeric)
+                    "fresh_leads": _coerce(data, "fresh_leads", int),
+                    "calls":       _coerce(data, "calls", int),
+                    "meetings":    _coerce(data, "meetings", int),
+                    "crm_pct":     _coerce(data, "crm_pct", float),
+                    "deals":       _coerce(data, "deals", int),
+                    "reports":     _coerce(data, "reports", int),
+                    "reservations":_coerce(data, "reservations", int),
+                    "followup_pct":_coerce(data, "followup_pct", float),
+                    "attendance_pct": _coerce(data, "attendance_pct", float),
+                    # Pass/fail
+                    "attitude":     _coerce(data, "attitude", int),
+                    "presentation": _coerce(data, "presentation", int),
+                    "behaviour":    _coerce(data, "behaviour", int),
+                    "appearance":   _coerce(data, "appearance", int),
+                    "hr_roles":     _coerce(data, "hr_roles", int),
                 }
 
-                if data.get("fresh_leads") is not None and int(data.get("fresh_leads") or 0) > 0:
-                    base_params["fresh_leads"] = int(data["fresh_leads"])
+                if has_numeric:
                     cur.execute("""
-                        UPDATE kpi_entries SET
-                            attitude = %(attitude)s,
-                            presentation = %(presentation)s,
-                            behaviour = %(behaviour)s,
-                            appearance = %(appearance)s,
-                            hr_roles = %(hr_roles)s,
-                            fresh_leads = GREATEST(COALESCE(fresh_leads, 0), %(fresh_leads)s),
-                            notes = %(notes)s,
-                            dataentry_by = %(dataentry_by)s,
+                        INSERT INTO kpi_entries (user_id, month,
+                            fresh_leads, calls, meetings, crm_pct, deals,
+                            reports, reservations, followup_pct, attendance_pct,
+                            attitude, presentation, behaviour, appearance, hr_roles,
+                            notes, dataentry_by,
+                            sales_submitted_at, dataentry_submitted_at)
+                        VALUES (%(user_id)s, %(month)s,
+                            %(fresh_leads)s, %(calls)s, %(meetings)s, %(crm_pct)s, %(deals)s,
+                            %(reports)s, %(reservations)s, %(followup_pct)s, %(attendance_pct)s,
+                            %(attitude)s, %(presentation)s, %(behaviour)s, %(appearance)s, %(hr_roles)s,
+                            %(notes)s, %(dataentry_by)s,
+                            NOW(), NOW())
+                        ON CONFLICT (user_id, month) DO UPDATE SET
+                            fresh_leads = EXCLUDED.fresh_leads,
+                            calls = EXCLUDED.calls,
+                            meetings = EXCLUDED.meetings,
+                            crm_pct = EXCLUDED.crm_pct,
+                            deals = EXCLUDED.deals,
+                            reports = EXCLUDED.reports,
+                            reservations = EXCLUDED.reservations,
+                            followup_pct = EXCLUDED.followup_pct,
+                            attendance_pct = EXCLUDED.attendance_pct,
+                            attitude = EXCLUDED.attitude,
+                            presentation = EXCLUDED.presentation,
+                            behaviour = EXCLUDED.behaviour,
+                            appearance = EXCLUDED.appearance,
+                            hr_roles = EXCLUDED.hr_roles,
+                            notes = EXCLUDED.notes,
+                            dataentry_by = EXCLUDED.dataentry_by,
+                            sales_submitted_at = NOW(),
                             dataentry_submitted_at = NOW(),
                             updated_at = NOW()
-                        WHERE user_id = %(user_id)s AND month = %(month)s
                         RETURNING id
-                    """, base_params)
+                    """, params)
                 else:
+                    # Eval-only update — keep numeric fields untouched, create
+                    # the row if it doesn't exist yet.
                     cur.execute("""
-                        UPDATE kpi_entries SET
-                            attitude = %(attitude)s,
-                            presentation = %(presentation)s,
-                            behaviour = %(behaviour)s,
-                            appearance = %(appearance)s,
-                            hr_roles = %(hr_roles)s,
-                            notes = %(notes)s,
-                            dataentry_by = %(dataentry_by)s,
+                        INSERT INTO kpi_entries (user_id, month,
+                            attitude, presentation, behaviour, appearance, hr_roles,
+                            notes, dataentry_by, dataentry_submitted_at)
+                        VALUES (%(user_id)s, %(month)s,
+                            %(attitude)s, %(presentation)s, %(behaviour)s, %(appearance)s, %(hr_roles)s,
+                            %(notes)s, %(dataentry_by)s, NOW())
+                        ON CONFLICT (user_id, month) DO UPDATE SET
+                            attitude = EXCLUDED.attitude,
+                            presentation = EXCLUDED.presentation,
+                            behaviour = EXCLUDED.behaviour,
+                            appearance = EXCLUDED.appearance,
+                            hr_roles = EXCLUDED.hr_roles,
+                            notes = EXCLUDED.notes,
+                            dataentry_by = EXCLUDED.dataentry_by,
                             dataentry_submitted_at = NOW(),
                             updated_at = NOW()
-                        WHERE user_id = %(user_id)s AND month = %(month)s
                         RETURNING id
-                    """, base_params)
+                    """, params)
 
                 entry_id = cur.fetchone()["id"]
                 total, rating = _recompute_and_save(conn, entry_id)
@@ -231,7 +284,7 @@ def submit_evaluation():
         return _json({"ok": True, "total_score": total, "rating": rating})
     except Exception as e:
         log.error(f"Evaluation submit error: {e}")
-        return _json({"error": str(e)}, 500)
+        return _json({"error_code": "server", "error": "server"}, 500)
 
 
 # ─── Get a single entry ────────────────────────────────────────────────────────
@@ -239,8 +292,9 @@ def submit_evaluation():
 @kpi_bp.route("/entry/<int:user_id>/<month>", methods=["GET"])
 @login_required
 def get_entry(user_id, month):
-    if session["role"] == "sales" and session["user_id"] != user_id:
-        return _json({"error": "Forbidden"}, 403)
+    # Sales role has no access to KPI entries
+    if session.get("role") == "sales":
+        return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
 
     try:
         conn = get_conn()
@@ -294,8 +348,8 @@ def report():
     month = request.args.get("month")
     user_id_filter = request.args.get("user_id")
 
-    if session["role"] == "sales":
-        user_id_filter = session["user_id"]
+    if session.get("role") == "sales":
+        return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
 
     try:
         conn = get_conn()

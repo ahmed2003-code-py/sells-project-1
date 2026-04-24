@@ -40,7 +40,8 @@ def reset_password_page():
 @pages_bp.route("/sales")
 @login_required
 def sales_page():
-    return render_template("sales.html", user=current_user())
+    # Sales role no longer has a KPI self-entry page; they only browse PropFinder.
+    return redirect("/propfinder")
 
 
 @pages_bp.route("/data-entry")

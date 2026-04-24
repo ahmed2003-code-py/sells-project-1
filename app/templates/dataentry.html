@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title" data-i18n="de.title"></h1>
-    <p class="page-subtitle" data-i18n="de.subtitle"></p>
+    <p class="page-subtitle" data-i18n="de.subtitle_full"></p>
   </div>
 </div>
 
@@ -23,6 +23,10 @@
       <option value="no-sales" data-i18n="de.missing_sales"></option>
     </select>
   </div>
+  <div class="field" style="flex:1;min-width:180px">
+    <label data-i18n="common.search"></label>
+    <input type="text" id="searchBox" oninput="render()">
+  </div>
   <div class="spacer"></div>
   <div id="progress" class="text-muted" style="font-size:13px"></div>
 </div>
@@ -34,7 +38,10 @@
 <script>
 let users = [];
 let entries = {};
+const NUMERIC = ["fresh_leads", "calls", "meetings", "crm_pct", "deals",
+                 "reports", "reservations", "followup_pct", "attendance_pct"];
 const PASSFAIL = ["attitude", "presentation", "behaviour", "appearance", "hr_roles"];
+const PCT_FIELDS = new Set(["crm_pct", "followup_pct", "attendance_pct"]);
 
 function escapeHTML(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
@@ -56,12 +63,18 @@ async function loadAll() {
 
 function render() {
   const filter = document.getElementById("filterStatus").value;
+  const search = (document.getElementById("searchBox").value || "").trim().toLowerCase();
   const container = document.getElementById("list");
+
   let rows = users.map(u => ({ user: u, entry: entries[u.id] || null }));
 
   if (filter === "pending") rows = rows.filter(r => r.entry && r.entry.sales_submitted_at && !r.entry.dataentry_submitted_at);
   else if (filter === "done") rows = rows.filter(r => r.entry && r.entry.dataentry_submitted_at);
   else if (filter === "no-sales") rows = rows.filter(r => !r.entry || !r.entry.sales_submitted_at);
+
+  if (search) rows = rows.filter(r =>
+    (r.user.full_name || "").toLowerCase().includes(search) ||
+    (r.user.username || "").toLowerCase().includes(search));
 
   const done = users.filter(u => entries[u.id] && entries[u.id].dataentry_submitted_at).length;
   document.getElementById("progress").textContent =
@@ -76,11 +89,12 @@ function render() {
 }
 
 function renderCard(user, entry) {
-  const hasSales = entry && entry.sales_submitted_at;
   const isDone = entry && entry.dataentry_submitted_at;
+  const hasNumeric = entry && entry.sales_submitted_at;
   const score = entry ? parseFloat(entry.total_score) || 0 : 0;
+
   const statusBadges = [];
-  statusBadges.push(hasSales
+  statusBadges.push(hasNumeric
     ? '<span class="badge badge-vgood">' + t("de.sales_done") + '</span>'
     : '<span class="badge badge-pending">' + t("de.sales_not_done") + '</span>');
   statusBadges.push(isDone
@@ -88,20 +102,32 @@ function renderCard(user, entry) {
     : '<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
   if (isDone) statusBadges.push(`<span class="badge badge-excellent">${score.toFixed(1)}%</span>`);
 
-  const freshLeads = entry ? (entry.fresh_leads || 0) : 0;
+  const v = (key, def = "") => {
+    if (!entry || entry[key] == null) return def;
+    return entry[key];
+  };
 
-  let passfailHTML = PASSFAIL.map(k => {
+  const numericInputs = NUMERIC.map(k => {
+    const isPct = PCT_FIELDS.has(k);
+    return `<div class="field">
+      <label>${t("kpi." + k)} ${isPct ? " %" : ""}</label>
+      <input type="number" min="0" ${isPct ? 'max="100" step="0.1"' : ""}
+             id="${k}-${user.id}" value="${escapeHTML(v(k, ""))}">
+    </div>`;
+  }).join("");
+
+  const passfailInputs = PASSFAIL.map(k => {
     const current = entry ? (entry[k] || 0) : 0;
-    return `<div>
-      <div class="text-muted" style="font-size:11px;margin-bottom:4px">${t("kpi." + k)}</div>
+    return `<div class="field">
+      <label>${t("kpi." + k)}</label>
       <select id="${k}-${user.id}" class="pf-select">
         <option value="100" ${current == 100 ? 'selected' : ''}>${t("common.pass")}</option>
-        <option value="0"   ${current == 0 ? 'selected' : ''}>${t("common.fail")}</option>
+        <option value="0"   ${current == 0   ? 'selected' : ''}>${t("common.fail")}</option>
       </select>
     </div>`;
   }).join("");
 
-  return `<div class="card fade-in" data-user-id="${user.id}">
+  return `<div class="card fade-in reveal" data-user-id="${user.id}">
     <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
       <div class="flex items-center gap-2">
         <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
@@ -113,19 +139,18 @@ function renderCard(user, entry) {
       <div class="flex gap-1" style="flex-wrap:wrap">${statusBadges.join("")}</div>
     </div>
 
-    <div class="field-row" style="margin-bottom:12px">
-      <div class="field">
-        <label>${t("sales.fresh_leads")}</label>
-        <input type="number" id="fresh_leads-${user.id}" value="${freshLeads}" min="0">
-      </div>
-      <div class="field">
-        <label>${t("de.notes")}</label>
-        <input type="text" id="notes-${user.id}" value="${escapeHTML(entry && entry.notes ? entry.notes : '')}"
-               placeholder="${t("de.notes_ph")}" maxlength="400">
-      </div>
-    </div>
+    <div class="form-section-title" style="margin-top:8px">${t("sales.numeric_perf")}</div>
+    <div class="field-row four" style="margin-bottom:12px">${numericInputs}</div>
 
-    <div class="field-row five" style="margin-bottom:14px">${passfailHTML}</div>
+    <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
+    <div class="field-row five" style="margin-bottom:10px">${passfailInputs}</div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label>${t("de.notes")}</label>
+      <input type="text" id="notes-${user.id}"
+             value="${escapeHTML(entry && entry.notes ? entry.notes : '')}"
+             placeholder="${t("de.notes_ph")}" maxlength="400">
+    </div>
 
     <div class="flex gap-1">
       <button class="btn btn-primary btn-sm hyper-btn" onclick="saveEval(${user.id})">${t("de.save_eval")}</button>
@@ -136,15 +161,26 @@ function renderCard(user, entry) {
 
 async function saveEval(userId) {
   const month = document.getElementById("month").value;
-  const fresh = parseInt(document.getElementById(`fresh_leads-${userId}`).value);
-  if (isNaN(fresh) || fresh < 0) return toast(t("errors.invalid_input"), "error");
-
   const body = {
     user_id: userId,
     month,
-    fresh_leads: fresh,
     notes: document.getElementById(`notes-${userId}`).value || "",
   };
+
+  // Numeric fields — only send the ones the user actually touched (non-empty)
+  let hasNumeric = false;
+  NUMERIC.forEach(k => {
+    const el = document.getElementById(`${k}-${userId}`);
+    const raw = (el.value || "").trim();
+    if (raw === "") return;
+    const n = Number(raw);
+    if (isNaN(n) || n < 0) return;
+    body[k] = n;
+    hasNumeric = true;
+  });
+
+  if (!hasNumeric && !confirm(t("de.confirm_no_numeric"))) return;
+
   PASSFAIL.forEach(k => body[k] = document.getElementById(`${k}-${userId}`).value);
 
   try {

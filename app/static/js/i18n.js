@@ -209,6 +209,8 @@ const I18N = {
     "de.of": "من",
     "de.sales_done": "المندوب سلّم",
     "de.sales_not_done": "المندوب لم يسلّم",
+    "de.subtitle_full": "أدخل أداء كل مندوب الشهري — الأرقام والتقييم السلوكي",
+    "de.confirm_no_numeric": "لم تُدخل أي أرقام أداء — هل تريد حفظ التقييم السلوكي فقط؟",
 
     /* ─── admin users ─── */
     "admin.title": "إدارة المستخدمين",
@@ -340,6 +342,16 @@ const I18N = {
     "pf.col_status": "الحالة",
     "pf.available": "متاحة",
     "pf.not_yet_run": "لم تعمل بعد",
+    "pf.available_title": "الوحدات المتاحة",
+    "pf.search_ph": "ابحث باسم الكمباوند أو المطوّر أو المدينة...",
+    "pf.phase": "المرحلة",
+    "pf.finishing": "التشطيب",
+    "pf.delivery": "الاستلام",
+    "pf.payment_plan": "خطة السداد",
+    "pf.maintenance": "الصيانة",
+    "pf.club_fees": "رسوم النادي",
+    "pf.parking_fees": "رسوم الجراج",
+    "pf.outdoor": "مساحة خارجية",
 
     /* ─── marketing ─── */
     "mk.title": "لوحة KPI التسويق",
@@ -650,6 +662,8 @@ const I18N = {
     "de.of": "of",
     "de.sales_done": "Rep submitted",
     "de.sales_not_done": "Rep not submitted",
+    "de.subtitle_full": "Enter each rep's monthly performance — numbers and behavioural evaluation",
+    "de.confirm_no_numeric": "No performance numbers entered — save behavioural evaluation only?",
 
     /* ─── admin users ─── */
     "admin.title": "User Management",
@@ -781,6 +795,16 @@ const I18N = {
     "pf.col_status": "Status",
     "pf.available": "Available",
     "pf.not_yet_run": "Not yet run",
+    "pf.available_title": "Available Units",
+    "pf.search_ph": "Search by compound, developer, or city...",
+    "pf.phase": "Phase",
+    "pf.finishing": "Finishing",
+    "pf.delivery": "Delivery",
+    "pf.payment_plan": "Payment Plan",
+    "pf.maintenance": "Maintenance",
+    "pf.club_fees": "Club Fees",
+    "pf.parking_fees": "Parking Fees",
+    "pf.outdoor": "Outdoor Area",
 
     /* ─── marketing ─── */
     "mk.title": "Marketing KPI Dashboard",

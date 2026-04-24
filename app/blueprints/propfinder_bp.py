@@ -8,9 +8,9 @@ import threading
 import psycopg2
 import psycopg2.extras
 from decimal import Decimal
-from flask import Blueprint, jsonify, Response
+from flask import Blueprint, jsonify, Response, session
 from app.database import get_conn, table_exists
-from app.auth import login_required
+from app.auth import error_response, login_required, role_required
 from config import Config
 
 log = logging.getLogger(__name__)
@@ -58,6 +58,8 @@ def health():
 @propfinder_bp.route("/units")
 @login_required
 def get_units():
+    # Sales role is restricted to AVAILABLE (unsold) units only.
+    available_only = session.get("role") == "sales"
     try:
         conn = get_conn()
         try:
@@ -65,7 +67,7 @@ def get_units():
                 return _json_response([])
 
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("""
+                query = """
                     SELECT
                         city_name, compound_name, compound_id,
                         developer_name, developer_id,
@@ -85,8 +87,11 @@ def get_units():
                         type_id,
                         COALESCE(is_sold, false) AS is_sold
                     FROM units
-                    ORDER BY detail_id ASC
-                """)
+                """
+                if available_only:
+                    query += " WHERE COALESCE(is_sold, false) = false "
+                query += " ORDER BY detail_id ASC"
+                cur.execute(query)
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -101,7 +106,7 @@ def get_units():
         return _json_response(cleaned)
     except Exception as e:
         log.error(f"Error fetching units: {e}")
-        return _json_response({"error": str(e)}, 500)
+        return _json_response({"error_code": "server", "error": "server"}, 500)
 
 
 @propfinder_bp.route("/stats")
@@ -146,35 +151,35 @@ def sync_status_route():
 
 
 @propfinder_bp.route("/sync/trigger", methods=["POST"])
-@login_required
+@role_required("admin", "manager", "marketing")
 def trigger_sync():
     if Config.DISABLE_SYNC:
-        return _json_response({"error": "Sync is disabled (DISABLE_SYNC=true)"}, 400)
+        return _json_response({"error_code": "forbidden", "error": "sync_disabled"}, 400)
     try:
         from app.sync_service import run_sync, sync_status
     except Exception as e:
-        return _json_response({"error": f"Sync unavailable: {e}"}, 500)
+        return _json_response({"error_code": "server", "error": "sync_unavailable"}, 500)
     if sync_status["running"]:
-        return _json_response({"message": "Sync already running"}, 409)
+        return _json_response({"ok": False, "running": True}, 409)
     t = threading.Thread(target=run_sync, daemon=True)
     t.start()
-    return _json_response({"message": "Sync triggered"})
+    return _json_response({"ok": True})
 
 
 @propfinder_bp.route("/reset-sold", methods=["POST"])
-@login_required
+@role_required("admin")
 def reset_sold():
     try:
         conn = get_conn()
         try:
             if not table_exists(conn, "units"):
-                return _json_response({"error": "units table does not exist"}, 404)
+                return _json_response({"error_code": "not_found", "error": "not_found"}, 404)
             with conn.cursor() as cur:
                 cur.execute("UPDATE units SET is_sold = FALSE, sold_at = NULL")
                 affected = cur.rowcount
             conn.commit()
         finally:
             conn.close()
-        return _json_response({"message": f"Reset {affected} units"})
+        return _json_response({"ok": True, "affected": affected})
     except Exception as e:
-        return _json_response({"error": str(e)}, 500)
+        return _json_response({"error_code": "server", "error": "server"}, 500)

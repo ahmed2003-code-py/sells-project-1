@@ -214,9 +214,9 @@ def role_home(role: str) -> str:
         "manager": "/dashboard",
         "team_leader": "/team-leader",
         "dataentry": "/data-entry",
-        "sales": "/sales",
+        "sales": "/propfinder",
         "marketing": "/marketing",
-    }.get(role, "/dashboard")
+    }.get(role, "/propfinder")
 
 
 # ─── CSRF token (double-submit pattern) ────────────────────────────────────────
