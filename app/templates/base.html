@@ -24,6 +24,10 @@
           <a href="/sales" class="topnav-link {% if request.path == '/sales' %}active{% endif %}" data-i18n="nav.sales">بياناتي</a>
         {% endif %}
 
+        {% if user.role in ['marketing', 'manager', 'admin'] %}
+          <a href="/marketing" class="topnav-link {% if request.path == '/marketing' %}active{% endif %}" data-i18n="nav.marketing">التسويق</a>
+        {% endif %}
+
         {% if user.role == 'team_leader' %}
           <a href="/team-leader" class="topnav-link {% if request.path == '/team-leader' %}active{% endif %}" data-i18n="nav.team_leader">KPI بتاعي</a>
         {% endif %}

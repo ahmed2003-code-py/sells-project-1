@@ -33,6 +33,7 @@ def create_app():
     from app.blueprints.propfinder_bp import propfinder_bp
     from app.blueprints.finance_bp import finance_bp
     from app.blueprints.teams_bp import teams_bp
+    from app.blueprints.marketing_bp import marketing_bp
 
     app.register_blueprint(pages_bp)
     app.register_blueprint(auth_bp)
@@ -41,6 +42,7 @@ def create_app():
     app.register_blueprint(propfinder_bp)
     app.register_blueprint(finance_bp)
     app.register_blueprint(teams_bp)
+    app.register_blueprint(marketing_bp)
 
     # Error handlers
     @app.errorhandler(404)

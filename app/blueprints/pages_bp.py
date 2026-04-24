@@ -64,6 +64,12 @@ def profile_page():
     return render_template("profile.html", user=current_user())
 
 
+@pages_bp.route("/marketing")
+@role_required("marketing", "manager", "admin")
+def marketing_page():
+    return render_template("marketing.html", user=current_user())
+
+
 @pages_bp.route("/teams")
 @role_required("admin")
 def teams_page():

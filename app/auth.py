@@ -7,7 +7,7 @@ from flask import request, jsonify, session, redirect
 
 
 # Role hierarchy used by the system
-ROLES = ["admin", "manager", "team_leader", "dataentry", "sales"]
+ROLES = ["admin", "manager", "team_leader", "dataentry", "sales", "marketing"]
 
 
 def hash_password(password: str) -> str:
@@ -67,4 +67,5 @@ def role_home(role: str) -> str:
         "team_leader": "/team-leader",
         "dataentry": "/data-entry",
         "sales": "/sales",
+        "marketing": "/marketing",
     }.get(role, "/dashboard")

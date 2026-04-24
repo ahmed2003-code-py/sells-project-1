@@ -232,6 +232,41 @@ def init_all_tables():
             """)
             cur.execute("CREATE INDEX IF NOT EXISTS idx_hr_month ON hr_records(month);")
 
+            # ═══ MARKETING CAMPAIGNS ════════════════════════════════════════
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS marketing_campaigns (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    campaign_name VARCHAR(200) NOT NULL,
+                    avg_unit_price NUMERIC(15,2) NOT NULL,
+                    commission_input NUMERIC(12,4) NOT NULL,
+                    commission_type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                    tax_rate NUMERIC(5,4) DEFAULT 0.19,
+                    expected_close_rate NUMERIC(5,4) NOT NULL,
+                    campaign_budget NUMERIC(15,2) NOT NULL,
+                    recommended_scenario VARCHAR(20) DEFAULT 'balanced',
+                    month VARCHAR(7),
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_mktg_user ON marketing_campaigns(user_id);")
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS marketing_actuals (
+                    id SERIAL PRIMARY KEY,
+                    campaign_id INTEGER NOT NULL UNIQUE REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+                    actual_spend NUMERIC(15,2) DEFAULT 0,
+                    actual_leads INTEGER DEFAULT 0,
+                    actual_qualified_leads INTEGER DEFAULT 0,
+                    actual_meetings INTEGER DEFAULT 0,
+                    actual_follow_ups INTEGER DEFAULT 0,
+                    actual_deals INTEGER DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             # ═══ UNITS (from PropFinder) — don't touch ══════════════════════
 
         conn.commit()
