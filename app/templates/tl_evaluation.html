@@ -42,6 +42,17 @@
 
 <div id="chipsRow" class="pf-chips" style="margin-bottom:12px"></div>
 
+<!-- Teams Performance: per-team aggregate cards -->
+<div class="card reveal" id="teamsPerfCard">
+  <div class="card-title">
+    <span data-i18n="tl_eval.teams_perf"></span>
+    <span class="text-muted" style="font-size:11px;margin-inline-start:8px" data-i18n="tl_eval.teams_perf_hint"></span>
+  </div>
+  <div id="teamsPerfGrid" class="pf-grid">
+    <div class="pf-empty"><span class="loading"></span></div>
+  </div>
+</div>
+
 <div id="list" class="stagger"></div>
 
 <!-- Modal -->
@@ -64,6 +75,7 @@
 <script>
 let leaders = [];
 let teams = [];
+let teamsPerf = [];
 let currentTL = null;
 let tlKpiData = null;
 
@@ -71,15 +83,81 @@ async function loadAll() {
   const month = document.getElementById("month").value;
   if (!month) return;
   try {
-    const [ls, ts] = await Promise.all([
+    const [ls, ts, tp] = await Promise.all([
       api(`/api/kpi/team-leaders?month=${month}`),
       teams.length ? Promise.resolve(teams) : api("/api/teams").catch(() => []),
+      api(`/api/kpi/teams-summary?month=${month}`).catch(() => []),
     ]);
     leaders = ls;
     teams = ts || [];
+    teamsPerf = tp || [];
     populateTeamFilter();
+    renderTeamsPerf();
     render();
   } catch (e) { toastError(e); }
+}
+
+function scoreColorFromScore(score) {
+  if (score >= 75) return "success";
+  if (score >= 55) return "warn";
+  return "danger";
+}
+
+function renderTeamsPerf() {
+  const host = document.getElementById("teamsPerfGrid");
+  if (!host) return;
+  if (!teamsPerf.length) {
+    host.innerHTML = `<div class="pf-empty">${t("tl_eval.no_teams_data")}</div>`;
+    return;
+  }
+  // Best score for the bar comparison reference
+  const maxScore = Math.max(1, ...teamsPerf.map(p => p.avg_member_score || 0));
+
+  host.innerHTML = teamsPerf.map(p => {
+    const score = Number(p.avg_member_score || 0);
+    const col = scoreColorFromScore(score);
+    const widthPct = Math.min(100, (score / maxScore) * 100);
+    const submittedPct = p.member_count
+      ? Math.round((p.members_evaluated / p.member_count) * 100)
+      : 0;
+    const ldScore = p.leader_score != null
+      ? `<span class="text-${scoreColorFromScore(p.leader_score)}">${Number(p.leader_score).toFixed(1)}%</span>`
+      : `<span class="text-muted">${t("tl_eval.pending")}</span>`;
+    const top = p.top_performer
+      ? `${escapeHTML(p.top_performer.name)} <span class="text-muted">(${p.top_performer.score}%)</span>`
+      : `<span class="text-muted">—</span>`;
+    return `<div class="pf-card" style="cursor:default">
+      <div class="pf-card-head">
+        <div>
+          <div class="pf-card-title">
+            <span class="rank ${p.rank===1?'r1':p.rank===2?'r2':p.rank===3?'r3':''}" style="margin-inline-end:6px">${p.rank}</span>
+            ${escapeHTML(p.team_name)}
+          </div>
+          <div class="pf-card-sub">${t("tl_eval.tl")}: ${escapeHTML(p.leader_name || '—')} · ${ldScore}</div>
+        </div>
+        <span class="badge badge-${col === 'success' ? 'excellent' : col === 'warn' ? 'good' : 'weak'}">${score.toFixed(1)}%</span>
+      </div>
+
+      <div>
+        <div class="text-muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">
+          ${t("tl_eval.team_avg")}
+        </div>
+        <div class="bar"><div class="bar-fill ${col}" style="width:${widthPct}%"></div></div>
+      </div>
+
+      <div class="pf-card-meta">
+        <span class="pf-pill"><span class="pf-pill-icon">👥</span>${p.member_count} ${t("tl_eval.members")}</span>
+        <span class="pf-pill ${submittedPct >= 80 ? 'brand' : ''}"><span class="pf-pill-icon">✓</span>${p.members_evaluated}/${p.member_count} ${t("tl_eval.evaluated_short")}</span>
+        ${p.total_leads ? `<span class="pf-pill"><span class="pf-pill-icon">📥</span>${fmtNum(p.total_leads)} ${t("kpi.fresh_leads")}</span>` : ''}
+        ${p.total_deals ? `<span class="pf-pill accent"><span class="pf-pill-icon">💼</span>${p.total_deals} ${t("kpi.deals")}</span>` : ''}
+        ${p.total_calls ? `<span class="pf-pill"><span class="pf-pill-icon">📞</span>${fmtNum(p.total_calls)} ${t("kpi.calls")}</span>` : ''}
+      </div>
+
+      <div style="font-size:11px;color:var(--text-muted)">
+        🏆 ${t("tl_eval.top_performer")}: ${top}
+      </div>
+    </div>`;
+  }).join("");
 }
 
 function populateTeamFilter() {
@@ -168,6 +246,11 @@ function render() {
         const statusCls = done ? "badge-excellent" : "badge-pending";
         const statusTxt = done ? t("tl_eval.evaluated") : t("tl_eval.pending");
         const btnTxt = done ? t("tl_eval.edit") : t("tl_eval.evaluate");
+        const teamPerf = teamsPerf.find(p => p.team_id === l.team_id);
+        const teamScore = teamPerf ? teamPerf.avg_member_score : null;
+        const teamScoreBadge = teamScore != null
+          ? `<span class="badge badge-${teamScore >= 75 ? 'vgood' : teamScore >= 55 ? 'good' : 'weak'}" title="${t('tl_eval.team_avg')}">${t('tl_eval.team_avg')}: ${teamScore.toFixed(1)}%</span>`
+          : "";
         return `
           <div class="card" style="margin-bottom:12px">
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -176,6 +259,7 @@ function render() {
                 <div style="font-weight:600">${escapeHTML(l.full_name)}</div>
                 <div style="font-size:12px;color:var(--text-muted)">${escapeHTML(teamName)}</div>
               </div>
+              ${teamScoreBadge}
               <span class="badge ${statusCls}">${statusTxt}</span>
               <button class="btn btn-sm btn-primary hyper-btn" onclick="openEval(${l.id}, '${escapeHTML(l.full_name)}', '${month}')">
                 ${btnTxt}

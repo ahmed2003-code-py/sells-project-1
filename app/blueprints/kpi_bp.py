@@ -587,3 +587,127 @@ def list_team_leaders():
     except Exception as e:
         log.error(f"list_team_leaders error: {e}")
         return _json({"error": str(e)}, 500)
+
+
+# ─── Per-team performance summary (for Teams Performance section) ─────────────
+
+@kpi_bp.route("/teams-summary", methods=["GET"])
+@role_required("admin", "manager", "dataentry")
+def teams_summary():
+    """
+    Returns one row per team with members + aggregates for the given month:
+      team_id, team_name, leader_id, leader_name, leader_score, leader_rating,
+      leader_evaluated, member_count, members_submitted, members_evaluated,
+      avg_member_score, top_performer (name + score),
+      total_leads, total_calls, total_meetings, total_deals, total_reservations
+    """
+    month = request.args.get("month")
+    if not month:
+        return _json({"error_code": "missing_month", "error": "month required"}, 400)
+
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # All teams + their leader basic info
+                cur.execute("""
+                    SELECT t.id   AS team_id,
+                           t.name AS team_name,
+                           t.leader_id,
+                           u.full_name AS leader_name,
+                           u.username  AS leader_username
+                    FROM teams t
+                    LEFT JOIN users u ON u.id = t.leader_id
+                    ORDER BY t.name
+                """)
+                teams = [dict(r) for r in cur.fetchall()]
+
+                # Leader KPI rows for the month
+                leader_ids = [t["leader_id"] for t in teams if t["leader_id"]]
+                leader_kpi = {}
+                if leader_ids:
+                    cur.execute("""
+                        SELECT user_id, total_score, rating, dataentry_submitted_at
+                        FROM kpi_entries
+                        WHERE month = %s AND user_id = ANY(%s)
+                    """, (month, leader_ids))
+                    for r in cur.fetchall():
+                        leader_kpi[int(r["user_id"])] = dict(r)
+
+                # All sales entries for active sales users, joined to their team
+                cur.execute("""
+                    SELECT u.id AS user_id, u.full_name, u.team_id,
+                           e.fresh_leads, e.calls, e.meetings, e.deals,
+                           e.reservations, e.crm_pct, e.followup_pct,
+                           e.total_score, e.rating,
+                           e.sales_submitted_at, e.dataentry_submitted_at,
+                           e.attitude, e.presentation, e.behaviour, e.appearance,
+                           e.attendance_pct, e.hr_roles, e.reports
+                    FROM users u
+                    LEFT JOIN kpi_entries e
+                      ON e.user_id = u.id AND e.month = %s
+                    WHERE u.role = 'sales' AND u.active = true
+                """, (month,))
+                sales_rows = [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+
+        # Group sales by team_id (skip those with no team)
+        by_team = {}
+        for r in sales_rows:
+            tid = r.get("team_id")
+            if tid is None:
+                continue
+            by_team.setdefault(int(tid), []).append(r)
+
+        out = []
+        for t in teams:
+            tid = int(t["team_id"])
+            members = by_team.get(tid, [])
+            mcount = len(members)
+
+            submitted = sum(1 for m in members if m.get("sales_submitted_at"))
+            evaluated = sum(1 for m in members if m.get("dataentry_submitted_at"))
+
+            scored = [
+                (m["full_name"], float(m["total_score"]))
+                for m in members
+                if m.get("total_score") is not None
+            ]
+            avg_member = (sum(s for _, s in scored) / len(scored)) if scored else 0.0
+            top = max(scored, key=lambda x: x[1]) if scored else None
+
+            def _sum(field):
+                return sum(float(m.get(field) or 0) for m in members)
+
+            ld = leader_kpi.get(int(t["leader_id"])) if t["leader_id"] else None
+
+            out.append({
+                "team_id":           tid,
+                "team_name":         t["team_name"],
+                "leader_id":         t["leader_id"],
+                "leader_name":       t["leader_name"],
+                "leader_score":      float(ld["total_score"]) if ld and ld.get("total_score") is not None else None,
+                "leader_rating":     ld["rating"] if ld else None,
+                "leader_evaluated":  bool(ld and ld.get("dataentry_submitted_at")),
+                "member_count":      mcount,
+                "members_submitted": submitted,
+                "members_evaluated": evaluated,
+                "avg_member_score":  round(avg_member, 1),
+                "top_performer":     {"name": top[0], "score": round(top[1], 1)} if top else None,
+                "total_leads":        int(_sum("fresh_leads")),
+                "total_calls":        int(_sum("calls")),
+                "total_meetings":     int(_sum("meetings")),
+                "total_deals":        int(_sum("deals")),
+                "total_reservations": int(_sum("reservations")),
+            })
+
+        # Rank: highest avg_member_score first, then by member_count
+        out.sort(key=lambda x: (-x["avg_member_score"], -x["member_count"]))
+        for i, row in enumerate(out, 1):
+            row["rank"] = i
+
+        return _json(out)
+    except Exception as e:
+        log.error(f"teams_summary error: {e}")
+        return _json({"error_code": "server", "error": str(e)}, 500)

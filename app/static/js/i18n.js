@@ -326,6 +326,14 @@ const I18N = {
     "tl_eval.evaluate": "تقييم",
     "tl_eval.progress": "تم تقييم",
     "tl_eval.notes": "ملاحظات",
+    "tl_eval.teams_perf": "أداء الفرق",
+    "tl_eval.teams_perf_hint": "متوسط أداء كل فريق + مقارنة سريعة",
+    "tl_eval.team_avg": "متوسط الفريق",
+    "tl_eval.tl": "قائد الفريق",
+    "tl_eval.members": "عضو",
+    "tl_eval.evaluated_short": "مُقيَّم",
+    "tl_eval.top_performer": "الأعلى أداءً",
+    "tl_eval.no_teams_data": "لا توجد فرق لعرض أدائها",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",
@@ -837,6 +845,14 @@ const I18N = {
     "tl_eval.evaluate": "Evaluate",
     "tl_eval.progress": "Evaluated",
     "tl_eval.notes": "Notes",
+    "tl_eval.teams_perf": "Teams Performance",
+    "tl_eval.teams_perf_hint": "Per-team averages and a quick comparison",
+    "tl_eval.team_avg": "Team avg",
+    "tl_eval.tl": "Team Leader",
+    "tl_eval.members": "members",
+    "tl_eval.evaluated_short": "evaluated",
+    "tl_eval.top_performer": "Top performer",
+    "tl_eval.no_teams_data": "No teams to display",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",
