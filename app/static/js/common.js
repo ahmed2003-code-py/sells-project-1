@@ -342,6 +342,25 @@ function closeModal(id) {
   closeModalDialog(document.getElementById(id));
 }
 
+// ─── Pass/Fail segmented toggle (used by tl_evaluation + dataentry) ─
+function initPassfailToggles() {
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".passfail-toggle button[data-pf-target]");
+    if (!btn) return;
+    const id  = btn.getAttribute("data-pf-target");
+    const val = btn.getAttribute("data-pf-value");
+    const input = document.getElementById(id);
+    if (input) input.value = val;
+    btn.parentElement.querySelectorAll("button").forEach(b => {
+      const active = b === btn;
+      b.classList.toggle("is-active", active);
+      b.setAttribute("aria-checked", active ? "true" : "false");
+    });
+    // Trigger an "input" event on the hidden input so live previews can react.
+    if (input) input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 // ─── Password visibility toggles ───────────────────────────────────
 function initPasswordToggles() {
   document.querySelectorAll(".pw-toggle").forEach(btn => {
@@ -378,6 +397,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initLangToggle();
   initReveal();
   initPasswordToggles();
+  initPassfailToggles();
   document.addEventListener("keydown", _onSidebarKeydown);
   document.addEventListener("keydown", _onModalKeydown);
   document.querySelectorAll(".modal-backdrop").forEach(m => {

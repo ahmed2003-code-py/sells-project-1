@@ -6,32 +6,33 @@
 {% endblock %}
 
 {% block content %}
-<div class="hero-ribbon">
-  <div class="page-header" style="margin-bottom:16px">
-    <div>
-      <h1 class="page-title" data-i18n="de.title"></h1>
-      <p class="page-subtitle" data-i18n="de.subtitle_full"></p>
-    </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="de.title"></h1>
+    <p class="page-subtitle">
+      <span data-i18n="de.subtitle_full"></span>
+      <span class="kbd-hint">·  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> <span data-i18n="de.shortcut_hint"></span></span>
+    </p>
   </div>
+</div>
 
-  <!-- Progress tiles -->
-  <div class="bento" id="deTiles" style="margin-bottom:0">
-    <div class="kpi-tile tile-brand span-3"><div class="kpi-tile-head">
-      <div class="kpi-tile-icon">👥</div><div class="kpi-tile-label" data-i18n="dash.sales_count"></div>
-    </div><div class="kpi-tile-value" id="tile_total">—</div></div>
+<!-- Progress tiles -->
+<div class="bento" id="deTiles">
+  <div class="kpi-tile tile-brand span-3"><div class="kpi-tile-head">
+    <div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></div><div class="kpi-tile-label" data-i18n="de.team_size"></div>
+  </div><div class="kpi-tile-value" id="tile_total">—</div></div>
 
-    <div class="kpi-tile tile-accent span-3"><div class="kpi-tile-head">
-      <div class="kpi-tile-icon">✅</div><div class="kpi-tile-label" data-i18n="de.evaluated"></div>
-    </div><div class="kpi-tile-value" id="tile_done">—</div><div class="kpi-tile-sub" id="tile_done_sub">&nbsp;</div></div>
+  <div class="kpi-tile tile-accent span-3"><div class="kpi-tile-head">
+    <div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span></div><div class="kpi-tile-label" data-i18n="de.evaluated"></div>
+  </div><div class="kpi-tile-value" id="tile_done">—</div><div class="kpi-tile-sub" id="tile_done_sub">&nbsp;</div></div>
 
-    <div class="kpi-tile tile-warm span-3"><div class="kpi-tile-head">
-      <div class="kpi-tile-icon">⏳</div><div class="kpi-tile-label" data-i18n="de.waiting_eval"></div>
-    </div><div class="kpi-tile-value" id="tile_pending">—</div></div>
+  <div class="kpi-tile tile-warm span-3"><div class="kpi-tile-head">
+    <div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">hourglass_empty</span></div><div class="kpi-tile-label" data-i18n="de.waiting_eval"></div>
+  </div><div class="kpi-tile-value" id="tile_pending">—</div></div>
 
-    <div class="kpi-tile tile-coral span-3"><div class="kpi-tile-head">
-      <div class="kpi-tile-icon">📥</div><div class="kpi-tile-label" data-i18n="de.missing_sales"></div>
-    </div><div class="kpi-tile-value" id="tile_missing">—</div></div>
-  </div>
+  <div class="kpi-tile tile-coral span-3"><div class="kpi-tile-head">
+    <div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">inbox</span></div><div class="kpi-tile-label" data-i18n="de.missing_sales"></div>
+  </div><div class="kpi-tile-value" id="tile_missing">—</div></div>
 </div>
 
 <!-- Status chart row -->
@@ -53,7 +54,7 @@
   </div>
   <div class="field">
     <label data-i18n="common.filter"></label>
-    <select id="filterStatus" onchange="render()">
+    <select id="filterStatus" onchange="applyFilters()">
       <option value="all" data-i18n="de.all_team"></option>
       <option value="pending" data-i18n="de.waiting_eval"></option>
       <option value="done" data-i18n="de.evaluated"></option>
@@ -62,14 +63,20 @@
   </div>
   <div class="field">
     <label data-i18n="filters.team"></label>
-    <select id="teamFilter" onchange="render()">
+    <select id="teamFilter" onchange="applyFilters()">
       <option value="" data-i18n="common.all"></option>
       <option value="none" data-i18n="filters.no_team"></option>
     </select>
   </div>
   <div class="field" style="flex:1;min-width:180px">
-    <label data-i18n="common.search"></label>
-    <input type="text" id="searchBox" oninput="render()" data-i18n-placeholder="filters.search_user_ph">
+    <label for="searchBox" data-i18n="common.search"></label>
+    <div class="pf-search-input-wrap">
+      <span class="material-symbols-outlined pf-search-icon" aria-hidden="true">search</span>
+      <input type="text" id="searchBox" oninput="onSearchInput()" data-i18n-placeholder="filters.search_user_ph">
+      <button type="button" class="pf-search-clear" id="deSearchClear" onclick="clearSearchBox()" data-i18n-aria-label="common.clear" hidden>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </div>
   </div>
   <div class="field" style="align-self:flex-end">
     <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="filters.reset"></button>
@@ -80,7 +87,7 @@
 
 <div id="chipsRow" class="pf-chips" style="margin-bottom:12px"></div>
 
-<div id="list" class="stagger"></div>
+<div id="list"></div>
 {% endblock %}
 
 {% block scripts %}
@@ -89,10 +96,18 @@
 let users = [];
 let entries = {};
 let teams = [];
+let kpiConfig = null;  // Loaded once from /api/kpi/config; powers live score preview + soft validation.
 const NUMERIC = ["fresh_leads", "calls", "meetings", "crm_pct", "deals",
                  "reports", "reservations", "followup_pct", "attendance_pct"];
 const PASSFAIL = ["attitude", "presentation", "behaviour", "appearance", "hr_roles"];
 const PCT_FIELDS = new Set(["crm_pct", "followup_pct", "attendance_pct"]);
+
+// Soft upper bounds — typo guards. Server has no enforcement; these only warn.
+// Calls target is 2000/mo, so 10000 is a generous ceiling. Adjust per org reality.
+const SOFT_MAX = {
+  calls: 10000, meetings: 500, deals: 100, reports: 50, reservations: 200,
+  fresh_leads: 5000,
+};
 
 function escapeHTML(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
@@ -104,17 +119,19 @@ async function loadAll() {
   const month = document.getElementById("month").value;
   if (!month) return;
   try {
-    const [u, report, ts] = await Promise.all([
+    const [u, report, ts, cfg] = await Promise.all([
       api("/api/users?role=sales&active_only=true"),
       api(`/api/kpi/report?month=${month}`),
       teams.length ? Promise.resolve(teams) : api("/api/teams").catch(() => []),
+      kpiConfig ? Promise.resolve(kpiConfig) : api("/api/kpi/config").catch(() => null),
     ]);
     users = u;
     teams = ts || [];
+    kpiConfig = cfg || kpiConfig;
     populateTeamFilter();
     entries = {};
     report.forEach(r => { entries[r.user_id] = r; });
-    render();
+    renderAll();
   } catch (e) { toastError(e); }
 }
 
@@ -137,7 +154,7 @@ function resetFilters() {
   document.getElementById("filterStatus").value = "all";
   document.getElementById("teamFilter").value = "";
   document.getElementById("searchBox").value = "";
-  render();
+  applyFilters();
 }
 
 function renderChips() {
@@ -169,7 +186,20 @@ function renderChips() {
 
 function clearChip(id, val) {
   const el = document.getElementById(id);
-  if (el) { el.value = val; render(); }
+  if (el) { el.value = val; applyFilters(); }
+}
+
+function onSearchInput() {
+  const sb = document.getElementById("searchBox");
+  const clr = document.getElementById("deSearchClear");
+  if (clr) clr.hidden = !(sb && sb.value.length);
+  applyFilters();
+}
+
+function clearSearchBox() {
+  const sb = document.getElementById("searchBox");
+  if (sb) { sb.value = ""; sb.focus(); }
+  onSearchInput();
 }
 
 function renderTilesAndCharts() {
@@ -218,38 +248,68 @@ function renderTilesAndCharts() {
   }
 }
 
-function render() {
+// Full DOM rebuild — only called when underlying data changes (loadAll, lang switch).
+// Filter/search use applyFilters() instead so unsaved input values stay intact.
+function renderAll() {
+  const container = document.getElementById("list");
+  const rows = users.map(u => ({ user: u, entry: entries[u.id] || null }));
+  if (!rows.length) {
+    container.innerHTML = `<div class="card text-center text-muted" style="padding:50px">${t("admin.no_users")}</div>`;
+  } else {
+    container.innerHTML = rows.map(({user, entry}) => renderCard(user, entry)).join("");
+  }
+  renderTilesAndCharts();
+  applyFilters();
+}
+
+// Visibility-toggle path — preserves all in-progress input values across the cards.
+function applyFilters() {
   const filter = document.getElementById("filterStatus").value;
   const teamVal = document.getElementById("teamFilter").value;
   const search = (document.getElementById("searchBox").value || "").trim().toLowerCase();
   const container = document.getElementById("list");
+  const cards = container.querySelectorAll(".card[data-user-id]");
 
-  let rows = users.map(u => ({ user: u, entry: entries[u.id] || null }));
+  let shown = 0;
+  cards.forEach(card => {
+    const status = card.dataset.status;       // "done" | "pending" | "missing"
+    const team   = card.dataset.team;          // team id or "none"
+    const hay    = card.dataset.search || "";  // lowercase name + username
 
-  if (filter === "pending") rows = rows.filter(r => r.entry && r.entry.sales_submitted_at && !r.entry.dataentry_submitted_at);
-  else if (filter === "done") rows = rows.filter(r => r.entry && r.entry.dataentry_submitted_at);
-  else if (filter === "no-sales") rows = rows.filter(r => !r.entry || !r.entry.sales_submitted_at);
+    let visible = true;
+    if (filter === "pending"  && status !== "pending") visible = false;
+    if (filter === "done"     && status !== "done")    visible = false;
+    if (filter === "no-sales" && status !== "missing") visible = false;
+    if (teamVal === "none" && team !== "none") visible = false;
+    else if (teamVal && team !== teamVal)      visible = false;
+    if (search && !hay.includes(search))       visible = false;
 
-  if (teamVal === "none") rows = rows.filter(r => r.user.team_id == null);
-  else if (teamVal) rows = rows.filter(r => String(r.user.team_id || "") === teamVal);
+    card.classList.toggle("is-hidden", !visible);
+    if (visible) shown++;
+  });
 
-  if (search) rows = rows.filter(r =>
-    (r.user.full_name || "").toLowerCase().includes(search) ||
-    (r.user.username || "").toLowerCase().includes(search));
+  // Empty-state placeholder lives in the same #list — toggle separately
+  let empty = container.querySelector(".de-empty");
+  if (!shown && cards.length) {
+    if (!empty) {
+      empty = document.createElement("div");
+      empty.className = "card de-empty text-center";
+      container.appendChild(empty);
+    }
+    empty.innerHTML =
+      `<div class="text-muted" style="padding:30px 20px 16px">${t("admin.no_users")}</div>
+       <button type="button" class="btn btn-sm" onclick="resetFilters()">
+         <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+         <span>${t("pf.clear_filters")}</span>
+       </button>`;
+  } else if (empty) {
+    empty.remove();
+  }
 
   const done = users.filter(u => entries[u.id] && entries[u.id].dataentry_submitted_at).length;
   document.getElementById("progress").textContent =
-    `${t("de.progress")} ${done} ${t("de.of")} ${users.length}  ·  ${t("filters.shown")} ${rows.length}`;
-
+    `${t("de.progress")} ${done} ${t("de.of")} ${users.length}  ·  ${t("filters.shown")} ${shown}`;
   renderChips();
-  renderTilesAndCharts();
-
-  if (!rows.length) {
-    container.innerHTML = `<div class="card text-center text-muted" style="padding:50px">${t("admin.no_users")}</div>`;
-    return;
-  }
-
-  container.innerHTML = rows.map(({user, entry}) => renderCard(user, entry)).join("");
 }
 
 function renderCard(user, entry) {
@@ -257,13 +317,10 @@ function renderCard(user, entry) {
   const hasNumeric = entry && entry.sales_submitted_at;
   const score = entry ? parseFloat(entry.total_score) || 0 : 0;
 
-  const statusBadges = [];
-  statusBadges.push(hasNumeric
-    ? '<span class="badge badge-vgood">' + t("de.sales_done") + '</span>'
-    : '<span class="badge badge-pending">' + t("de.sales_not_done") + '</span>');
-  statusBadges.push(isDone
-    ? '<span class="badge badge-excellent">' + t("de.evaluated") + '</span>'
-    : '<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
+  const statusBadges = [
+    dePill('sales', !!hasNumeric),
+    dePill('eval',  !!isDone),
+  ];
 
   const v = (key, def = "") => {
     if (!entry || entry[key] == null) return def;
@@ -272,76 +329,109 @@ function renderCard(user, entry) {
 
   const numericInputs = NUMERIC.map(k => {
     const isPct = PCT_FIELDS.has(k);
+    const fid = `${k}-${user.id}`;
+    const softMax = SOFT_MAX[k];
     return `<div class="field">
-      <label>${t("kpi." + k)} ${isPct ? " %" : ""}</label>
+      <label for="${fid}">${t("kpi." + k)}${isPct ? " %" : ""}</label>
       <input type="number" min="0" ${isPct ? 'max="100" step="0.1"' : ""}
-             id="${k}-${user.id}" value="${escapeHTML(v(k, ""))}">
+             id="${fid}" name="${k}" data-kpi-key="${k}" value="${escapeHTML(v(k, ""))}"
+             aria-describedby="warn-soft-${fid}">
+      <small id="warn-soft-${fid}" class="field-soft-warn" hidden>
+        ${softMax ? t("de.value_seems_high").replace("{n}", softMax.toLocaleString()) : ""}
+      </small>
     </div>`;
   }).join("");
 
   const passfailInputs = PASSFAIL.map(k => {
-    const current = entry ? (entry[k] || 0) : 0;
+    const current = entry ? Number(entry[k] || 0) : 0;
+    const fid = `${k}-${user.id}`;
+    const label = t("kpi." + k);
+    const isPass = current === 100;
     return `<div class="field">
-      <label>${t("kpi." + k)}</label>
-      <select id="${k}-${user.id}">
-        <option value="100" ${current == 100 ? 'selected' : ''}>${t("common.pass")}</option>
-        <option value="0"   ${current == 0   ? 'selected' : ''}>${t("common.fail")}</option>
-      </select>
+      <span class="field-label-text">${label}</span>
+      <div class="passfail-toggle" role="radiogroup" aria-label="${escapeHTML(label)}">
+        <button type="button" role="radio" aria-checked="${isPass}" data-pf-target="${fid}" data-pf-value="100" class="${isPass ? 'is-active' : ''}">${t("common.pass")}</button>
+        <button type="button" role="radio" aria-checked="${!isPass}" data-pf-target="${fid}" data-pf-value="0" class="${!isPass ? 'is-active' : ''}">${t("common.fail")}</button>
+      </div>
+      <input type="hidden" id="${fid}" value="${isPass ? 100 : 0}">
     </div>`;
   }).join("");
 
-  // Score badge with bar visualisation if data exists
+  // Inline mini-score block — only rendered for already-evaluated reps.
+  // Re-uses the rating bands from common.js so colors stay in lockstep with kpi_logic.py.
   const scoreBlock = isDone
-    ? `<div style="display:flex;align-items:center;gap:12px;min-width:180px">
-        <div class="score-display" style="margin:0;padding:14px 18px;text-align:center;flex:1">
-          <div class="num ${scoreClass(score)}" style="font-size:28px">${score.toFixed(1)}%</div>
-          <div class="label" style="font-size:10px;margin-top:4px">${t("rating." + (entry.rating || "Pending"))}</div>
-        </div>
+    ? `<div class="entry-score-mini">
+        <div class="num ${(entry.rating ? ratingClass(entry.rating) : ratingClass(localRating(score))).replace('badge-','')}">${score.toFixed(1)}%</div>
+        <div class="label">${t("rating." + (entry.rating || localRating(score)))}</div>
        </div>`
     : "";
 
-  return `<div class="card fade-in reveal" data-user-id="${user.id}">
-    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-      <div class="flex items-center gap-2">
+  // Filter-matching attributes — applyFilters() reads these instead of rebuilding the DOM.
+  const status = isDone ? "done" : (hasNumeric ? "pending" : "missing");
+  const teamAttr = user.team_id == null ? "none" : String(user.team_id);
+  const searchHay = ((user.full_name || "") + " " + (user.username || "")).toLowerCase();
+
+  return `<div class="card de-card" data-user-id="${user.id}" data-status="${status}" data-team="${escapeHTML(teamAttr)}" data-search="${escapeHTML(searchHay)}">
+    <div class="de-card-head">
+      <div class="row-actor">
         <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:700;font-size:15px">${escapeHTML(user.full_name)}</div>
-          <div class="text-muted" style="font-size:11px">@${escapeHTML(user.username)}</div>
+          <div class="de-card-name">${escapeHTML(user.full_name)}</div>
+          <div class="de-card-username">@${escapeHTML(user.username)}</div>
         </div>
       </div>
-      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+      <div class="de-card-status">
         ${statusBadges.join("")}
         ${scoreBlock}
       </div>
     </div>
 
-    <div class="form-section-title" style="margin-top:14px">${t("sales.numeric_perf")}</div>
-    <div class="field-row four" style="margin-bottom:12px">${numericInputs}</div>
+    <form id="form-${user.id}" onsubmit="event.preventDefault();saveEval(${user.id})">
+      <div class="form-section-title de-section-title">${t("sales.numeric_perf")}</div>
+      <div class="field-row four de-field-grid">${numericInputs}</div>
 
-    <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
-    <div class="field-row five" style="margin-bottom:14px">${passfailInputs}</div>
+      <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
+      <div class="field-row five de-field-grid">${passfailInputs}</div>
 
-    <div class="field" style="margin-bottom:14px">
-      <label>${t("de.notes")}</label>
-      <input type="text" id="notes-${user.id}"
-             value="${escapeHTML(entry && entry.notes ? entry.notes : '')}"
-             placeholder="${t("de.notes_ph")}" maxlength="400">
-    </div>
+      <div class="field notes-field">
+        <label for="notes-${user.id}">${t("de.notes")}</label>
+        <textarea id="notes-${user.id}" rows="2" maxlength="400"
+                  placeholder="${t("de.notes_ph")}"
+                  data-char-counter="counter-${user.id}">${escapeHTML(entry && entry.notes ? entry.notes : '')}</textarea>
+        <small id="counter-${user.id}" class="char-count">${(entry && entry.notes ? entry.notes : '').length}/400</small>
+      </div>
 
-    <div class="flex gap-1">
-      <button class="btn btn-primary btn-sm hyper-btn" onclick="saveEval(${user.id})">${t("de.save_eval")}</button>
-      ${entry ? `<button class="btn btn-sm" onclick="showDetail(${user.id})">${t("common.details")}</button>` : ''}
-    </div>
+      <div class="de-warn" id="warn-${user.id}" role="alert" hidden>
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+        <span>${t("de.confirm_no_numeric")}</span>
+        <button type="submit" class="de-warn-confirm">${t("de.save_anyway")}</button>
+      </div>
+      <div class="de-card-actions">
+        <span class="de-preview" id="preview-${user.id}" aria-live="polite"></span>
+        <button type="submit" class="btn btn-primary">${t("de.save_eval")}</button>
+        ${entry ? `<button type="button" class="btn" onclick="showDetail(${user.id})">${t("common.details")}</button>` : ''}
+      </div>
+    </form>
   </div>`;
 }
 
-function scoreClass(score) {
-  if (score >= 90) return "excellent";
-  if (score >= 75) return "vgood";
-  if (score >= 55) return "good";
-  if (score >= 40) return "medium";
-  return "weak";
+// Reuse the .status-pill markup from dashboard so eval status reads consistently
+// across the app — icon + label, not bare badge text.
+function dePill(kind, done) {
+  // kind: 'sales' (rep submitted KPI numbers) or 'eval' (data entry evaluated them)
+  const label = kind === 'sales' ? t("de.sales_done_short") : t("de.evaluated");
+  const pendingLabel = kind === 'sales' ? t("de.sales_not_done") : t("de.waiting_eval");
+  const icon  = done ? "check_circle" : "radio_button_unchecked";
+  const cls   = done ? "is-done" : "is-pending";
+  return `<span class="status-pill ${cls}">
+    <span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${done ? label : pendingLabel}
+  </span>`;
 }
+
+// Track which cards have already shown the "no numeric data" warning, so the
+// second submit (or a click on the Save-anyway button inside the warn strip)
+// proceeds without re-prompting.
+const _warnedCards = new Set();
 
 async function saveEval(userId) {
   const month = document.getElementById("month").value;
@@ -362,7 +452,16 @@ async function saveEval(userId) {
     hasNumeric = true;
   });
 
-  if (!hasNumeric && !confirm(t("de.confirm_no_numeric"))) return;
+  // Inline warn instead of native confirm() — surface the message in-card,
+  // require a second submit to proceed. Tone: factual, not blocking.
+  const warn = document.getElementById(`warn-${userId}`);
+  if (!hasNumeric && !_warnedCards.has(userId)) {
+    if (warn) warn.hidden = false;
+    _warnedCards.add(userId);
+    return;
+  }
+  if (warn) warn.hidden = true;
+  _warnedCards.delete(userId);
 
   PASSFAIL.forEach(k => body[k] = document.getElementById(`${k}-${userId}`).value);
 
@@ -374,10 +473,132 @@ async function saveEval(userId) {
 }
 
 function showDetail(userId) {
-  window.location.href = "/dashboard";
+  const month = document.getElementById("month").value;
+  window.location.href = `/dashboard?user=${userId}&month=${encodeURIComponent(month)}`;
 }
 
-function onLangChange() { render(); }
+// ─── Live score preview ────────────────────────────────────────────
+// Mirrors compute_score() in app/kpi_logic.py: weighted achievement out of 100,
+// each KPI capped at 100% achievement. Server is still the source of truth on save.
+function computePreviewScore(userId) {
+  if (!kpiConfig || !kpiConfig.kpis) return null;
+  const freshEl = document.getElementById(`fresh_leads-${userId}`);
+  const freshLeads = freshEl ? Number(freshEl.value) || 0 : 0;
+  let total = 0;
+  let totalWeight = 0;
+
+  Object.entries(kpiConfig.kpis).forEach(([key, def]) => {
+    const el = document.getElementById(`${key}-${userId}`);
+    if (!el) return;
+    const raw = (el.value || "").trim();
+    if (raw === "") return;  // Field unfilled — exclude from preview
+    const actual = Number(raw);
+    if (isNaN(actual)) return;
+
+    const target = def.target_type === "leads_pct"
+      ? Math.max(1, freshLeads * (def.target_pct || 0) / 100)
+      : (def.target || 1);
+    const ach = Math.min(actual / target, 1);
+    total += ach * (def.weight || 0);
+    totalWeight += (def.weight || 0);
+  });
+
+  return totalWeight ? total : null;
+}
+
+function refreshPreview(userId) {
+  const el = document.getElementById(`preview-${userId}`);
+  if (!el) return;
+  const score = computePreviewScore(userId);
+  if (score == null) { el.textContent = ""; return; }
+  const rating = localRating(score);
+  const cls = ratingClass(rating).replace("badge-","");
+  el.innerHTML = `<span class="de-preview-label">${t("de.preview_score")}</span>
+                  <span class="de-preview-num is-${cls}">${score.toFixed(1)}%</span>
+                  <span class="de-preview-rating">${t("rating." + rating)}</span>`;
+}
+
+// ─── Soft upper-bound warning ──────────────────────────────────────
+function refreshSoftWarn(input) {
+  const key = input.dataset.kpiKey;
+  const max = SOFT_MAX[key];
+  if (!max) return;
+  const v = Number(input.value);
+  const warn = document.getElementById(`warn-soft-${input.id}`);
+  if (!warn) return;
+  warn.hidden = !(v && v > max);
+}
+
+// ─── Char counter ──────────────────────────────────────────────────
+function refreshCharCount(textarea) {
+  const target = textarea.dataset.charCounter;
+  const counter = target ? document.getElementById(target) : null;
+  if (!counter) return;
+  counter.textContent = `${textarea.value.length}/${textarea.maxLength || 400}`;
+}
+
+// ─── Form-level input listener: drives preview + soft-warn + counter ─
+document.addEventListener("input", (e) => {
+  const target = e.target;
+  if (!target) return;
+  const card = target.closest("[data-user-id]");
+  if (!card) return;
+  const userId = card.dataset.userId;
+
+  if (target.matches("input[data-kpi-key], input[type='hidden'][id*='-']")) {
+    refreshPreview(userId);
+  }
+  if (target.matches("input[data-kpi-key]")) {
+    refreshSoftWarn(target);
+  }
+  if (target.matches("textarea[data-char-counter]")) {
+    refreshCharCount(target);
+  }
+});
+
+// ─── Ctrl/Cmd+Enter — save current card and focus next pending ──────
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+  const card = e.target.closest("[data-user-id]");
+  if (!card) return;
+  e.preventDefault();
+  const userId = Number(card.dataset.userId);
+  // Save current — saveEval triggers loadAll on success which re-renders.
+  // Stash the next-pending user id so the post-load step can focus into it.
+  const nextCard = _findNextPendingAfter(card);
+  _focusAfterReload = nextCard ? Number(nextCard.dataset.userId) : null;
+  saveEval(userId);
+});
+
+function _findNextPendingAfter(card) {
+  let n = card.nextElementSibling;
+  while (n) {
+    if (n.matches && n.matches(".card[data-user-id]") && !n.classList.contains("is-hidden")) {
+      const status = n.dataset.status;
+      if (status === "pending" || status === "missing") return n;
+    }
+    n = n.nextElementSibling;
+  }
+  return null;
+}
+
+let _focusAfterReload = null;
+// Hook renderAll: after full re-render, focus the queued next-pending card.
+const _origRenderAll = renderAll;
+renderAll = function patchedRenderAll() {
+  _origRenderAll();
+  if (_focusAfterReload != null) {
+    const next = document.querySelector(`.card[data-user-id="${_focusAfterReload}"]`);
+    if (next) {
+      next.scrollIntoView({ behavior: "smooth", block: "start" });
+      const first = next.querySelector("input[type='number']");
+      if (first) first.focus();
+    }
+    _focusAfterReload = null;
+  }
+};
+
+function onLangChange() { renderAll(); }
 
 document.getElementById("month").value = currentMonth();
 loadAll();

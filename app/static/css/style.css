@@ -666,7 +666,8 @@ html[lang="ar"] .page-title, html[dir="rtl"] .page-title {
    FORMS
    ────────────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-.field label {
+.field label,
+.field .field-label-text {
   font-size: 11px; font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -1084,6 +1085,7 @@ html[dir="ltr"] .toast.show { transform: translateX(-50%) translateY(0); }
    UTILITIES
    ────────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
+.is-hidden { display: none !important; }
 .text-muted { color: var(--text-muted); }
 .text-dim { color: var(--text-dim); }
 .text-success { color: var(--accent-2); }
@@ -1145,6 +1147,182 @@ html[dir="ltr"] .toast.show { transform: translateX(-50%) translateY(0); }
   .pw-toggle { width: 44px; height: 44px; }
   .pw-input-wrap input { padding-inline-end: 52px; }
 }
+
+/* Inline mini-score — small per-card variant of .score-display, sits in the
+   card header next to status pills. Colors mirror the rating bands. */
+.entry-score-mini {
+  background: var(--surface-recessed);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  text-align: center;
+  min-width: 110px;
+}
+.entry-score-mini .num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+}
+.entry-score-mini .num.excellent { color: var(--accent-2); }
+.entry-score-mini .num.vgood     { color: var(--brand); }
+.entry-score-mini .num.good      { color: var(--info); }
+.entry-score-mini .num.medium    { color: var(--warning); }
+.entry-score-mini .num.weak,
+.entry-score-mini .num.bad       { color: var(--danger); }
+.entry-score-mini .label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Data-entry card layout — extracted from inline styles in renderCard */
+.de-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.de-card-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+.de-card-username {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.de-card-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.de-section-title { margin-top: 14px; }
+.de-field-grid { margin-bottom: 12px; }
+.de-field-grid:last-of-type { margin-bottom: 14px; }
+
+/* Data-entry card action row + live score preview pill */
+.de-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.de-preview {
+  margin-inline-end: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.de-preview-label { font-weight: 600; }
+.de-preview-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text);
+}
+.de-preview-num.is-excellent { color: var(--accent-2); }
+.de-preview-num.is-vgood     { color: var(--brand); }
+.de-preview-num.is-good      { color: var(--info); }
+.de-preview-num.is-medium    { color: var(--warning); }
+.de-preview-num.is-weak,
+.de-preview-num.is-bad       { color: var(--danger); }
+.de-preview-rating {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Per-field soft-bound warning sits under the input */
+.field-soft-warn {
+  font-size: 11px;
+  color: var(--warning);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.field-soft-warn[hidden] { display: none; }
+
+/* Character counter for the notes textarea */
+.notes-field textarea {
+  resize: vertical;
+  min-height: 56px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.char-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: end;
+  margin-top: 2px;
+}
+
+/* Keyboard-shortcut hint in page subtitles */
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--surface-recessed);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+/* Inline warn strip — used in dataentry cards in place of native confirm() */
+.de-warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--warning-soft);
+  border: 1px solid rgba(196, 114, 0, 0.22);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 500;
+}
+.de-warn .material-symbols-outlined {
+  font-size: 18px;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+.de-warn-confirm {
+  margin-inline-start: auto;
+  background: var(--warning);
+  color: #fff;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.de-warn-confirm:hover { filter: brightness(0.95); }
 
 /* Pass/Fail segmented control — used in TL evaluation behavioral fields.
    One tap per field instead of two-click <select>. Pair with a hidden input

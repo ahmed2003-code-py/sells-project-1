@@ -5,7 +5,8 @@
       "Bash(python -c \"import werkzeug.security; print\\(werkzeug.security.generate_password_hash\\('test'\\)[:20]\\)\")",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(node *)"
     ]
   }
 }

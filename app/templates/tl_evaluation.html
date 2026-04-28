@@ -451,20 +451,7 @@ function passfailField(id, label, val) {
     </div>`;
 }
 
-// Delegate clicks for any pass/fail segmented control rendered inside the modal.
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".passfail-toggle button[data-pf-target]");
-  if (!btn) return;
-  const id  = btn.getAttribute("data-pf-target");
-  const val = btn.getAttribute("data-pf-value");
-  const input = document.getElementById(id);
-  if (input) input.value = val;
-  btn.parentElement.querySelectorAll("button").forEach(b => {
-    const active = b === btn;
-    b.classList.toggle("is-active", active);
-    b.setAttribute("aria-checked", active ? "true" : "false");
-  });
-});
+// Pass/fail toggle click delegate is registered globally in common.js (initPassfailToggles).
 
 async function saveEval() {
   if (!currentTL) return;
