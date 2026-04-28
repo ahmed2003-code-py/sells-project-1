@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile app/auth.py app/mailer.py app/database.py app/__init__.py app/blueprints/auth_bp.py app/blueprints/users_bp.py app/blueprints/teams_bp.py app/blueprints/marketing_bp.py app/blueprints/kpi_bp.py app/blueprints/pages_bp.py config.py)",
+      "Bash(python -c \"import werkzeug.security; print\\(werkzeug.security.generate_password_hash\\('test'\\)[:20]\\)\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

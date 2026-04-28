@@ -114,28 +114,37 @@ function initUserDropdown() {
   document.addEventListener("click", () => dropdown.classList.remove("open"));
 }
 
+function toggleSidebar(force) {
+  const sb = document.getElementById("sidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  const burger = document.getElementById("navBurger");
+  if (!sb) return;
+  const willOpen = force === undefined ? !sb.classList.contains("open") : !!force;
+  sb.classList.toggle("open", willOpen);
+  if (backdrop) backdrop.classList.toggle("open", willOpen);
+  if (burger) {
+    burger.classList.toggle("open", willOpen);
+    burger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  }
+  document.body.style.overflow = willOpen ? "hidden" : "";
+}
+window.toggleSidebar = toggleSidebar;
+
 function initBurger() {
   const btn = document.getElementById("navBurger");
-  const links = document.getElementById("navLinks");
-  if (!btn || !links) return;
+  if (!btn) return;
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const open = links.classList.toggle("open");
-    btn.classList.toggle("open", open);
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    toggleSidebar();
   });
-  // Auto-close when a link is clicked or screen resizes back up
-  links.querySelectorAll("a").forEach(a => a.addEventListener("click", () => {
-    links.classList.remove("open");
-    btn.classList.remove("open");
-    btn.setAttribute("aria-expanded", "false");
+  // Auto-close when any sidebar link is tapped
+  const sb = document.getElementById("sidebar");
+  if (sb) sb.querySelectorAll("a, button").forEach(el => el.addEventListener("click", () => {
+    if (window.innerWidth <= 1024) toggleSidebar(false);
   }));
+  // Reset state when bumping back up to desktop layout
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 768) {
-      links.classList.remove("open");
-      btn.classList.remove("open");
-      btn.setAttribute("aria-expanded", "false");
-    }
+    if (window.innerWidth > 1024) toggleSidebar(false);
   });
 }
 

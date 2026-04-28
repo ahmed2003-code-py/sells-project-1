@@ -1,11 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Ain KPI{% endblock %}
 
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="tl_eval.title"></h1>
-    <p class="page-subtitle" data-i18n="tl_eval.subtitle"></p>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:0">
+    <div>
+      <h1 class="page-title" data-i18n="tl_eval.title"></h1>
+      <p class="page-subtitle" data-i18n="tl_eval.subtitle"></p>
+    </div>
   </div>
 </div>
 
@@ -37,12 +43,24 @@
     <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="filters.reset"></button>
   </div>
   <div class="spacer"></div>
-  <div id="progress" class="text-muted" style="font-size:13px"></div>
+  <div id="progress" class="text-muted" style="font-size:13px;font-weight:600"></div>
 </div>
 
 <div id="chipsRow" class="pf-chips" style="margin-bottom:12px"></div>
 
-<!-- Teams Performance: per-team aggregate cards -->
+<!-- Teams Performance row: ranking + composition donut -->
+<div class="bento">
+  <div class="chart-card span-8">
+    <h3 data-i18n="tl_eval.teams_perf"></h3>
+    <div id="chartTeamsRanking" class="plotly-container"></div>
+  </div>
+  <div class="chart-card span-4">
+    <h3 data-i18n="tl_eval.teams_perf_hint"></h3>
+    <div id="chartTeamsComposition" class="plotly-container"></div>
+  </div>
+</div>
+
+<!-- Per-team aggregate cards -->
 <div class="card reveal" id="teamsPerfCard">
   <div class="card-title">
     <span data-i18n="tl_eval.teams_perf"></span>
@@ -53,11 +71,14 @@
   </div>
 </div>
 
+<div class="card-title mb-2" style="margin-top:12px">
+  <span data-i18n="tl_eval.title"></span>
+</div>
 <div id="list" class="stagger"></div>
 
 <!-- Modal -->
 <div class="modal-backdrop" id="evalModal">
-  <div class="modal">
+  <div class="modal modal-wide">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle"></div>
       <button class="modal-close" onclick="closeModal('evalModal')">✕</button>
@@ -72,6 +93,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 let leaders = [];
 let teams = [];
@@ -92,6 +114,7 @@ async function loadAll() {
     teams = ts || [];
     teamsPerf = tp || [];
     populateTeamFilter();
+    renderTeamsCharts();
     renderTeamsPerf();
     render();
   } catch (e) { toastError(e); }
@@ -103,6 +126,42 @@ function scoreColorFromScore(score) {
   return "danger";
 }
 
+function ratingFromScore(score) {
+  if (score >= 90) return "Excellent";
+  if (score >= 75) return "V.Good";
+  if (score >= 55) return "Good";
+  if (score >= 40) return "Medium";
+  if (score >= 25) return "Weak";
+  return "Bad";
+}
+
+function renderTeamsCharts() {
+  if (typeof Plotly === 'undefined') return;
+  if (!teamsPerf.length) {
+    ["chartTeamsRanking","chartTeamsComposition"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<div class="empty-state" style="padding:40px">${t("tl_eval.no_teams_data")}</div>`;
+    });
+    return;
+  }
+
+  // Ranking horizontal bar
+  const sorted = [...teamsPerf].sort((a,b) => (b.avg_member_score||0) - (a.avg_member_score||0));
+  Charts.drawHorizontalBar("chartTeamsRanking", {
+    x: sorted.map(p => p.avg_member_score || 0).reverse(),
+    y: sorted.map(p => p.team_name).reverse(),
+    colors: sorted.map(p => Charts.scoreColorHex(p.avg_member_score || 0)).reverse(),
+    labels: sorted.map(p => (p.avg_member_score||0).toFixed(1) + "%").reverse(),
+  });
+
+  // Composition donut: total members per team
+  Charts.drawDonut("chartTeamsComposition", {
+    labels: teamsPerf.map(p => p.team_name),
+    values: teamsPerf.map(p => p.member_count || 0),
+    colors: teamsPerf.map((_, i) => Charts.PALETTE[i % Charts.PALETTE.length]),
+  }, { centerText: teamsPerf.reduce((a,p) => a + (p.member_count||0), 0) + "" });
+}
+
 function renderTeamsPerf() {
   const host = document.getElementById("teamsPerfGrid");
   if (!host) return;
@@ -110,7 +169,6 @@ function renderTeamsPerf() {
     host.innerHTML = `<div class="pf-empty">${t("tl_eval.no_teams_data")}</div>`;
     return;
   }
-  // Best score for the bar comparison reference
   const maxScore = Math.max(1, ...teamsPerf.map(p => p.avg_member_score || 0));
 
   host.innerHTML = teamsPerf.map(p => {
@@ -139,7 +197,7 @@ function renderTeamsPerf() {
       </div>
 
       <div>
-        <div class="text-muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">
+        <div class="text-muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:6px">
           ${t("tl_eval.team_avg")}
         </div>
         <div class="bar"><div class="bar-fill ${col}" style="width:${widthPct}%"></div></div>
@@ -153,7 +211,7 @@ function renderTeamsPerf() {
         ${p.total_calls ? `<span class="pf-pill"><span class="pf-pill-icon">📞</span>${fmtNum(p.total_calls)} ${t("kpi.calls")}</span>` : ''}
       </div>
 
-      <div style="font-size:11px;color:var(--text-muted)">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:500">
         🏆 ${t("tl_eval.top_performer")}: ${top}
       </div>
     </div>`;
@@ -239,7 +297,7 @@ function render() {
   renderChips();
 
   document.getElementById("list").innerHTML = rows.length === 0
-    ? `<div class="empty-state"><div>${t("tl_eval.no_tl")}</div></div>`
+    ? `<div class="empty-state"><div class="empty-state-icon">👤</div><div>${t("tl_eval.no_tl")}</div></div>`
     : rows.map(l => {
         const done = !!l.dataentry_submitted_at;
         const teamName = l.team_name || t("tl_eval.no_team");
@@ -252,11 +310,11 @@ function render() {
           ? `<span class="badge badge-${teamScore >= 75 ? 'vgood' : teamScore >= 55 ? 'good' : 'weak'}" title="${t('tl_eval.team_avg')}">${t('tl_eval.team_avg')}: ${teamScore.toFixed(1)}%</span>`
           : "";
         return `
-          <div class="card" style="margin-bottom:12px">
+          <div class="card" style="margin-bottom:14px">
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
               <div class="avatar">${escapeHTML((l.full_name||"?")[0])}</div>
               <div style="flex:1">
-                <div style="font-weight:600">${escapeHTML(l.full_name)}</div>
+                <div style="font-weight:700;font-size:15px">${escapeHTML(l.full_name)}</div>
                 <div style="font-size:12px;color:var(--text-muted)">${escapeHTML(teamName)}</div>
               </div>
               ${teamScoreBadge}
@@ -281,6 +339,18 @@ async function openEval(tlId, tlName, month) {
     const entry = tlKpiData ? tlKpiData.tl_entry : {};
     const autoSection = tlKpiData ? renderAutoSection(tlKpiData) : "";
     renderForm(entry, autoSection);
+
+    // Draw radar chart in modal once rendered
+    if (tlKpiData && tlKpiData.breakdown) {
+      setTimeout(() => {
+        const labels = Object.keys(tlKpiData.breakdown).map(k => t("kpi." + k));
+        const values = Object.values(tlKpiData.breakdown).map(v => v.achievement_pct);
+        const radarEl = document.getElementById("tlRadar");
+        if (radarEl && typeof Plotly !== 'undefined') {
+          Charts.drawRadarChart("tlRadar", { labels, values });
+        }
+      }, 80);
+    }
   } catch (e) {
     renderForm({}, "");
   }
@@ -288,22 +358,42 @@ async function openEval(tlId, tlName, month) {
 
 function renderAutoSection(data) {
   if (!data || !data.breakdown) return "";
-  const lang = getLang();
   const autoKeys = ["calls", "meetings", "deals", "reservations", "followup_pct"];
   const rows = autoKeys.map(key => {
     const b = data.breakdown[key];
     if (!b) return "";
-    const lbl = t("kpi." + key);
-    const col = b.achievement_pct >= 90 ? "var(--brand-2)" : b.achievement_pct >= 70 ? "var(--warning)" : "var(--danger)";
-    return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
-      <span>${lbl}</span>
-      <span style="color:${col}">${b.actual} / ${b.target} (${b.achievement_pct}%)</span>
+    const col = Charts.scoreColorHex(b.achievement_pct);
+    return `<div class="kpi-row" style="grid-template-columns:1fr 2fr 1fr">
+      <div class="kpi-label">${t("kpi." + key)}</div>
+      <div class="kpi-bar-wrap"><div class="kpi-bar" style="width:${Math.min(b.achievement_pct,100)}%;background:${col}"></div></div>
+      <div class="kpi-nums">
+        <span class="actual">${b.actual}</span><span class="sep">/</span>
+        <span class="target">${b.target}</span>
+        <span class="pct">${b.achievement_pct}%</span>
+      </div>
     </div>`;
   }).join("");
+
+  const ratingTxt = data.rating ? t("rating." + data.rating) : "—";
+  const score = (data.total_score || 0).toFixed(1);
   return `
-    <div class="form-section" style="margin-bottom:16px">
-      <div class="form-section-title">${t("tl_eval.team_auto")}</div>
-      ${rows}
+    <div class="bento" style="margin-bottom:16px">
+      <div class="span-7">
+        <div class="form-section" style="margin:0">
+          <div class="form-section-title">${t("tl_eval.team_auto")}</div>
+          ${rows}
+        </div>
+      </div>
+      <div class="span-5">
+        <div class="form-section" style="margin:0;height:100%">
+          <div class="form-section-title">${t("dash.metric_pillars")}</div>
+          <div id="tlRadar" class="plotly-container short" style="min-height:240px"></div>
+          <div class="text-center" style="margin-top:8px">
+            <div style="font-size:24px;font-weight:800;font-family:Inter;color:var(--brand)">${score}%</div>
+            <div class="text-muted" style="font-size:12px;font-weight:600">${ratingTxt}</div>
+          </div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -328,7 +418,7 @@ function renderForm(entry, autoHtml) {
         <input type="number" min="0" max="100" id="f_clients_pipeline" value="${v("clients_pipeline")}">
       </div>
 
-      <div class="form-section-title" style="margin-top:12px">${t("tl_eval.personal_eval")}</div>
+      <div class="form-section-title" style="margin-top:14px">${t("tl_eval.personal_eval")}</div>
       <div class="field-row">
         ${passfailField("f_attitude", t("kpi.attitude"), v("attitude"))}
         ${passfailField("f_presentation", t("kpi.presentation"), v("presentation"))}

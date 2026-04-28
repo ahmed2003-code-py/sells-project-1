@@ -1,11 +1,48 @@
 {% extends "base.html" %}
 {% block title %}Ain KPI{% endblock %}
 
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="de.title"></h1>
-    <p class="page-subtitle" data-i18n="de.subtitle_full"></p>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:16px">
+    <div>
+      <h1 class="page-title" data-i18n="de.title"></h1>
+      <p class="page-subtitle" data-i18n="de.subtitle_full"></p>
+    </div>
+  </div>
+
+  <!-- Progress tiles -->
+  <div class="bento" id="deTiles" style="margin-bottom:0">
+    <div class="kpi-tile tile-brand span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">👥</div><div class="kpi-tile-label" data-i18n="dash.sales_count"></div>
+    </div><div class="kpi-tile-value" id="tile_total">—</div></div>
+
+    <div class="kpi-tile tile-accent span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">✅</div><div class="kpi-tile-label" data-i18n="de.evaluated"></div>
+    </div><div class="kpi-tile-value" id="tile_done">—</div><div class="kpi-tile-sub" id="tile_done_sub">&nbsp;</div></div>
+
+    <div class="kpi-tile tile-warm span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">⏳</div><div class="kpi-tile-label" data-i18n="de.waiting_eval"></div>
+    </div><div class="kpi-tile-value" id="tile_pending">—</div></div>
+
+    <div class="kpi-tile tile-coral span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">📥</div><div class="kpi-tile-label" data-i18n="de.missing_sales"></div>
+    </div><div class="kpi-tile-value" id="tile_missing">—</div></div>
+  </div>
+</div>
+
+<!-- Status chart row -->
+<div class="bento">
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.chart_status_split"></h3>
+    <div id="chartProgress" class="plotly-container short"></div>
+  </div>
+  <div class="chart-card span-8">
+    <h3 data-i18n="dash.chart_leaderboard"></h3>
+    <div id="chartScores" class="plotly-container short"></div>
   </div>
 </div>
 
@@ -38,7 +75,7 @@
     <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="filters.reset"></button>
   </div>
   <div class="spacer"></div>
-  <div id="progress" class="text-muted" style="font-size:13px"></div>
+  <div id="progress" class="text-muted" style="font-size:13px;font-weight:600"></div>
 </div>
 
 <div id="chipsRow" class="pf-chips" style="margin-bottom:12px"></div>
@@ -47,6 +84,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 let users = [];
 let entries = {};
@@ -134,6 +172,52 @@ function clearChip(id, val) {
   if (el) { el.value = val; render(); }
 }
 
+function renderTilesAndCharts() {
+  // Compose lists
+  const total = users.length;
+  const done    = users.filter(u => entries[u.id] && entries[u.id].dataentry_submitted_at).length;
+  const pending = users.filter(u => entries[u.id] && entries[u.id].sales_submitted_at && !entries[u.id].dataentry_submitted_at).length;
+  const missing = users.filter(u => !entries[u.id] || !entries[u.id].sales_submitted_at).length;
+
+  document.getElementById("tile_total").textContent = total;
+  document.getElementById("tile_done").textContent  = done;
+  document.getElementById("tile_done_sub").textContent = total ? Math.round(done/total*100) + "%" : "0%";
+  document.getElementById("tile_pending").textContent = pending;
+  document.getElementById("tile_missing").textContent = missing;
+
+  if (typeof Plotly === 'undefined') return;
+
+  // Status donut
+  const labels = [], values = [], colors = [];
+  if (done)    { labels.push(t("de.evaluated"));    values.push(done);    colors.push(Charts.COLORS.accent2); }
+  if (pending) { labels.push(t("de.waiting_eval")); values.push(pending); colors.push(Charts.COLORS.warning2); }
+  if (missing) { labels.push(t("de.missing_sales"));values.push(missing); colors.push(Charts.COLORS.danger2); }
+  if (values.length) {
+    Charts.drawDonut("chartProgress", { labels, values, colors }, { centerText: total + "" });
+  } else {
+    document.getElementById("chartProgress").innerHTML = `<div class="empty-state" style="padding:30px">${t("dash.no_data")}</div>`;
+  }
+
+  // Top scores horizontal bar — only show users with submissions
+  const scored = users
+    .map(u => ({ u, e: entries[u.id] }))
+    .filter(x => x.e && (x.e.sales_submitted_at || x.e.dataentry_submitted_at))
+    .map(x => ({ name: x.u.full_name, score: parseFloat(x.e.total_score) || 0 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  if (scored.length) {
+    Charts.drawHorizontalBar("chartScores", {
+      x: scored.map(s => s.score).reverse(),
+      y: scored.map(s => s.name).reverse(),
+      colors: scored.map(s => Charts.scoreColorHex(s.score)).reverse(),
+      labels: scored.map(s => s.score.toFixed(1) + "%").reverse(),
+    });
+  } else {
+    document.getElementById("chartScores").innerHTML = `<div class="empty-state" style="padding:30px">${t("dash.no_data")}</div>`;
+  }
+}
+
 function render() {
   const filter = document.getElementById("filterStatus").value;
   const teamVal = document.getElementById("teamFilter").value;
@@ -158,9 +242,10 @@ function render() {
     `${t("de.progress")} ${done} ${t("de.of")} ${users.length}  ·  ${t("filters.shown")} ${rows.length}`;
 
   renderChips();
+  renderTilesAndCharts();
 
   if (!rows.length) {
-    container.innerHTML = `<div class="card text-center text-muted">${t("admin.no_users")}</div>`;
+    container.innerHTML = `<div class="card text-center text-muted" style="padding:50px">${t("admin.no_users")}</div>`;
     return;
   }
 
@@ -179,7 +264,6 @@ function renderCard(user, entry) {
   statusBadges.push(isDone
     ? '<span class="badge badge-excellent">' + t("de.evaluated") + '</span>'
     : '<span class="badge badge-pending">' + t("de.waiting_eval") + '</span>');
-  if (isDone) statusBadges.push(`<span class="badge badge-excellent">${score.toFixed(1)}%</span>`);
 
   const v = (key, def = "") => {
     if (!entry || entry[key] == null) return def;
@@ -199,32 +283,45 @@ function renderCard(user, entry) {
     const current = entry ? (entry[k] || 0) : 0;
     return `<div class="field">
       <label>${t("kpi." + k)}</label>
-      <select id="${k}-${user.id}" class="pf-select">
+      <select id="${k}-${user.id}">
         <option value="100" ${current == 100 ? 'selected' : ''}>${t("common.pass")}</option>
         <option value="0"   ${current == 0   ? 'selected' : ''}>${t("common.fail")}</option>
       </select>
     </div>`;
   }).join("");
 
+  // Score badge with bar visualisation if data exists
+  const scoreBlock = isDone
+    ? `<div style="display:flex;align-items:center;gap:12px;min-width:180px">
+        <div class="score-display" style="margin:0;padding:14px 18px;text-align:center;flex:1">
+          <div class="num ${scoreClass(score)}" style="font-size:28px">${score.toFixed(1)}%</div>
+          <div class="label" style="font-size:10px;margin-top:4px">${t("rating." + (entry.rating || "Pending"))}</div>
+        </div>
+       </div>`
+    : "";
+
   return `<div class="card fade-in reveal" data-user-id="${user.id}">
     <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
       <div class="flex items-center gap-2">
         <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:500">${escapeHTML(user.full_name)}</div>
+          <div style="font-weight:700;font-size:15px">${escapeHTML(user.full_name)}</div>
           <div class="text-muted" style="font-size:11px">@${escapeHTML(user.username)}</div>
         </div>
       </div>
-      <div class="flex gap-1" style="flex-wrap:wrap">${statusBadges.join("")}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        ${statusBadges.join("")}
+        ${scoreBlock}
+      </div>
     </div>
 
-    <div class="form-section-title" style="margin-top:8px">${t("sales.numeric_perf")}</div>
+    <div class="form-section-title" style="margin-top:14px">${t("sales.numeric_perf")}</div>
     <div class="field-row four" style="margin-bottom:12px">${numericInputs}</div>
 
     <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
-    <div class="field-row five" style="margin-bottom:10px">${passfailInputs}</div>
+    <div class="field-row five" style="margin-bottom:14px">${passfailInputs}</div>
 
-    <div class="field" style="margin-bottom:12px">
+    <div class="field" style="margin-bottom:14px">
       <label>${t("de.notes")}</label>
       <input type="text" id="notes-${user.id}"
              value="${escapeHTML(entry && entry.notes ? entry.notes : '')}"
@@ -238,6 +335,14 @@ function renderCard(user, entry) {
   </div>`;
 }
 
+function scoreClass(score) {
+  if (score >= 90) return "excellent";
+  if (score >= 75) return "vgood";
+  if (score >= 55) return "good";
+  if (score >= 40) return "medium";
+  return "weak";
+}
+
 async function saveEval(userId) {
   const month = document.getElementById("month").value;
   const body = {
@@ -246,7 +351,6 @@ async function saveEval(userId) {
     notes: document.getElementById(`notes-${userId}`).value || "",
   };
 
-  // Numeric fields — only send the ones the user actually touched (non-empty)
   let hasNumeric = false;
   NUMERIC.forEach(k => {
     const el = document.getElementById(`${k}-${userId}`);

@@ -1,13 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Ain KPI{% endblock %}
 
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="admin.title"></h1>
-    <p class="page-subtitle" data-i18n="admin.subtitle"></p>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:14px">
+    <div>
+      <h1 class="page-title" data-i18n="admin.title"></h1>
+      <p class="page-subtitle" data-i18n="admin.subtitle"></p>
+    </div>
+    <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="admin.add_user"></button>
   </div>
-  <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="admin.add_user"></button>
+
+  <!-- Top tiles -->
+  <div class="bento" id="adminTiles" style="margin-bottom:0"></div>
+</div>
+
+<!-- Charts row: role split donut + active/inactive donut -->
+<div class="bento">
+  <div class="chart-card span-6">
+    <h3 data-i18n="admin.role"></h3>
+    <div id="chartRoles" class="plotly-container short"></div>
+  </div>
+  <div class="chart-card span-6">
+    <h3 data-i18n="admin.filter_status"></h3>
+    <div id="chartStatus" class="plotly-container short"></div>
+  </div>
 </div>
 
 <div class="controls">
@@ -123,10 +144,13 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 let users = [];
 let teams = [];
 let editingId = null;
+
+const ROLES = ["admin","manager","team_leader","marketing","dataentry","sales"];
 
 async function loadUsers() {
   try {
@@ -137,6 +161,7 @@ async function loadUsers() {
     users = u;
     teams = ts || [];
     populateTeamFilter();
+    renderTilesAndCharts();
     render();
   }
   catch (e) { toastError(e); }
@@ -155,6 +180,66 @@ function populateTeamFilter() {
   });
   sel.innerHTML = opts.join("");
   if (prev) sel.value = prev;
+}
+
+function renderTilesAndCharts() {
+  const total = users.length;
+  const active = users.filter(u => u.active).length;
+  const inactive = total - active;
+  const teamCount = new Set(users.filter(u => u.team_id).map(u => u.team_id)).size;
+  const noTeam = users.filter(u => u.team_id == null && (u.role === 'sales' || u.role === 'team_leader')).length;
+
+  document.getElementById("adminTiles").innerHTML = `
+    <div class="kpi-tile tile-brand span-3">
+      <div class="kpi-tile-head"><div class="kpi-tile-icon">👤</div><div class="kpi-tile-label">${t("admin.title")}</div></div>
+      <div class="kpi-tile-value">${total}</div>
+    </div>
+    <div class="kpi-tile tile-accent span-3">
+      <div class="kpi-tile-head"><div class="kpi-tile-icon">✅</div><div class="kpi-tile-label">${t("common.active")}</div></div>
+      <div class="kpi-tile-value">${active}</div>
+      <div class="kpi-tile-sub">${total ? Math.round(active/total*100) : 0}%</div>
+    </div>
+    <div class="kpi-tile tile-coral span-3">
+      <div class="kpi-tile-head"><div class="kpi-tile-icon">👥</div><div class="kpi-tile-label">${t("nav.teams")}</div></div>
+      <div class="kpi-tile-value">${teamCount}</div>
+    </div>
+    <div class="kpi-tile tile-warm span-3">
+      <div class="kpi-tile-head"><div class="kpi-tile-icon">⚠️</div><div class="kpi-tile-label">${t("filters.no_team")}</div></div>
+      <div class="kpi-tile-value">${noTeam}</div>
+    </div>
+  `;
+
+  if (typeof Plotly === 'undefined') return;
+
+  // Roles donut
+  const roleCounts = ROLES.map(r => users.filter(u => u.role === r).length);
+  const roleColors = [
+    Charts.COLORS.secondary,    // admin
+    Charts.COLORS.info,         // manager
+    Charts.COLORS.accent2,      // team_leader
+    Charts.COLORS.warning2,     // marketing
+    Charts.COLORS.brand2,       // dataentry
+    Charts.COLORS.brand,        // sales
+  ];
+  const fLabels = [], fValues = [], fColors = [];
+  ROLES.forEach((r, i) => {
+    if (roleCounts[i] > 0) {
+      fLabels.push(t("role." + r));
+      fValues.push(roleCounts[i]);
+      fColors.push(roleColors[i]);
+    }
+  });
+  if (fValues.length) {
+    Charts.drawDonut("chartRoles", { labels: fLabels, values: fValues, colors: fColors }, { centerText: total + "" });
+  }
+
+  // Active vs Inactive
+  const sLabels = [], sValues = [], sColors = [];
+  if (active)   { sLabels.push(t("common.active"));   sValues.push(active);   sColors.push(Charts.COLORS.accent2); }
+  if (inactive) { sLabels.push(t("common.inactive")); sValues.push(inactive); sColors.push(Charts.COLORS.danger2); }
+  if (sValues.length) {
+    Charts.drawDonut("chartStatus", { labels: sLabels, values: sValues, colors: sColors }, { centerText: total + "" });
+  }
 }
 
 function resetFilters() {
@@ -222,10 +307,10 @@ function render() {
 
   tbody.innerHTML = rows.map(u => `<tr>
     <td>
-      <div class="flex items-center gap-1">
-        <div class="avatar" style="width:30px;height:30px;font-size:11px">${escapeHTML((u.full_name || "?")[0])}</div>
+      <div class="flex items-center gap-2">
+        <div class="avatar" style="width:32px;height:32px;font-size:13px">${escapeHTML((u.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:500">${escapeHTML(u.full_name)}</div>
+          <div style="font-weight:600">${escapeHTML(u.full_name)}</div>
           <div class="text-muted" style="font-size:11px">@${escapeHTML(u.username)}</div>
         </div>
       </div>
@@ -362,7 +447,7 @@ async function deleteUser(id) {
   } catch (e) { toastError(e); }
 }
 
-function onLangChange() { render(); }
+function onLangChange() { renderTilesAndCharts(); render(); }
 
 loadUsers();
 </script>

@@ -2,14 +2,16 @@
 {% block title %}PropFinder{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="pf.title"></h1>
-    <p class="page-subtitle" data-i18n="pf.subtitle"></p>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:0">
+    <div>
+      <h1 class="page-title" data-i18n="pf.title"></h1>
+      <p class="page-subtitle" data-i18n="pf.subtitle"></p>
+    </div>
+    {% if user.role != 'sales' %}
+    <button class="btn btn-primary hyper-btn" onclick="triggerSync()" id="syncBtn" data-i18n="pf.trigger_sync"></button>
+    {% endif %}
   </div>
-  {% if user.role != 'sales' %}
-  <button class="btn hyper-btn" onclick="triggerSync()" id="syncBtn" data-i18n="pf.trigger_sync"></button>
-  {% endif %}
 </div>
 
 <div class="stats-grid stagger" id="stats">

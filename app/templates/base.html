@@ -6,13 +6,95 @@
   <title>{% block title %}Ain KPI{% endblock %}</title>
   <!-- Apply language before render to prevent Arabic flash in EN mode -->
   <script>(function(){var l=localStorage.getItem('ain_lang')||'ar';document.documentElement.lang=l;document.documentElement.dir=l==='ar'?'rtl':'ltr';document.documentElement.className=l==='en'?'lang-en':'';})()</script>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=glass2">
   {% block head %}{% endblock %}
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app-shell {% if user %}has-sidebar{% endif %}">
     {% if user %}
+    <aside class="sidebar" id="sidebar">
+      <a href="/" class="sidebar-brand">
+        <div class="topnav-brand-icon">A</div>
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-name" data-i18n="app.name">Ain Real Estate</span>
+          <span class="sidebar-brand-tag" data-i18n="app.tagline">KPI Management</span>
+        </div>
+      </a>
+
+      {# Sales role only sees PropFinder. Other roles see role-scoped links. #}
+      {% if user.role != 'sales' %}
+        <div class="sidebar-section-label" data-i18n="nav.section_main"></div>
+
+        {% if user.role in ['marketing', 'manager', 'admin'] %}
+          <a href="/marketing" class="sidebar-link {% if request.path == '/marketing' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">campaign</span></span>
+            <span data-i18n="nav.marketing"></span>
+          </a>
+        {% endif %}
+
+        {% if user.role == 'team_leader' %}
+          <a href="/team-leader" class="sidebar-link {% if request.path == '/team-leader' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">analytics</span></span>
+            <span data-i18n="nav.team_leader"></span>
+          </a>
+        {% endif %}
+
+        {% if user.role in ['admin', 'manager', 'dataentry'] %}
+          <a href="/dashboard" class="sidebar-link {% if request.path == '/dashboard' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">dashboard</span></span>
+            <span data-i18n="nav.dashboard"></span>
+          </a>
+          <a href="/data-entry" class="sidebar-link {% if request.path == '/data-entry' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">edit_note</span></span>
+            <span data-i18n="nav.dataentry"></span>
+          </a>
+        {% endif %}
+
+        {% if user.role in ['admin', 'manager'] %}
+          <a href="/tl-evaluation" class="sidebar-link {% if request.path == '/tl-evaluation' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">supervisor_account</span></span>
+            <span data-i18n="nav.tl_eval"></span>
+          </a>
+          <a href="/finance" class="sidebar-link {% if request.path == '/finance' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">payments</span></span>
+            <span data-i18n="nav.finance"></span>
+          </a>
+        {% endif %}
+
+        {% if user.role == 'admin' %}
+          <div class="sidebar-section-label" data-i18n="nav.section_admin"></div>
+          <a href="/admin" class="sidebar-link {% if request.path == '/admin' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">manage_accounts</span></span>
+            <span data-i18n="nav.admin"></span>
+          </a>
+          <a href="/teams" class="sidebar-link {% if request.path == '/teams' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">groups</span></span>
+            <span data-i18n="nav.teams"></span>
+          </a>
+        {% endif %}
+
+        <div class="sidebar-section-label" data-i18n="nav.section_tools"></div>
+      {% endif %}
+
+      <a href="/propfinder" class="sidebar-link {% if request.path == '/propfinder' %}active{% endif %}">
+        <span class="sidebar-link-icon"><span class="material-symbols-outlined">domain</span></span>
+        <span data-i18n="nav.propfinder"></span>
+      </a>
+
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-divider"></div>
+      <a href="/profile" class="sidebar-link {% if request.path == '/profile' %}active{% endif %}">
+        <span class="sidebar-link-icon"><span class="material-symbols-outlined">person</span></span>
+        <span data-i18n="nav.profile"></span>
+      </a>
+      <button class="sidebar-link" onclick="logout()" style="background:transparent;border:none;width:100%;text-align:inherit;font-family:inherit;cursor:pointer">
+        <span class="sidebar-link-icon"><span class="material-symbols-outlined" style="color:var(--danger)">logout</span></span>
+        <span data-i18n="nav.logout" style="color:var(--danger)"></span>
+      </button>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
+
     <nav class="topnav">
       <button class="topnav-burger" id="navBurger" aria-label="Menu" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -23,35 +105,8 @@
         <span data-i18n="app.name">Ain Real Estate</span>
       </a>
 
-      <div class="topnav-links" id="navLinks">
-        {# Sales role is scoped to PropFinder only — no other nav items. #}
-        {% if user.role != 'sales' %}
-          {% if user.role in ['marketing', 'manager', 'admin'] %}
-            <a href="/marketing" class="topnav-link {% if request.path == '/marketing' %}active{% endif %}" data-i18n="nav.marketing"></a>
-          {% endif %}
-
-          {% if user.role == 'team_leader' %}
-            <a href="/team-leader" class="topnav-link {% if request.path == '/team-leader' %}active{% endif %}" data-i18n="nav.team_leader"></a>
-          {% endif %}
-
-          {% if user.role in ['admin', 'manager', 'dataentry'] %}
-            <a href="/dashboard" class="topnav-link {% if request.path == '/dashboard' %}active{% endif %}" data-i18n="nav.dashboard"></a>
-            <a href="/data-entry" class="topnav-link {% if request.path == '/data-entry' %}active{% endif %}" data-i18n="nav.dataentry"></a>
-          {% endif %}
-
-          {% if user.role in ['admin', 'manager'] %}
-            <a href="/tl-evaluation" class="topnav-link {% if request.path == '/tl-evaluation' %}active{% endif %}" data-i18n="nav.tl_eval"></a>
-            <a href="/finance" class="topnav-link {% if request.path == '/finance' %}active{% endif %}" data-i18n="nav.finance"></a>
-          {% endif %}
-
-          {% if user.role == 'admin' %}
-            <a href="/admin" class="topnav-link {% if request.path == '/admin' %}active{% endif %}" data-i18n="nav.admin"></a>
-            <a href="/teams" class="topnav-link {% if request.path == '/teams' %}active{% endif %}" data-i18n="nav.teams"></a>
-          {% endif %}
-        {% endif %}
-
-        <a href="/propfinder" class="topnav-link {% if request.path == '/propfinder' %}active{% endif %}" data-i18n="nav.propfinder"></a>
-      </div>
+      {# Inline links remain available for legacy mobile fallback; sidebar takes over on desktop. #}
+      <div class="topnav-links" id="navLinks"></div>
 
       <div class="topnav-actions">
         <button id="langToggleBtn" class="lang-toggle" title="Language">EN</button>

@@ -2,12 +2,14 @@
 {% block title %}Ain KPI{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="teams.title"></h1>
-    <p class="page-subtitle" data-i18n="teams.subtitle"></p>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:0">
+    <div>
+      <h1 class="page-title" data-i18n="teams.title"></h1>
+      <p class="page-subtitle" data-i18n="teams.subtitle"></p>
+    </div>
+    <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="teams.add"></button>
   </div>
-  <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="teams.add"></button>
 </div>
 
 <div id="teamsList" class="stagger"></div>

@@ -6,14 +6,36 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="dash.title"></h1>
-    <p class="page-subtitle" data-i18n="dash.subtitle"></p>
+<!-- Hero ribbon: title + summary tiles -->
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:18px">
+    <div>
+      <h1 class="page-title" data-i18n="dash.title"></h1>
+      <p class="page-subtitle" data-i18n="dash.subtitle"></p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn" onclick="exportCSV()" data-i18n="common.export"></button>
+      <button class="btn btn-primary hyper-btn" onclick="window.print()" data-i18n="common.print"></button>
+    </div>
   </div>
-  <div class="flex gap-2">
-    <button class="btn" onclick="exportCSV()" data-i18n="common.export"></button>
-    <button class="btn" onclick="window.print()" data-i18n="common.print"></button>
+
+  <!-- Top KPI tiles -->
+  <div class="bento" id="kpiTiles" style="margin-bottom:0">
+    <div class="kpi-tile tile-brand span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">👥</div><div class="kpi-tile-label" data-i18n="dash.sales_count"></div>
+    </div><div class="kpi-tile-value" id="tile_n">—</div><div class="kpi-tile-sub" id="tile_n_sub">&nbsp;</div></div>
+
+    <div class="kpi-tile tile-accent span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">📊</div><div class="kpi-tile-label" data-i18n="dash.avg_kpi"></div>
+    </div><div class="kpi-tile-value" id="tile_avg">—</div><div class="kpi-tile-sub" id="tile_avg_sub">&nbsp;</div></div>
+
+    <div class="kpi-tile tile-coral span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">🏆</div><div class="kpi-tile-label" data-i18n="dash.top"></div>
+    </div><div class="kpi-tile-value" id="tile_top" style="font-size:22px">—</div><div class="kpi-tile-sub" id="tile_top_sub">&nbsp;</div></div>
+
+    <div class="kpi-tile tile-warm span-3"><div class="kpi-tile-head">
+      <div class="kpi-tile-icon">⚠️</div><div class="kpi-tile-label" data-i18n="dash.needs_attention"></div>
+    </div><div class="kpi-tile-value" id="tile_low">—</div><div class="kpi-tile-sub" data-i18n="dash.below_55"></div></div>
   </div>
 </div>
 
@@ -44,22 +66,64 @@
   <div class="spacer"></div>
 </div>
 
-<div class="stats-grid stagger" id="summaryCards"></div>
+<!-- Secondary KPIs (operational): leads, calls, deals, conversion -->
+<div class="stats-grid stagger" id="opStats"></div>
 
-<div class="chart-grid">
-  <div class="chart-card">
-    <h3 data-i18n="dash.chart_performance"></h3>
-    <div id="chartTeamPerf" class="plotly-container"></div>
+<!-- Bento row 1: gauge ring + radar + funnel -->
+<div class="bento">
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.health_score"></h3>
+    <div id="chartHealthGauge" class="plotly-container short"></div>
   </div>
-  <div class="chart-card">
-    <h3 data-i18n="dash.chart_distribution"></h3>
-    <div id="chartRatings" class="plotly-container"></div>
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.metric_pillars"></h3>
+    <div id="chartRadarOverview" class="plotly-container short"></div>
+  </div>
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.chart_funnel"></h3>
+    <div id="chartFunnel" class="plotly-container short"></div>
   </div>
 </div>
 
+<!-- Bento row 2: distribution donut + leaderboard -->
+<div class="bento">
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.chart_distribution"></h3>
+    <div id="chartRatings" class="plotly-container"></div>
+  </div>
+  <div class="chart-card span-8">
+    <h3 data-i18n="dash.chart_leaderboard"></h3>
+    <div id="chartTeamPerf" class="plotly-container tall"></div>
+  </div>
+</div>
+
+<!-- KPI Achievement (full-width: bar + each KPI shown) -->
 <div class="chart-card">
   <h3 data-i18n="dash.chart_breakdown"></h3>
-  <div id="chartBreakdown" class="plotly-container"></div>
+  <div id="chartBreakdown" class="plotly-container tall"></div>
+</div>
+
+<!-- Bento row 3: actual-vs-target combo + status split donut -->
+<div class="bento">
+  <div class="chart-card span-8">
+    <h3 data-i18n="dash.chart_kpi_actual_target"></h3>
+    <div id="chartActualTarget" class="plotly-container"></div>
+  </div>
+  <div class="chart-card span-4">
+    <h3 data-i18n="dash.chart_status_split"></h3>
+    <div id="chartStatus" class="plotly-container"></div>
+  </div>
+</div>
+
+<!-- Heatmap: rep × KPI achievement -->
+<div class="chart-card">
+  <h3 data-i18n="dash.chart_heatmap"></h3>
+  <div id="chartHeatmap" class="plotly-container tall"></div>
+</div>
+
+<!-- Detailed table -->
+<div class="card-title mb-2" style="margin-top:8px;">
+  <span data-i18n="dash.chart_pipeline"></span>
 </div>
 
 <div class="table-wrap">
@@ -67,13 +131,13 @@
     <thead><tr>
       <th style="width:50px">#</th>
       <th data-i18n="admin.user"></th>
-      <th style="width:160px" data-i18n="dash.avg_kpi"></th>
+      <th style="width:200px" data-i18n="dash.avg_kpi"></th>
       <th style="width:100px" data-i18n="dash.rating"></th>
-      <th style="width:110px" data-i18n="dash.calls"></th>
-      <th style="width:110px" data-i18n="dash.deals"></th>
-      <th style="width:110px" data-i18n="dash.meetings"></th>
-      <th style="width:110px" data-i18n="dash.crm"></th>
-      <th style="width:130px" data-i18n="dash.weakest"></th>
+      <th style="width:120px" data-i18n="dash.calls"></th>
+      <th style="width:120px" data-i18n="dash.deals"></th>
+      <th style="width:120px" data-i18n="dash.meetings"></th>
+      <th style="width:120px" data-i18n="dash.crm"></th>
+      <th style="width:140px" data-i18n="dash.weakest"></th>
       <th style="width:90px" data-i18n="dash.status"></th>
       <th style="width:80px"></th>
     </tr></thead>
@@ -127,7 +191,8 @@ function render() {
     ? (a, b) => (parseFloat(b.total_score) || 0) - (parseFloat(a.total_score) || 0)
     : (a, b) => (a.user_name || "").localeCompare(b.user_name || ""));
 
-  renderSummary(rows);
+  renderTiles(rows);
+  renderOpStats(rows);
   renderTable(rows);
   renderCharts(rows);
 }
@@ -141,7 +206,11 @@ function getRating(s) {
   return "Bad";
 }
 
-function renderSummary(rows) {
+function ratingClassName(rating) {
+  return ({ "Excellent":"excellent","V.Good":"vgood","Good":"good","Medium":"medium","Weak":"weak","Bad":"bad" })[rating] || "good";
+}
+
+function renderTiles(rows) {
   const n = rows.length;
   const avg = n ? rows.reduce((a, r) => a + (parseFloat(r.total_score) || 0), 0) / n : 0;
   const top = rows[0];
@@ -149,51 +218,108 @@ function renderSummary(rows) {
   const salesDone = rows.filter(r => r.sales_submitted_at).length;
   const deDone = rows.filter(r => r.dataentry_submitted_at).length;
 
-  document.getElementById("summaryCards").innerHTML = `
+  document.getElementById("tile_n").textContent = n;
+  document.getElementById("tile_n_sub").textContent = `${salesDone}/${n} ${t("dash.sales_submitted")} · ${deDone}/${n} ${t("dash.eval_done")}`;
+
+  document.getElementById("tile_avg").textContent = avg.toFixed(1) + "%";
+  document.getElementById("tile_avg_sub").textContent = t("rating." + getRating(avg));
+
+  if (top) {
+    document.getElementById("tile_top").textContent = top.user_name || "—";
+    document.getElementById("tile_top_sub").textContent = parseFloat(top.total_score || 0).toFixed(1) + "% · " + t("rating." + (top.rating || "Pending"));
+  } else {
+    document.getElementById("tile_top").textContent = "—";
+    document.getElementById("tile_top_sub").innerHTML = "&nbsp;";
+  }
+
+  document.getElementById("tile_low").textContent = below55;
+}
+
+function renderOpStats(rows) {
+  // Sum operational metrics
+  const sum = (k) => rows.reduce((a, r) => a + (r.breakdown && r.breakdown[k] ? r.breakdown[k].actual : 0), 0);
+  const totalLeads = rows.reduce((a, r) => a + (parseFloat(r.fresh_leads) || 0), 0);
+  const totalCalls = sum("calls");
+  const totalDeals = sum("deals");
+  const totalRes   = sum("reservations");
+  const totalMeetings = sum("meetings");
+  const convRate = totalLeads ? (totalDeals / totalLeads * 100) : 0;
+  const callsPerLead = totalLeads ? (totalCalls / totalLeads) : 0;
+
+  document.getElementById("opStats").innerHTML = `
     <div class="stat success">
-      <div class="stat-label">${t("dash.sales_count")}</div>
-      <div class="stat-value">${n}</div>
+      <div class="stat-icon">📥</div>
+      <div class="stat-label">${t("dash.total_leads")}</div>
+      <div class="stat-value">${fmtNum(totalLeads)}</div>
     </div>
-    <div class="stat ${avg >= 55 ? 'success' : 'danger'}">
-      <div class="stat-label">${t("dash.avg_kpi")}</div>
-      <div class="stat-value" style="color:${avg >= 55 ? 'var(--brand-2)' : 'var(--danger)'}">${avg.toFixed(1)}%</div>
-      <div class="stat-sub">${t("rating." + getRating(avg))}</div>
+    <div class="stat">
+      <div class="stat-icon">📞</div>
+      <div class="stat-label">${t("dash.total_calls")}</div>
+      <div class="stat-value">${fmtNum(totalCalls)}</div>
+      <div class="stat-sub">${callsPerLead.toFixed(1)} ${t("dash.calls_per_lead")}</div>
     </div>
     <div class="stat accent">
-      <div class="stat-label">${t("dash.top")}</div>
-      <div class="stat-value sm">${top ? top.user_name : "—"}</div>
-      <div class="stat-sub">${top ? parseFloat(top.total_score).toFixed(1) + "%" : ""}</div>
+      <div class="stat-icon">💼</div>
+      <div class="stat-label">${t("dash.total_deals")}</div>
+      <div class="stat-value">${fmtNum(totalDeals)}</div>
+      <div class="stat-sub">${(rows.length ? totalDeals / rows.length : 0).toFixed(1)} ${t("dash.deals_per_rep")}</div>
     </div>
-    <div class="stat danger">
-      <div class="stat-label">${t("dash.needs_attention")}</div>
-      <div class="stat-value" style="color:var(--danger)">${below55}</div>
-      <div class="stat-sub">${t("dash.below_55")}</div>
+    <div class="stat warn">
+      <div class="stat-icon">🤝</div>
+      <div class="stat-label">${t("dash.total_reservations")}</div>
+      <div class="stat-value">${fmtNum(totalRes)}</div>
+      <div class="stat-sub">${fmtNum(totalMeetings)} ${t("kpi.meetings")}</div>
     </div>
-    <div class="stat">
-      <div class="stat-label">${t("dash.sales_submitted")}</div>
-      <div class="stat-value">${salesDone}/${n}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">${t("dash.eval_done")}</div>
-      <div class="stat-value">${deDone}/${n}</div>
+    <div class="stat ${convRate >= 3 ? 'success' : convRate >= 1.5 ? 'warn' : 'danger'}">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-label">${t("dash.conv_rate")}</div>
+      <div class="stat-value">${convRate.toFixed(2)}%</div>
+      <div class="stat-sub">${t("dash.lead_to_deal")}</div>
     </div>
   `;
 }
 
 function renderCharts(rows) {
-  if (!rows.length || typeof Plotly === 'undefined') return;
+  if (!rows.length || typeof Plotly === 'undefined') {
+    ["chartHealthGauge","chartRadarOverview","chartFunnel","chartRatings","chartTeamPerf","chartBreakdown","chartActualTarget","chartStatus","chartHeatmap"].forEach(id => {
+      const el = document.getElementById(id); if (el) el.innerHTML = `<div class="empty-state" style="padding:30px">${t("dash.no_data")}</div>`;
+    });
+    return;
+  }
 
   const sorted = [...rows].sort((a,b) => (parseFloat(b.total_score)||0) - (parseFloat(a.total_score)||0));
-  const topN = sorted.slice(0, 10);
-  Charts.drawHorizontalBar("chartTeamPerf", {
-    x: topN.map(r => parseFloat(r.total_score) || 0).reverse(),
-    y: topN.map(r => r.user_name).reverse(),
-    colors: topN.map(r => Charts.scoreColorHex(parseFloat(r.total_score) || 0)).reverse(),
+
+  // 1) Health gauge: avg score across team
+  const avg = rows.reduce((a, r) => a + (parseFloat(r.total_score) || 0), 0) / rows.length;
+  Charts.drawGauge("chartHealthGauge", avg, { target: 75 });
+
+  // 2) Radar: average achievement across all 13 KPI categories
+  const radarLabels = KPI_KEYS.map(k => kpiLabel(k));
+  const radarValues = KPI_KEYS.map(k => {
+    const vals = rows.map(r => (r.breakdown && r.breakdown[k]) ? r.breakdown[k].achievement_pct : 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  });
+  Charts.drawRadarChart("chartRadarOverview", { labels: radarLabels, values: radarValues });
+
+  // 3) Funnel: leads → calls → meetings → reservations → deals (totals)
+  const totalLeads = rows.reduce((a, r) => a + (parseFloat(r.fresh_leads) || 0), 0);
+  const sumKey = (k) => rows.reduce((a, r) => a + (r.breakdown && r.breakdown[k] ? r.breakdown[k].actual : 0), 0);
+  Charts.drawFunnel("chartFunnel", {
+    y: [t("funnel.leads"), t("funnel.calls"), t("funnel.meetings"), t("funnel.reservations"), t("funnel.deals")],
+    x: [totalLeads, sumKey("calls"), sumKey("meetings"), sumKey("reservations"), sumKey("deals")],
   });
 
+  // 4) Rating distribution donut
   const ratings = ["Excellent","V.Good","Good","Medium","Weak","Bad"];
   const ratingCounts = ratings.map(r => rows.filter(x => x.rating === r).length);
-  const ratingColors = [Charts.COLORS.brand, Charts.COLORS.brand2, Charts.COLORS.info, Charts.COLORS.warning, '#ff923c', Charts.COLORS.danger];
+  const ratingColors = [
+    Charts.COLORS.accent2,
+    Charts.COLORS.brand,
+    Charts.COLORS.brand2,
+    Charts.COLORS.warning2,
+    '#ff923c',
+    Charts.COLORS.danger
+  ];
   const filteredRatings = [], filteredCounts = [], filteredColors = [];
   ratings.forEach((r, i) => {
     if (ratingCounts[i] > 0) {
@@ -202,7 +328,6 @@ function renderCharts(rows) {
       filteredColors.push(ratingColors[i]);
     }
   });
-
   if (filteredRatings.length) {
     Charts.drawDonut("chartRatings", {
       labels: filteredRatings,
@@ -211,18 +336,73 @@ function renderCharts(rows) {
     }, { centerText: rows.length + "" });
   }
 
+  // 5) Leaderboard horizontal bar (top 12)
+  const topN = sorted.slice(0, 12);
+  Charts.drawHorizontalBar("chartTeamPerf", {
+    x: topN.map(r => parseFloat(r.total_score) || 0).reverse(),
+    y: topN.map(r => r.user_name).reverse(),
+    colors: topN.map(r => Charts.scoreColorHex(parseFloat(r.total_score) || 0)).reverse(),
+    labels: topN.map(r => (parseFloat(r.total_score)||0).toFixed(1) + "%").reverse(),
+  });
+
+  // 6) Per-KPI achievement bar
   const kpiAvgs = KPI_KEYS.map(key => {
     const values = rows.map(r => (r.breakdown && r.breakdown[key]) ? r.breakdown[key].achievement_pct : 0);
-    const avg = values.length ? values.reduce((a,b) => a+b, 0) / values.length : 0;
-    return { key, avg };
+    const a = values.length ? values.reduce((a,b) => a+b, 0) / values.length : 0;
+    return { key, avg: a };
   });
-  const lang = getLang();
   Charts.drawBarChart("chartBreakdown", {
     x: kpiAvgs.map(k => kpiLabel(k.key)),
     y: kpiAvgs.map(k => k.avg),
     colors: kpiAvgs.map(k => Charts.scoreColorHex(k.avg)),
     labels: kpiAvgs.map(k => k.avg.toFixed(0) + "%"),
-  }, { xangle: -30 });
+  }, { xangle: -25 });
+
+  // 7) Actual vs Target grouped bars (numeric KPIs)
+  const numericKeys = ["calls","meetings","crm_pct","deals","reports","reservations","followup_pct","attendance_pct"];
+  const actuals = numericKeys.map(k => {
+    const sum = rows.reduce((a, r) => a + (r.breakdown && r.breakdown[k] ? r.breakdown[k].actual : 0), 0);
+    return sum;
+  });
+  const targets = numericKeys.map(k => {
+    const sum = rows.reduce((a, r) => a + (r.breakdown && r.breakdown[k] ? r.breakdown[k].target : 0), 0);
+    return sum;
+  });
+  Charts.drawGroupedBar("chartActualTarget",
+    [
+      { name: t("dash.actual"), values: actuals, color: Charts.COLORS.brand },
+      { name: t("dash.target"), values: targets, color: Charts.COLORS.brand3 },
+    ],
+    numericKeys.map(k => kpiLabel(k)),
+    { showlegend: true, xaxis: { tickangle: -25 } }
+  );
+
+  // 8) Status donut: completed (data-entry submitted) / in-progress (sales submitted but not eval) / not-started
+  const completed = rows.filter(r => r.dataentry_submitted_at).length;
+  const inProgress = rows.filter(r => r.sales_submitted_at && !r.dataentry_submitted_at).length;
+  const notStarted = rows.length - completed - inProgress;
+  const statusVals = [completed, inProgress, notStarted].filter(v => v > 0);
+  const statusLabels = [];
+  const statusColors = [];
+  if (completed)  { statusLabels.push(t("dash.completed"));   statusColors.push(Charts.COLORS.accent2); }
+  if (inProgress) { statusLabels.push(t("dash.in_progress")); statusColors.push(Charts.COLORS.warning2); }
+  if (notStarted) { statusLabels.push(t("dash.not_started")); statusColors.push(Charts.COLORS.danger2); }
+  if (statusVals.length) {
+    Charts.drawDonut("chartStatus", {
+      labels: statusLabels,
+      values: statusVals,
+      colors: statusColors,
+    }, { centerText: rows.length + "" });
+  }
+
+  // 9) Heatmap: top 12 reps × KPI achievement %
+  const heatRows = sorted.slice(0, 12);
+  const heatX = numericKeys.map(k => kpiLabel(k));
+  const heatY = heatRows.map(r => r.user_name).reverse();
+  const heatZ = heatRows.slice().reverse().map(r =>
+    numericKeys.map(k => (r.breakdown && r.breakdown[k]) ? r.breakdown[k].achievement_pct : 0)
+  );
+  Charts.drawHeatmap("chartHeatmap", { x: heatX, y: heatY, z: heatZ });
 }
 
 function renderTable(rows) {
@@ -232,7 +412,6 @@ function renderTable(rows) {
     return;
   }
 
-  const lang = getLang();
   tbody.innerHTML = rows.map((r, i) => {
     const score = parseFloat(r.total_score) || 0;
     const rating = r.rating || "Pending";
@@ -247,12 +426,17 @@ function renderTable(rows) {
     return `<tr class="clickable" onclick="showDetail(${r.user_id},'${r.month}')">
       <td><span class="rank ${rankCls}">${i + 1}</span></td>
       <td>
-        <div style="font-weight:500">${r.user_name}</div>
-        <div class="text-dim" style="font-size:10px">${t("dash.fresh_leads_short")}: ${fresh}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar" style="width:32px;height:32px;font-size:13px">${(r.user_name||'?')[0]}</div>
+          <div>
+            <div style="font-weight:600">${r.user_name}</div>
+            <div class="text-dim" style="font-size:11px">${t("dash.fresh_leads_short")}: ${fresh}</div>
+          </div>
+        </div>
       </td>
       <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:600;min-width:48px">${score.toFixed(1)}%</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-weight:700;min-width:50px;font-family:Inter">${score.toFixed(1)}%</span>
           <div class="bar" style="flex:1"><div class="bar-fill ${scoreColor(score)}" style="width:${score}%"></div></div>
         </div>
       </td>
@@ -264,9 +448,9 @@ function renderTable(rows) {
       <td class="text-muted" style="font-size:11px">
         ${kpiLabel(worstKey)} <span class="${worstPct < 50 ? 'text-danger' : 'text-muted'}">(${worstPct.toFixed(0)}%)</span>
       </td>
-      <td style="font-size:10px">
-        ${r.sales_submitted_at ? '<span class="text-success">S&#10003;</span>' : '<span class="text-dim">S&#10007;</span>'}
-        ${r.dataentry_submitted_at ? '<span class="text-success">D&#10003;</span>' : '<span class="text-dim">D&#10007;</span>'}
+      <td style="font-size:11px">
+        ${r.sales_submitted_at ? '<span class="text-success" title="Sales submitted">S✓</span>' : '<span class="text-dim">S✕</span>'}
+        ${r.dataentry_submitted_at ? ' <span class="text-success" title="Evaluated">D✓</span>' : ' <span class="text-dim">D✕</span>'}
       </td>
       <td><button class="btn btn-sm" onclick="event.stopPropagation();showDetail(${r.user_id},'${r.month}')">${t("common.details")}</button></td>
     </tr>`;
@@ -276,9 +460,11 @@ function renderTable(rows) {
 function fmtCell(kpi) {
   if (!kpi) return '<span class="text-dim">—</span>';
   const col = kpi.achievement_pct >= 80 ? "success" : kpi.achievement_pct >= 55 ? "warn" : "danger";
-  return `<div style="font-size:12px"><span class="text-${col}">${kpi.actual}</span>
+  return `<div style="font-size:12px;line-height:1.4">
+    <span class="text-${col}" style="font-weight:700;font-family:Inter">${kpi.actual}</span>
     <span class="text-dim">/ ${kpi.target}</span>
-    <div class="text-muted" style="font-size:10px">${kpi.achievement_pct.toFixed(0)}%</div></div>`;
+    <div class="text-muted" style="font-size:10px">${kpi.achievement_pct.toFixed(0)}%</div>
+  </div>`;
 }
 
 function showDetail(userId, month) {
@@ -288,15 +474,14 @@ function showDetail(userId, month) {
   const rating = entry.rating || "Pending";
   const bd = entry.breakdown || {};
   const L = parseFloat(entry.fresh_leads) || 0;
-  const lang = getLang();
 
   let kpiHTML = Object.entries(bd).map(([k, v]) => {
     const col = scoreColor(v.achievement_pct);
     return `<div class="kpi-cell">
       <div class="kpi-cell-label">${kpiLabel(k)}</div>
       <div class="kpi-cell-value text-${col}">${v.achievement_pct.toFixed(0)}%</div>
-      <div class="kpi-cell-detail">${t("sales.target")}: ${v.target} / ${v.actual}<br>${v.weighted_score}/${v.weight}</div>
-      <div class="bar kpi-cell-bar"><div class="bar-fill ${col}" style="width:${v.achievement_pct}%"></div></div>
+      <div class="kpi-cell-detail">${v.actual} / ${v.target} · ${v.weighted_score}/${v.weight} pts</div>
+      <div class="bar kpi-cell-bar"><div class="bar-fill ${col}" style="width:${Math.min(v.achievement_pct,100)}%"></div></div>
     </div>`;
   }).join("");
 
@@ -319,9 +504,9 @@ function showDetail(userId, month) {
         <button class="btn btn-ghost" onclick="document.getElementById('detailPanel').classList.add('hidden')">${t("common.close")}</button>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-      <div class="chart-card" style="margin:0"><h3>${t("dash.chart_breakdown")}</h3><div id="detailRadar" style="height:320px"></div></div>
-      <div class="chart-card" style="margin:0"><h3>${t("dash.chart_performance")}</h3><div id="detailGauge" style="height:320px"></div></div>
+    <div class="bento" style="margin-bottom:18px">
+      <div class="chart-card span-6" style="margin:0"><h3>${t("dash.chart_breakdown")}</h3><div id="detailRadar" class="plotly-container short"></div></div>
+      <div class="chart-card span-6" style="margin:0"><h3>${t("dash.chart_performance")}</h3><div id="detailGauge" class="plotly-container short"></div></div>
     </div>
     <div class="kpi-grid stagger">${kpiHTML}</div>
   </div>`;
@@ -350,7 +535,7 @@ function exportCSV() {
       r.total_score, r.rating];
     lines.push(row.join(","));
   });
-  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv" });
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `kpi_${rows[0].month}.csv`;

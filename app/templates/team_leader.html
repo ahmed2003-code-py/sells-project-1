@@ -1,41 +1,51 @@
 {% extends "base.html" %}
 {% block title %}Ain KPI{% endblock %}
 
-{% block main_class %}narrow{% endblock %}
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="tl.title"></h1>
-    <p class="page-subtitle" data-i18n="tl.subtitle"></p>
-  </div>
-</div>
-
-<div class="controls">
-  <div class="field">
-    <label data-i18n="common.month"></label>
-    <input type="month" id="month" onchange="loadKPI()">
-  </div>
-  <div class="spacer"></div>
-  <div id="teamBadge" class="text-muted" style="font-size:13px"></div>
-</div>
-
-<div id="scorePreview" class="hidden">
-  <div class="score-display">
-    <div class="num" id="scoreNum">—</div>
-    <div class="label" id="scoreLabel" data-i18n="tl.score"></div>
-    <div class="sublabel" id="ratingLabel"></div>
+<div class="hero-ribbon">
+  <div class="page-header" style="margin-bottom:14px">
+    <div>
+      <h1 class="page-title" data-i18n="tl.title"></h1>
+      <p class="page-subtitle" data-i18n="tl.subtitle"></p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="field" style="margin-bottom:0">
+        <label data-i18n="common.month"></label>
+        <input type="month" id="month" onchange="loadKPI()">
+      </div>
+      <div id="teamBadge" class="badge badge-pending"></div>
+    </div>
   </div>
 </div>
 
 <div id="noTeam" class="hidden">
   <div class="empty-state">
-    <div class="empty-icon">⚠️</div>
+    <div class="empty-state-icon">⚠️</div>
     <div data-i18n="tl.no_team"></div>
   </div>
 </div>
 
 <div id="kpiContent" class="hidden">
+  <!-- Score + radar overview -->
+  <div class="bento">
+    <div class="chart-card span-4">
+      <h3 data-i18n="tl.score"></h3>
+      <div id="chartScoreGauge" class="plotly-container short"></div>
+    </div>
+    <div class="chart-card span-4">
+      <h3 data-i18n="dash.metric_pillars"></h3>
+      <div id="chartScoreRadar" class="plotly-container short"></div>
+    </div>
+    <div class="chart-card span-4">
+      <h3 data-i18n="dash.chart_breakdown"></h3>
+      <div id="chartScoreBars" class="plotly-container short"></div>
+    </div>
+  </div>
+
   <div class="form-section">
     <div class="form-section-title" data-i18n="tl.auto_section"></div>
     <div id="autoRows"></div>
@@ -49,6 +59,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 const TL_ID = {{ user.id }};
 let cfg = null;
@@ -66,7 +77,6 @@ async function loadKPI() {
   const month = document.getElementById("month").value;
   if (!month) return;
 
-  document.getElementById("scorePreview").classList.add("hidden");
   document.getElementById("kpiContent").classList.add("hidden");
   document.getElementById("noTeam").classList.add("hidden");
 
@@ -85,14 +95,27 @@ async function loadKPI() {
 function render(data) {
   const lbl = key => t("kpi." + key);
 
-  // Score
-  document.getElementById("scorePreview").classList.remove("hidden");
-  document.getElementById("scoreNum").textContent = data.total_score.toFixed(1);
-  document.getElementById("ratingLabel").textContent = t("rating." + (data.rating || "Pending"));
-  document.getElementById("scoreNum").className = "num " + scoreKindClass(data.total_score);
-
+  // Team badge
   document.getElementById("teamBadge").textContent =
     `${data.team_submitted} ${t("common.of")} ${data.team_size} ${t("tl.team_submitted_of")}`;
+
+  // Score charts
+  if (typeof Plotly !== 'undefined') {
+    const score = data.total_score || 0;
+    Charts.drawGauge("chartScoreGauge", score, { target: 75 });
+
+    const labels = Object.keys(data.breakdown || {}).map(lbl);
+    const values = Object.values(data.breakdown || {}).map(v => v.achievement_pct);
+    if (labels.length) {
+      Charts.drawRadarChart("chartScoreRadar", { labels, values });
+      Charts.drawBarChart("chartScoreBars", {
+        x: labels,
+        y: values,
+        colors: values.map(v => Charts.scoreColorHex(v)),
+        labels: values.map(v => v.toFixed(0) + "%"),
+      }, { xangle: -25 });
+    }
+  }
 
   // Auto fields
   const autoKeys = (cfg && cfg.tl_auto_fields) || [];
@@ -104,7 +127,7 @@ function render(data) {
       <div class="kpi-row">
         <div class="kpi-label">${lbl(key)}</div>
         <div class="kpi-bar-wrap">
-          <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${barColor(pct)}"></div>
+          <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${Charts.scoreColorHex(pct)}"></div>
         </div>
         <div class="kpi-nums">
           <span class="actual">${fmtNum(b.actual)}</span>
@@ -120,7 +143,7 @@ function render(data) {
   const manualKeys = (cfg && cfg.tl_manual_fields) || [];
   const isPending = !data.tl_entry || !data.tl_entry.dataentry_submitted_at;
   document.getElementById("manualRows").innerHTML = isPending
-    ? `<div class="text-muted" style="padding:12px">${t("tl.pending_eval")}</div>`
+    ? `<div class="status-bar pending"><span style="font-size:18px">⏳</span><span>${t("tl.pending_eval")}</span></div>`
     : manualKeys.map(key => {
         const b = data.breakdown[key];
         if (!b) return "";
@@ -129,7 +152,7 @@ function render(data) {
           <div class="kpi-row">
             <div class="kpi-label">${lbl(key)}</div>
             <div class="kpi-bar-wrap">
-              <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${barColor(pct)}"></div>
+              <div class="kpi-bar" style="width:${Math.min(pct,100)}%;background:${Charts.scoreColorHex(pct)}"></div>
             </div>
             <div class="kpi-nums">
               <span class="actual">${fmtNum(b.actual)}</span>
@@ -146,23 +169,9 @@ function render(data) {
 
 function onLangChange() { loadKPI(); }
 
-function fmtNum(n) {
+function fmtNumLocal(n) {
   if (n === undefined || n === null) return "—";
   return Number.isInteger(n) ? n : n.toFixed(1);
-}
-
-function scoreKindClass(score) {
-  if (score >= 90) return "excellent";
-  if (score >= 75) return "vgood";
-  if (score >= 55) return "good";
-  if (score >= 40) return "medium";
-  return "weak";
-}
-
-function barColor(pct) {
-  if (pct >= 90) return "var(--success)";
-  if (pct >= 70) return "var(--warning)";
-  return "var(--danger)";
 }
 
 init();
