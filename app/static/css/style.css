@@ -1653,6 +1653,40 @@ fieldset.field legend {
   line-height: 1.5;
 }
 
+/* Contextual range warning — sits under the picker on pages where the
+   selected range may mislead (sub-month on monthly-grain data, multi-month
+   on single-month detail view). Reactive: hidden via [hidden] when the
+   selected range is well-suited; aria-live="polite" on the host announces
+   appearance. min-height keeps the layout from jumping. Warning tone
+   reuses --warning / --warning-soft tokens — no new colors. */
+.dr-context-warning-host {
+  /* Reserve space whether visible or not — eliminates layout shift when
+     toggling between This Month and Last 7 Days. */
+  min-height: 48px;
+  margin: 10px 0 16px;
+}
+.dr-context-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  background: var(--warning-soft);
+  border: 1px solid rgba(196, 114, 0, 0.30);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dr-context-warning .material-symbols-outlined {
+  color: var(--warning);
+  font-size: 20px;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.dr-context-warning-text { min-width: 0; }
+.dr-context-warning-text strong { color: var(--warning); font-weight: 700; }
+
 /* Info banner — used by team_leader page when a multi-month range collapses
    to "showing latest month". Reusable for similar advisories elsewhere. */
 .dr-info-banner {

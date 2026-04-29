@@ -9,11 +9,14 @@ import psycopg2.extras
 from decimal import Decimal
 from datetime import datetime, date
 from flask import Blueprint, request, session, Response
+from datetime import timedelta
 from app.database import get_conn
 from app.auth import role_required, rate_limit
 from app.kpi_logic import compute_financials, FINANCIAL_DEFAULTS
 from app.util.audit import audit_query
 from app.util.date_range import parse_range, InvalidRangeError
+
+_ONE_DAY = timedelta(days=1)
 
 log = logging.getLogger(__name__)
 finance_bp = Blueprint("finance", __name__, url_prefix="/api/finance")
@@ -46,15 +49,17 @@ def report():
     aggregated totals. Filtering follows the standard date-range contract
     (see app.util.date_range.parse_range): from/to/preset/legacy month.
 
-    Sub-month ranges not allowed — financial projection is computed from
-    monthly deal/reservation counts; sub-month proration would mislead.
+    Sub-month ranges allowed — they filter rows by dataentry_submitted_at,
+    but each row's revenue still covers a full month. The frontend surfaces
+    a contextual warning banner so users don't misread submission-date
+    filtering as daily revenue.
 
     Other params:
       - avg_deal_value_egp, commission_rate, avg_reservation_value_egp,
         reservation_commission_rate  (override defaults)
     """
     try:
-        pr = parse_range(request.args, allow_sub_month=False)
+        pr = parse_range(request.args)
     except InvalidRangeError as e:
         return _json({"error_code": e.code, "error": e.code}, 400)
 
@@ -81,8 +86,14 @@ def report():
                 if pr.month_str:
                     q += " AND e.month = %s"
                     params.append(pr.month_str)
+                elif pr.is_sub_month:
+                    # Sub-month: filter by submission timestamp on the chosen
+                    # column (idx_kpi_user_dataentry_submitted picks this up).
+                    q += " AND e.dataentry_submitted_at >= %s AND e.dataentry_submitted_at < %s"
+                    params.append(pr.from_date)
+                    params.append(pr.to_date + _ONE_DAY)
                 else:
-                    # Multi-month aligned range (sub-month was rejected above).
+                    # Multi-month aligned range.
                     q += " AND e.month BETWEEN %s AND %s"
                     params.append(f"{pr.from_date.year:04d}-{pr.from_date.month:02d}")
                     params.append(f"{pr.to_date.year:04d}-{pr.to_date.month:02d}")
