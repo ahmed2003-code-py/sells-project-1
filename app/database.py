@@ -267,6 +267,20 @@ def init_all_tables():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_kpi_month ON kpi_entries(month);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_kpi_dataentry_submitted ON kpi_entries(dataentry_submitted_at);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_kpi_sales_submitted ON kpi_entries(sales_submitted_at);")
+            # Composite indexes for the upcoming date-range queries: "user X's
+            # entries with submission timestamp in [from, to]" — needs both
+            # columns to plan as a single index scan. Partial-on-NOT-NULL keeps
+            # them lean (NULLs are unsubmitted entries we never filter for).
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_kpi_user_dataentry_submitted
+                ON kpi_entries (user_id, dataentry_submitted_at)
+                WHERE dataentry_submitted_at IS NOT NULL
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_kpi_user_sales_submitted
+                ON kpi_entries (user_id, sales_submitted_at)
+                WHERE sales_submitted_at IS NOT NULL
+            """)
 
             # Migrate kpi_entries if needed
             for col, ddl in [
