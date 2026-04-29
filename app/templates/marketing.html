@@ -774,8 +774,24 @@ function escapeHTML(s) {
 }
 
 function onLangChange() {
+  // Snapshot Phase 2 actuals — renderDashboard pulls them back from server data,
+  // overwriting any unsaved typing. Restore after the language rebuild.
+  const ids = ['a_spend', 'a_leads', 'a_ql', 'a_meet', 'a_fu', 'a_deals'];
+  const drafts = new Map();
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) drafts.set(id, el.value);
+  });
+
   if (currentCamp) renderDashboard(currentCamp);
   loadCampaigns();
+
+  drafts.forEach((value, id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+  // Re-fire the comparison + insights so they reflect the restored user drafts.
+  if (currentCamp) calcActuals();
 }
 
 loadCampaigns();

@@ -148,7 +148,7 @@ const I18N = {
     "auth.new_password": "كلمة المرور الجديدة",
     "auth.confirm_password": "تأكيد كلمة المرور",
     "auth.reset_btn": "حفظ كلمة المرور الجديدة",
-    "auth.back_to_login": "← رجوع للدخول",
+    "auth.back_to_login": "→ رجوع للدخول",
     "auth.reset_email_sent": "تم الإرسال. تفقّد بريدك الإلكتروني.",
     "auth.reset_ok": "تم تحديث كلمة المرور، يمكنك الدخول الآن",
     "auth.password_hint": "8 خانات على الأقل، حرف واحد ورقم واحد",

@@ -598,7 +598,58 @@ renderAll = function patchedRenderAll() {
   }
 };
 
-function onLangChange() { renderAll(); }
+function onLangChange() {
+  // Card labels are baked into renderCard's template literals via t() — they don't
+  // re-translate via applyLang() alone. We rebuild, but snapshot every in-progress
+  // input value first and restore it after so unsaved work survives the language flip.
+  const drafts = new Map();
+  document.querySelectorAll('#list input, #list textarea, #list select').forEach(el => {
+    if (el.id) drafts.set(el.id, el.value);
+  });
+  const visibleWarns = new Set();
+  document.querySelectorAll('#list .de-warn:not([hidden])').forEach(w => {
+    if (w.id) visibleWarns.add(w.id);
+  });
+
+  renderAll();
+
+  drafts.forEach((value, id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+  visibleWarns.forEach(id => {
+    const w = document.getElementById(id);
+    if (w) w.hidden = false;
+  });
+
+  // Re-sync pass/fail toggle visual state from each hidden input value
+  // (rebuild generated buttons against server data; we just restored user drafts).
+  document.querySelectorAll('#list .passfail-toggle').forEach(group => {
+    const firstBtn = group.querySelector('button[data-pf-target]');
+    if (!firstBtn) return;
+    const targetId = firstBtn.getAttribute('data-pf-target');
+    const hidden = document.getElementById(targetId);
+    if (!hidden) return;
+    const want = String(hidden.value);
+    group.querySelectorAll('button').forEach(b => {
+      const active = b.getAttribute('data-pf-value') === want;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
+  });
+
+  // Re-fire derived UI: live preview, soft-bound warns, char counters.
+  document.querySelectorAll('#list .card[data-user-id]').forEach(card => {
+    const userId = card.dataset.userId;
+    if (typeof refreshPreview === 'function') refreshPreview(userId);
+  });
+  document.querySelectorAll('#list textarea[data-char-counter]').forEach(t => {
+    if (typeof refreshCharCount === 'function') refreshCharCount(t);
+  });
+  document.querySelectorAll('#list input[data-kpi-key]').forEach(inp => {
+    if (typeof refreshSoftWarn === 'function') refreshSoftWarn(inp);
+  });
+}
 
 document.getElementById("month").value = currentMonth();
 loadAll();
