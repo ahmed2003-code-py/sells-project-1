@@ -1677,6 +1677,12 @@ fieldset.field legend {
   font-size: 13px;
   line-height: 1.5;
 }
+/* `display: flex` above tied with the UA's `[hidden] { display: none }` at
+   the same specificity, and author rules win — so the banner stayed
+   visible even with the hidden attribute set, showing just the icon and
+   no text on month-aligned ranges. Higher-specificity attribute selector
+   restores the expected hide behavior. */
+.dr-context-warning[hidden] { display: none; }
 .dr-context-warning .material-symbols-outlined {
   color: var(--warning);
   font-size: 20px;
@@ -1705,6 +1711,7 @@ fieldset.field legend {
   color: var(--accent);
   font-size: 18px;
 }
+.dr-info-banner[hidden] { display: none; }
 
 @media (max-width: 720px) {
   .dr-panel {
@@ -1778,6 +1785,7 @@ fieldset.field legend {
   flex-shrink: 0;
   margin-top: 2px;
 }
+.tl-pending-callout[hidden] { display: none; }
 .tl-pending-callout-title {
   font-weight: 700;
   font-size: 14px;
