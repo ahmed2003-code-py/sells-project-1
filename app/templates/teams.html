@@ -2,53 +2,81 @@
 {% block title %}Ain KPI{% endblock %}
 
 {% block content %}
-<div class="hero-ribbon">
-  <div class="page-header" style="margin-bottom:0">
-    <div>
-      <h1 class="page-title" data-i18n="teams.title"></h1>
-      <p class="page-subtitle" data-i18n="teams.subtitle"></p>
-    </div>
-    <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="teams.add"></button>
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="teams.title"></h1>
+    <p class="page-subtitle" data-i18n="teams.subtitle"></p>
   </div>
+  <button class="btn btn-primary" onclick="openNew()" data-i18n="teams.add"></button>
 </div>
 
-<div id="teamsList" class="stagger"></div>
+<div id="teamsList"></div>
 
 <!-- Modal -->
-<div class="modal-backdrop" id="teamModal">
+<div class="modal-backdrop" id="teamModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle"></div>
-      <button class="modal-close" onclick="closeModal('teamModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('teamModal')" data-i18n-aria-label="common.close">✕</button>
     </div>
     <div class="modal-body">
-      <div class="error-msg" id="mError"></div>
+      <div class="error-msg" id="mError" role="alert" aria-live="assertive"></div>
 
       <div class="field">
-        <label data-i18n="teams.name"></label>
+        <label for="mName" data-i18n="teams.name"></label>
         <input type="text" id="mName" required maxlength="100">
       </div>
       <div class="field">
-        <label>
+        <label for="mDesc">
           <span data-i18n="teams.description"></span>
           <small data-i18n="common.optional"></small>
         </label>
         <input type="text" id="mDesc" maxlength="200">
       </div>
       <div class="field">
-        <label data-i18n="teams.leader"></label>
+        <label for="mLeader" data-i18n="teams.leader"></label>
         <select id="mLeader">
           <option value="" data-i18n="teams.pick_leader"></option>
         </select>
       </div>
-      <div class="field">
-        <label data-i18n="teams.members"></label>
-        <div id="membersList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px"></div>
-      </div>
+      <fieldset class="field" id="membersFieldset">
+        <legend data-i18n="teams.members"></legend>
+        <div class="team-members-toolbar">
+          <div class="pf-search-input-wrap">
+            <span class="material-symbols-outlined pf-search-icon" aria-hidden="true">search</span>
+            <input type="text" id="memberSearch" oninput="filterMembers()" data-i18n-placeholder="teams.search_members_ph">
+            <button type="button" class="pf-search-clear" id="memberSearchClear" onclick="clearMemberSearch()" data-i18n-aria-label="common.clear" hidden>
+              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+          </div>
+          <button type="button" class="btn btn-sm" onclick="selectAllVisibleMembers(true)" data-i18n="teams.select_all_visible"></button>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="selectAllVisibleMembers(false)" data-i18n="teams.clear_all"></button>
+        </div>
+        <div id="membersList" class="team-members-list"></div>
+        <small class="text-muted" id="memberSelectedCount" aria-live="polite"></small>
+      </fieldset>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary hyper-btn" onclick="saveTeam()" data-i18n="teams.save"></button>
+      <button class="btn btn-primary" onclick="saveTeam()" data-i18n="teams.save"></button>
       <button class="btn btn-ghost" onclick="closeModal('teamModal')" data-i18n="common.cancel"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete-team confirm modal — replaces native confirm(). Cancel default-focused. -->
+<div class="modal-backdrop" id="teamDeleteModal" role="dialog" aria-modal="true" aria-labelledby="teamDeleteTitle">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title" id="teamDeleteTitle" data-i18n="teams.confirm_delete_title"></div>
+      <button class="modal-close" onclick="closeModal('teamDeleteModal')" data-i18n-aria-label="common.close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="teams.confirm_delete_body"></p>
+      <p class="user-delete-name" id="teamDeleteName"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('teamDeleteModal')" data-default-focus data-i18n="common.cancel"></button>
+      <button type="button" class="btn btn-danger" onclick="confirmTeamDelete()" data-i18n="teams.delete_btn"></button>
     </div>
   </div>
 </div>
@@ -82,7 +110,14 @@ function render() {
   const container = document.getElementById("teamsList");
 
   if (!teams.length) {
-    container.innerHTML = `<div class="empty-state"><div>${t("teams.no_teams")}</div></div>`;
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon"><span class="material-symbols-outlined" aria-hidden="true">groups_off</span></div>
+      <div>${t("teams.no_teams")}</div>
+      <button type="button" class="btn btn-primary" style="margin-top:14px" onclick="openNew()">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <span>${t("teams.add")}</span>
+      </button>
+    </div>`;
     return;
   }
 
@@ -90,25 +125,25 @@ function render() {
     const leaderName = team.leader_name || t("teams.no_leader");
     const cnt = team.member_count || 0;
     return `
-      <div class="card" style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <div style="width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:20px">👥</div>
-          <div style="flex:1;min-width:200px">
-            <div style="font-weight:600;font-size:16px">${escapeHTML(team.name)}</div>
-            ${team.description ? `<div class="text-muted" style="font-size:12px">${escapeHTML(team.description)}</div>` : ""}
-            <div style="margin-top:6px;display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+      <div class="card team-card">
+        <div class="team-card-row">
+          <div class="team-card-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></div>
+          <div class="team-card-body">
+            <div class="team-card-name">${escapeHTML(team.name)}</div>
+            ${team.description ? `<div class="team-card-desc">${escapeHTML(team.description)}</div>` : ""}
+            <div class="team-card-meta">
               <span>
                 <span class="text-muted">${t("teams.leader")}:</span>
-                <strong style="margin-inline-start:4px">${escapeHTML(leaderName)}</strong>
+                <strong>${escapeHTML(leaderName)}</strong>
               </span>
               <span>
                 <span class="text-muted">${t("teams.members")}:</span>
-                <strong style="margin-inline-start:4px">${cnt} ${t("teams.members_count")}</strong>
+                <strong>${cnt} ${t("teams.members_count")}</strong>
               </span>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-sm" onclick="openEdit(${team.id})">${t("common.edit")}</button>
+          <div class="team-card-actions">
+            <button class="btn btn-sm btn-primary" onclick="openEdit(${team.id})">${t("common.edit")}</button>
             <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.id})">${t("common.delete")}</button>
           </div>
         </div>
@@ -125,15 +160,59 @@ function buildLeaderOptions(selectedId) {
 function buildMembersCheckboxes(selectedIds) {
   const box = document.getElementById("membersList");
   if (!allSales.length) {
-    box.innerHTML = `<div class="text-muted" style="font-size:13px">${t("teams.no_sales")}</div>`;
+    box.innerHTML = `<div class="text-muted text-sm">${t("teams.no_sales")}</div>`;
+    refreshMemberCount();
     return;
   }
-  box.innerHTML = allSales.map(u => `
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background .15s" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""} style="accent-color:var(--brand)">
-      <span>${escapeHTML(u.full_name)}</span>
-      <span class="text-muted" style="font-size:11px">@${escapeHTML(u.username)}</span>
-    </label>`).join("");
+  // data-search holds lowercase haystack so filterMembers() can match without rebuild.
+  box.innerHTML = allSales.map(u => {
+    const hay = ((u.full_name || "") + " " + (u.username || "")).toLowerCase();
+    return `
+    <label class="team-member-row" data-search="${escapeHTML(hay)}">
+      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id) ? "checked" : ""} onchange="refreshMemberCount()">
+      <span class="team-member-name">${escapeHTML(u.full_name)}</span>
+      <span class="team-member-username">@${escapeHTML(u.username)}</span>
+    </label>`;
+  }).join("");
+  // Reset search on rebuild so previously hidden rows reappear.
+  const search = document.getElementById("memberSearch");
+  if (search) search.value = "";
+  const clr = document.getElementById("memberSearchClear");
+  if (clr) clr.hidden = true;
+  refreshMemberCount();
+}
+
+function filterMembers() {
+  const q = (document.getElementById("memberSearch").value || "").trim().toLowerCase();
+  const clr = document.getElementById("memberSearchClear");
+  if (clr) clr.hidden = !q;
+  document.querySelectorAll("#membersList .team-member-row").forEach(row => {
+    row.classList.toggle("is-hidden", q && !row.dataset.search.includes(q));
+  });
+}
+
+function clearMemberSearch() {
+  const sb = document.getElementById("memberSearch");
+  if (sb) { sb.value = ""; sb.focus(); }
+  filterMembers();
+}
+
+// Toggle every *visible* checkbox (i.e. those not display:none'd by the search filter).
+// Lets admin search "ahmed" then bulk-add the whole filtered set.
+function selectAllVisibleMembers(checked) {
+  document.querySelectorAll("#membersList .team-member-row:not(.is-hidden) input[type='checkbox']")
+    .forEach(cb => { cb.checked = checked; });
+  refreshMemberCount();
+}
+
+function refreshMemberCount() {
+  const total = document.querySelectorAll("#membersList input[type='checkbox']").length;
+  const checked = document.querySelectorAll("#membersList input[type='checkbox']:checked").length;
+  const el = document.getElementById("memberSelectedCount");
+  if (!el) return;
+  el.textContent = total
+    ? t("teams.selected_count").replace("{n}", checked).replace("{total}", total)
+    : "";
 }
 
 function getCheckedMembers() {
@@ -156,7 +235,7 @@ async function openEdit(teamId) {
   editingId = teamId;
   try {
     const team = await api(`/api/teams/${teamId}`);
-    document.getElementById("modalTitle").textContent = team.name;
+    document.getElementById("modalTitle").textContent = t("common.edit") + ": " + team.name;
     document.getElementById("mName").value = team.name;
     document.getElementById("mDesc").value = team.description || "";
     document.getElementById("mError").classList.remove("show");
@@ -201,13 +280,28 @@ async function saveTeam() {
   }
 }
 
-async function deleteTeam(teamId) {
-  if (!confirm(t("teams.confirm_delete"))) return;
+let _pendingDeleteTeamId = null;
+function deleteTeam(teamId) {
+  const team = teams.find(t => t.id === teamId);
+  if (!team) return;
+  _pendingDeleteTeamId = teamId;
+  document.getElementById("teamDeleteName").textContent = team.name;
+  openModal("teamDeleteModal");
+}
+
+async function confirmTeamDelete() {
+  if (!_pendingDeleteTeamId) { closeModal("teamDeleteModal"); return; }
+  const id = _pendingDeleteTeamId;
   try {
-    await api(`/api/teams/${teamId}`, { method: "DELETE" });
+    await api(`/api/teams/${id}`, { method: "DELETE" });
+    closeModal("teamDeleteModal");
     toast(t("common.deleted"), "success");
+    _pendingDeleteTeamId = null;
     loadAll();
-  } catch (e) { toastError(e); }
+  } catch (e) {
+    closeModal("teamDeleteModal");
+    toastError(e);
+  }
 }
 
 function onLangChange() { render(); }

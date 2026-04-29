@@ -35,6 +35,35 @@ function toast(message, type = "") {
   }, 3500);
 }
 
+// Toast with an inline action button — used for reversible operations like
+// deactivate/archive that benefit from a one-click undo.
+function toastWithAction(message, actionLabel, onAction, type = "") {
+  let el = document.getElementById("__toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "__toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.innerHTML = "";
+  const span = document.createElement("span");
+  span.textContent = message || "";
+  el.appendChild(span);
+  const btn = document.createElement("button");
+  btn.className = "toast-action";
+  btn.type = "button";
+  btn.textContent = actionLabel;
+  btn.addEventListener("click", () => {
+    el.classList.remove("show");
+    if (typeof onAction === "function") onAction();
+  });
+  el.appendChild(btn);
+  el.className = "toast show has-action " + type;
+  clearTimeout(window.__toastTimer);
+  // Longer dwell so the user can act on the offer.
+  window.__toastTimer = setTimeout(() => { el.classList.remove("show"); }, 7000);
+}
+
 function toastError(err) { toast(tError(err), "error"); }
 
 // ─── API wrapper ───────────────────────────────────────────────────
@@ -295,10 +324,12 @@ function openModalDialog(modalEl) {
   _activeModal = modalEl;
   modalEl.classList.add("open");
   document.body.style.overflow = "hidden";
-  // Focus first focusable inside the modal panel (not the backdrop wrapper).
   const panel = modalEl.querySelector(".modal") || modalEl;
-  const first = panel.querySelector(_MODAL_FOCUSABLE);
-  if (first) setTimeout(() => first.focus(), 0);
+  // Honor an explicit [data-default-focus] (used by destructive modals to focus
+  // the safer Cancel button). Otherwise focus the first focusable.
+  const explicit = panel.querySelector("[data-default-focus]");
+  const target = explicit || panel.querySelector(_MODAL_FOCUSABLE);
+  if (target) setTimeout(() => target.focus(), 0);
 }
 
 function closeModalDialog(modalEl) {

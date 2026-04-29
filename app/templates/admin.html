@@ -6,18 +6,16 @@
 {% endblock %}
 
 {% block content %}
-<div class="hero-ribbon">
-  <div class="page-header" style="margin-bottom:14px">
-    <div>
-      <h1 class="page-title" data-i18n="admin.title"></h1>
-      <p class="page-subtitle" data-i18n="admin.subtitle"></p>
-    </div>
-    <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="admin.add_user"></button>
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="admin.title"></h1>
+    <p class="page-subtitle" data-i18n="admin.subtitle"></p>
   </div>
-
-  <!-- Top tiles -->
-  <div class="bento" id="adminTiles" style="margin-bottom:0"></div>
+  <button class="btn btn-primary" onclick="openNew()" data-i18n="admin.add_user"></button>
 </div>
+
+<!-- Top tiles -->
+<div class="bento" id="adminTiles"></div>
 
 <!-- Charts row: role split donut + active/inactive donut -->
 <div class="bento">
@@ -60,8 +58,14 @@
     </select>
   </div>
   <div class="field" style="flex:1">
-    <label data-i18n="common.search"></label>
-    <input type="text" id="searchBox" data-i18n-placeholder="admin.search_ph" oninput="render()">
+    <label for="searchBox" data-i18n="common.search"></label>
+    <div class="pf-search-input-wrap">
+      <span class="material-symbols-outlined pf-search-icon" aria-hidden="true">search</span>
+      <input type="text" id="searchBox" data-i18n-placeholder="admin.search_ph" oninput="onAdminSearchInput()">
+      <button type="button" class="pf-search-clear" id="adminSearchClear" onclick="clearAdminSearch()" data-i18n-aria-label="common.clear" hidden>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </div>
   </div>
   <div class="field" style="align-self:flex-end">
     <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="filters.reset"></button>
@@ -85,27 +89,28 @@
 </div>
 
 <!-- Modal -->
-<div class="modal-backdrop" id="userModal">
+<div class="modal-backdrop" id="userModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle"></div>
-      <button class="modal-close" onclick="closeModal('userModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('userModal')" data-i18n-aria-label="common.close">✕</button>
     </div>
     <form id="userForm" novalidate>
       <div class="modal-body">
-        <div class="error-msg" id="mError"></div>
+        <div class="error-msg" id="mError" role="alert" aria-live="assertive"></div>
         <div class="field-row">
           <div class="field">
-            <label data-i18n="auth.full_name"></label>
+            <label for="mName" data-i18n="auth.full_name"></label>
             <input type="text" id="mName" maxlength="150" required>
           </div>
           <div class="field">
-            <label data-i18n="auth.username"></label>
-            <input type="text" id="mUsername" pattern="[a-z0-9_.]{3,}" maxlength="50" required>
+            <label for="mUsername" data-i18n="auth.username"></label>
+            <input type="text" id="mUsername" pattern="[a-z0-9_.]{3,}" maxlength="50" required aria-describedby="mUsernameHint">
+            <small id="mUsernameHint" class="text-muted" data-i18n="admin.username_hint"></small>
           </div>
         </div>
         <div class="field">
-          <label data-i18n="admin.role"></label>
+          <label for="mRole" data-i18n="admin.role"></label>
           <select id="mRole" required>
             <option value="sales" data-i18n="role.sales"></option>
             <option value="team_leader" data-i18n="role.team_leader"></option>
@@ -117,11 +122,11 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label data-i18n="auth.email"></label>
+            <label for="mEmail" data-i18n="auth.email"></label>
             <input type="email" id="mEmail" maxlength="150" required>
           </div>
           <div class="field">
-            <label>
+            <label for="mPhone">
               <span data-i18n="auth.phone"></span>
               <small data-i18n="common.optional"></small>
             </label>
@@ -129,16 +134,52 @@
           </div>
         </div>
         <div class="field">
-          <label data-i18n="auth.password"></label>
-          <input type="password" id="mPassword" minlength="8" maxlength="128" autocomplete="new-password">
-          <small class="text-dim" id="mPwHint"></small>
+          <label for="mPassword" data-i18n="auth.password"></label>
+          <div class="pw-input-wrap">
+            <input type="password" id="mPassword" minlength="8" maxlength="128" autocomplete="new-password">
+            <button type="button" class="pw-toggle" data-target="mPassword" data-i18n-aria-label="common.show_password">
+              <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+            </button>
+          </div>
+          <small class="text-muted" id="mPwHint"></small>
+          <ul class="pw-rules" id="mPwRules" aria-live="polite" hidden>
+            <li data-rule="length"><span class="material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span><span data-i18n="profile.rule_length"></span></li>
+            <li data-rule="letter"><span class="material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span><span data-i18n="profile.rule_letter"></span></li>
+            <li data-rule="digit"><span class="material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span><span data-i18n="profile.rule_digit"></span></li>
+          </ul>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="submit" class="btn btn-primary hyper-btn" data-i18n="common.save"></button>
+        <button type="submit" class="btn btn-primary" data-i18n="common.save"></button>
         <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')" data-i18n="common.cancel"></button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Delete-user confirm modal — replaces native confirm(). Cancel is default-focused. -->
+<div class="modal-backdrop" id="userDeleteModal" role="dialog" aria-modal="true" aria-labelledby="userDeleteTitle">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title" id="userDeleteTitle" data-i18n="admin.confirm_delete_title"></div>
+      <button class="modal-close" onclick="closeModal('userDeleteModal')" data-i18n-aria-label="common.close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="admin.confirm_delete_body"></p>
+      <p class="user-delete-name" id="userDeleteName"></p>
+      <!-- Typed-confirmation surfaces only when deleting an admin-role user. -->
+      <div class="field" id="userDeleteTypedWrap" hidden>
+        <label for="userDeleteTyped">
+          <span data-i18n="admin.delete_typed_prompt"></span>
+          <strong id="userDeleteTypedExpected" class="user-delete-typed-expected"></strong>
+        </label>
+        <input type="text" id="userDeleteTyped" autocomplete="off" oninput="onUserDeleteTyped()">
+      </div>
+    </div>
+    <div class="modal-footer user-delete-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('userDeleteModal')" data-default-focus data-i18n="common.cancel"></button>
+      <button type="button" class="btn btn-danger" id="userDeleteConfirm" onclick="confirmUserDelete()" data-i18n="admin.delete_btn"></button>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -146,11 +187,29 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
+// Snapshot the current admin's user_id once — used by render() to suppress the
+// self-delete button. Pulled via |tojson so a null user.id surfaces as `null`,
+// not an empty string that would break the JS expression.
+const CURRENT_USER_ID = {{ user.id|tojson }};
+
 let users = [];
 let teams = [];
 let editingId = null;
 
 const ROLES = ["admin","manager","team_leader","marketing","dataentry","sales"];
+
+function onAdminSearchInput() {
+  const sb = document.getElementById("searchBox");
+  const clr = document.getElementById("adminSearchClear");
+  if (clr) clr.hidden = !(sb && sb.value.length);
+  render();
+}
+
+function clearAdminSearch() {
+  const sb = document.getElementById("searchBox");
+  if (sb) { sb.value = ""; sb.focus(); }
+  onAdminSearchInput();
+}
 
 async function loadUsers() {
   try {
@@ -191,20 +250,20 @@ function renderTilesAndCharts() {
 
   document.getElementById("adminTiles").innerHTML = `
     <div class="kpi-tile tile-brand span-3">
-      <div class="kpi-tile-head"><div class="kpi-tile-icon">👤</div><div class="kpi-tile-label">${t("admin.title")}</div></div>
+      <div class="kpi-tile-head"><div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span></div><div class="kpi-tile-label">${t("admin.title")}</div></div>
       <div class="kpi-tile-value">${total}</div>
     </div>
     <div class="kpi-tile tile-accent span-3">
-      <div class="kpi-tile-head"><div class="kpi-tile-icon">✅</div><div class="kpi-tile-label">${t("common.active")}</div></div>
+      <div class="kpi-tile-head"><div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span></div><div class="kpi-tile-label">${t("common.active")}</div></div>
       <div class="kpi-tile-value">${active}</div>
       <div class="kpi-tile-sub">${total ? Math.round(active/total*100) : 0}%</div>
     </div>
     <div class="kpi-tile tile-coral span-3">
-      <div class="kpi-tile-head"><div class="kpi-tile-icon">👥</div><div class="kpi-tile-label">${t("nav.teams")}</div></div>
+      <div class="kpi-tile-head"><div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></div><div class="kpi-tile-label">${t("nav.teams")}</div></div>
       <div class="kpi-tile-value">${teamCount}</div>
     </div>
     <div class="kpi-tile tile-warm span-3">
-      <div class="kpi-tile-head"><div class="kpi-tile-icon">⚠️</div><div class="kpi-tile-label">${t("filters.no_team")}</div></div>
+      <div class="kpi-tile-head"><div class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">warning</span></div><div class="kpi-tile-label">${t("filters.no_team")}</div></div>
       <div class="kpi-tile-value">${noTeam}</div>
     </div>
   `;
@@ -301,35 +360,41 @@ function render() {
 
   const tbody = document.getElementById("tbody");
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">' + t("admin.no_users") + '</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">
+      <div>${t("admin.no_users")}</div>
+      <button type="button" class="btn btn-sm" style="margin-top:14px" onclick="resetFilters()">
+        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+        <span>${t("pf.clear_filters")}</span>
+      </button>
+    </td></tr>`;
     return;
   }
 
   tbody.innerHTML = rows.map(u => `<tr>
     <td>
-      <div class="flex items-center gap-2">
-        <div class="avatar" style="width:32px;height:32px;font-size:13px">${escapeHTML((u.full_name || "?")[0])}</div>
+      <div class="row-actor">
+        <div class="avatar avatar-sm">${escapeHTML((u.full_name || "?")[0])}</div>
         <div>
-          <div style="font-weight:600">${escapeHTML(u.full_name)}</div>
-          <div class="text-muted" style="font-size:11px">@${escapeHTML(u.username)}</div>
+          <div class="row-actor-name">${escapeHTML(u.full_name)}</div>
+          <div class="row-actor-sub">@${escapeHTML(u.username)}</div>
         </div>
       </div>
     </td>
     <td><span class="badge badge-role-${u.role}">${t("role." + u.role)}</span></td>
-    <td class="text-muted" style="font-size:12px">${u.team_name ? escapeHTML(u.team_name) : '—'}</td>
-    <td class="text-muted" style="font-size:12px">
+    <td class="admin-cell-sub">${u.team_name ? escapeHTML(u.team_name) : '—'}</td>
+    <td class="admin-cell-sub">
       ${escapeHTML(u.email || "—")}${u.phone ? "<br>" + escapeHTML(u.phone) : ""}
     </td>
     <td>${u.active
       ? '<span class="badge badge-excellent">' + t("common.active") + '</span>'
       : '<span class="badge badge-pending">' + t("common.inactive") + '</span>'}</td>
     <td>
-      <div class="flex gap-1">
-        <button class="btn btn-sm" onclick="openEdit(${u.id})">${t("common.edit")}</button>
+      <div class="flex gap-1 admin-row-actions">
+        <button class="btn btn-sm btn-primary" onclick="openEdit(${u.id})">${t("common.edit")}</button>
         <button class="btn btn-sm" onclick="toggleActive(${u.id}, ${!u.active})">
           ${u.active ? t("admin.deactivate") : t("admin.activate")}
         </button>
-        ${u.id != {{ user.id }}
+        ${u.id !== CURRENT_USER_ID
           ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">${t("common.delete")}</button>`
           : ''}
       </div>
@@ -351,6 +416,9 @@ function openNew() {
   document.getElementById("mPassword").required = true;
   document.getElementById("mPwHint").textContent = t("admin.pw_hint_new");
   document.getElementById("mError").classList.remove("show");
+  // New-user: rules visible from the start so admin sees the contract.
+  document.getElementById("mPwRules").hidden = false;
+  refreshAdminPwRules();
   applyLang(true);
   openModal("userModal");
 }
@@ -369,9 +437,38 @@ function openEdit(id) {
   document.getElementById("mPassword").required = false;
   document.getElementById("mPwHint").textContent = t("admin.pw_hint_edit");
   document.getElementById("mError").classList.remove("show");
+  // Edit flow: rules surface only once the admin starts typing a new password.
+  document.getElementById("mPwRules").hidden = true;
+  refreshAdminPwRules();
   applyLang(true);
   openModal("userModal");
 }
+
+function refreshAdminPwRules() {
+  const v = document.getElementById("mPassword").value;
+  const rules = {
+    length: v.length >= 8,
+    letter: /[A-Za-z]/.test(v),
+    digit:  /\d/.test(v),
+  };
+  document.querySelectorAll("#mPwRules li").forEach(li => {
+    const r = li.getAttribute("data-rule");
+    const passed = rules[r];
+    li.classList.toggle("passed", passed);
+    const icon = li.querySelector(".material-symbols-outlined");
+    if (icon) icon.textContent = passed ? "check_circle" : "radio_button_unchecked";
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const pw = document.getElementById("mPassword");
+  if (!pw) return;
+  pw.addEventListener("input", () => {
+    // In edit flow: hide the checklist when the field is empty (admin not changing pw).
+    if (editingId) document.getElementById("mPwRules").hidden = !pw.value;
+    refreshAdminPwRules();
+  });
+});
 
 document.getElementById("userForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -429,22 +526,76 @@ document.getElementById("userForm").addEventListener("submit", async (e) => {
   }
 });
 
+// Activate/deactivate is reversible — no blocking confirm. We perform the action,
+// then surface a toast with a one-click "Undo" that flips it back.
 async function toggleActive(id, activate) {
-  if (!activate && !confirm(t("admin.confirm_deactivate"))) return;
+  const u = users.find(x => x.id === id);
+  const userName = u ? u.full_name : "";
   try {
     await api(`/api/users/${id}/${activate ? "activate" : "deactivate"}`, { method: "POST" });
+    const msg = activate
+      ? `${t("common.saved")} — ${userName}`
+      : `${t("admin.deactivated")} — ${userName}`;
+    // Offer Undo only on deactivate (the consequential direction).
+    if (!activate) {
+      toastWithAction(msg, t("admin.undo_reactivate"), async () => {
+        try {
+          await api(`/api/users/${id}/activate`, { method: "POST" });
+          loadUsers();
+        } catch (e) { toastError(e); }
+      });
+    } else {
+      toast(msg, "success");
+    }
     loadUsers();
   } catch (e) { toastError(e); }
 }
 
-async function deleteUser(id) {
+// Delete is irreversible — surfaces a proper modal. Admin-role users require
+// typed confirmation (must type the username) on top of the modal.
+let _pendingDeleteUserId = null;
+function deleteUser(id) {
   const u = users.find(x => x.id === id);
-  if (!confirm(t("admin.confirm_delete") + " " + (u ? u.full_name : "") + "?")) return;
+  if (!u) return;
+  _pendingDeleteUserId = id;
+  document.getElementById("userDeleteName").textContent = u.full_name + " · @" + u.username;
+
+  const isAdmin = u.role === "admin";
+  const wrap = document.getElementById("userDeleteTypedWrap");
+  const typed = document.getElementById("userDeleteTyped");
+  const btn = document.getElementById("userDeleteConfirm");
+  if (isAdmin) {
+    wrap.hidden = false;
+    document.getElementById("userDeleteTypedExpected").textContent = u.username;
+    typed.value = "";
+    btn.disabled = true;
+  } else {
+    wrap.hidden = true;
+    btn.disabled = false;
+  }
+  openModal("userDeleteModal");
+}
+
+function onUserDeleteTyped() {
+  const u = users.find(x => x.id === _pendingDeleteUserId);
+  if (!u) return;
+  const typed = document.getElementById("userDeleteTyped").value.trim();
+  document.getElementById("userDeleteConfirm").disabled = (typed !== u.username);
+}
+
+async function confirmUserDelete() {
+  if (!_pendingDeleteUserId) { closeModal("userDeleteModal"); return; }
+  const id = _pendingDeleteUserId;
   try {
     await api(`/api/users/${id}`, { method: "DELETE" });
+    closeModal("userDeleteModal");
     toast(t("common.deleted"), "success");
+    _pendingDeleteUserId = null;
     loadUsers();
-  } catch (e) { toastError(e); }
+  } catch (e) {
+    closeModal("userDeleteModal");
+    toastError(e);
+  }
 }
 
 function onLangChange() { renderTilesAndCharts(); render(); }

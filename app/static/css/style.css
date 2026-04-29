@@ -1090,6 +1090,25 @@ html[dir="ltr"] .toast.show { transform: translateX(-50%) translateY(0); }
 .toast.show { opacity: 1; }
 .toast.success { border-color: rgba(0, 131, 124, 0.32); color: var(--accent-2); }
 .toast.error   { border-color: rgba(186, 26, 26, 0.32); color: var(--danger); }
+.toast.has-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: auto;
+}
+.toast-action {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toast-action:hover { filter: brightness(0.95); }
 
 /* ──────────────────────────────────────────────────────────────────
    UTILITIES
@@ -1118,6 +1137,148 @@ html[dir="ltr"] .toast.show { transform: translateX(-50%) translateY(0); }
 .gap-1 { gap: 6px; }
 .gap-2 { gap: 12px; }
 .gap-3 { gap: 18px; }
+
+/* ──────────────────────────────────────────────────────────────────
+   ADMIN / TEAMS — user CRUD + team CRUD
+   ────────────────────────────────────────────────────────────────── */
+
+/* Team list card — extracted from inline styles in teams.html render() */
+.team-card { margin-bottom: 12px; }
+.team-card-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.team-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.team-card-icon .material-symbols-outlined {
+  font-size: 22px;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+.team-card-body { flex: 1; min-width: 200px; }
+.team-card-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text);
+}
+.team-card-desc {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.team-card-meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.team-card-meta strong { margin-inline-start: 4px; color: var(--text); }
+.team-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Members fieldset — used inside the team modal */
+fieldset.field {
+  border: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+fieldset.field legend {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.team-members-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.team-member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: var(--text);
+}
+.team-member-row:hover { background: var(--surface-2); }
+.team-member-row input[type="checkbox"] { accent-color: var(--brand); }
+.team-member-row.is-hidden { display: none; }
+.team-member-username {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Admin user table — sub-cell text + action-row spacing */
+.admin-cell-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.admin-row-actions { flex-wrap: wrap; }
+
+/* Members list toolbar — Batch 4 (search + select-all) */
+.team-members-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.team-members-toolbar .pf-search-input-wrap { flex: 1; min-width: 160px; }
+.team-members-toolbar .btn { white-space: nowrap; }
+
+/* Tiny utility for description-style small text */
+.text-sm { font-size: 13px; }
+
+/* Destructive-action modals — used by admin.html, teams.html, marketing.html */
+.user-delete-name {
+  margin-top: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+.user-delete-typed-expected {
+  display: inline-block;
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  padding: 1px 8px;
+  margin-inline-start: 4px;
+  color: var(--text);
+}
+/* Cancel-first DOM order means Cancel sits in the first slot, which is
+   visually the leading edge — fine. The danger button sits at the trailing
+   edge of the footer. */
+.user-delete-footer { justify-content: flex-end; gap: 10px; }
+.user-delete-footer .btn { min-width: 100px; }
 
 /* ──────────────────────────────────────────────────────────────────
    TEAM-LEADER — headline score, my-team card, rank line
