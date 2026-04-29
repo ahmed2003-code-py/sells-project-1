@@ -502,8 +502,13 @@
     }
 
     build();
-    // Fire onChange once so the page can run its first load.
-    try { onChange(range); } catch (e) { console.error(e); }
+    // Defer the initial onChange to the next microtask so that callers
+    // doing `_drCtrl = DateRange.mount(...)` finish the assignment before
+    // their onChange handler runs. Otherwise their loadAll() reads _drCtrl
+    // when it's still null and exits early — page stays empty.
+    Promise.resolve().then(() => {
+      try { onChange(range); } catch (e) { console.error(e); }
+    });
 
     return {
       getRange: () => Object.assign({}, range),
