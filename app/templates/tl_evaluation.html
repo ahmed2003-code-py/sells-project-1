@@ -606,7 +606,7 @@ function _updateRangeWarning(range) {
 // All presets allowed; the warning banner above the per-TL list flags
 // sub-month selections so users don't misread monthly evaluations as daily.
 _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
-  defaultPreset: "this_month",
+  defaultPreset: "last_30",
   mode: "full",
   onChange: (range) => { _updateRangeWarning(range); loadAll(); },
 });

@@ -711,7 +711,7 @@ function _autoOpenFromQuery() {
 // Mount the date-range picker. onChange fires once on mount → first loadAll
 // runs there, so we don't need to call loadAll() explicitly afterward.
 _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
-  defaultPreset: "this_month",
+  defaultPreset: "last_30",
   mode: "full",                       // dashboard supports sub-month presets
   onChange: () => loadAll().then(_autoOpenFromQuery),
 });

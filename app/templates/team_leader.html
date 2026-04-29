@@ -436,7 +436,7 @@ function onLangChange() {
 //   multi-month → tl.range_warning_multimonth (latest month auto-selected)
 init().then(() => {
   _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
-    defaultPreset: "this_month",
+    defaultPreset: "last_30",
     mode: "full",
     onChange: () => loadKPI(),
   });

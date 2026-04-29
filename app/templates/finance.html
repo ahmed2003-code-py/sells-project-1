@@ -388,7 +388,7 @@ function _updateRangeWarning(range) {
 // Finance now accepts ALL presets; the warning banner above the page content
 // flags sub-month selections so users don't misread monthly totals as daily.
 _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
-  defaultPreset: "this_month",
+  defaultPreset: "last_30",
   mode: "full",
   onChange: (range) => { _updateRangeWarning(range); loadAll(); },
 });

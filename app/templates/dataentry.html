@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
-  defaultPreset: "this_month",
+  defaultPreset: "last_30",
   mode: "full",                       // dataentry can filter by submission date
   onChange: () => loadAll(),
 });
