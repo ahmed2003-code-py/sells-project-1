@@ -76,3 +76,11 @@ class Config:
     # Password reset
     PASSWORD_RESET_TTL_MINUTES = int(os.environ.get("PASSWORD_RESET_TTL_MINUTES", 30))
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "").rstrip("/")
+
+    # ─── Date-range filtering (cross-cutting feature) ──────────────────────
+    DATE_RANGE_ENABLED = _env_bool("DATE_RANGE_ENABLED", True)
+    MAX_RANGE_YEARS = int(os.environ.get("MAX_RANGE_YEARS", 5))
+
+    # Audit trail — when on, range-aware endpoints insert a row into
+    # query_audit per request. Default off; flip via env without redeploy.
+    AUDIT_QUERIES = _env_bool("AUDIT_QUERIES", False)

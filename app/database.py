@@ -386,6 +386,28 @@ def init_all_tables():
                 );
             """)
 
+            # ═══ QUERY AUDIT — default off, enabled via Config.AUDIT_QUERIES ══
+            # One row per request hitting an audit-decorated endpoint. Inserts
+            # are best-effort: failures here never break the request itself.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS query_audit (
+                    id           BIGSERIAL PRIMARY KEY,
+                    user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    role         VARCHAR(20),
+                    endpoint     VARCHAR(120) NOT NULL,
+                    method       VARCHAR(10)  NOT NULL,
+                    params       JSONB,
+                    ip           VARCHAR(64),
+                    row_count    INTEGER,
+                    duration_ms  INTEGER,
+                    status_code  SMALLINT,
+                    created_at   TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_query_audit_at        ON query_audit (created_at DESC);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_query_audit_user_at   ON query_audit (user_id, created_at DESC);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_query_audit_endpoint  ON query_audit (endpoint, created_at DESC);")
+
             # ═══ UNITS (from PropFinder) — don't touch ══════════════════════
 
         conn.commit()
