@@ -129,9 +129,9 @@ function _seedFinanceDefaults() {
   if (rate && !rate.value) rate.value = localStorage.getItem(FIN_COMMRATE_KEY) || "2.5";
 }
 
-async function loadAll() {
+async function loadAll(monthArg) {
   _seedFinanceDefaults();
-  const month = document.getElementById("selMonth").value;
+  const month = monthArg || document.getElementById("selMonth").value || currentMonth();
   const avgDeal = parseFloat(document.getElementById("avgDeal").value) || 2500000;
   const commRate = (parseFloat(document.getElementById("commissionRate").value) || 2.5) / 100;
   if (avgDeal <= 0 || commRate < 0) return toast(t("errors.invalid_input"), "error");
@@ -139,8 +139,13 @@ async function loadAll() {
   try { localStorage.setItem(FIN_COMMRATE_KEY, String(commRate * 100)); } catch {}
   try {
     const qs = `month=${month}&avg_deal_value_egp=${avgDeal}&commission_rate=${commRate}`;
-    reportData = await api(`/api/finance/report?${qs}`);
-    trendData = await api("/api/finance/trend?months_back=6");
+    // Report + trend are independent — fetch in parallel.
+    const [report, trend] = await Promise.all([
+      api(`/api/finance/report?${qs}`),
+      api("/api/finance/trend?months_back=6"),
+    ]);
+    reportData = report;
+    trendData = trend;
     render();
   } catch (e) { toastError(e); }
 }
@@ -363,6 +368,7 @@ function exportCSV() {
 
 function onLangChange() { render(); }
 
-initMonths().then(loadAll);
+// Run months listing and the initial finance fetch in parallel.
+Promise.all([initMonths(), loadAll(currentMonth())]);
 </script>
 {% endblock %}

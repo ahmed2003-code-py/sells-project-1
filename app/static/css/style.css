@@ -1271,7 +1271,9 @@ fieldset.field legend {
    ────────────────────────────────────────────────────────────────── */
 .tl-headline {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 1fr;
+  /* Gauge needs at least 380px to render legibly — squishing it below that
+     causes the gauge tick labels to overlap the value annotation. */
+  grid-template-columns: minmax(260px, 1fr) minmax(380px, 1fr);
   gap: 18px;
   margin-bottom: 22px;
   align-items: stretch;
@@ -2572,6 +2574,26 @@ kbd {
   padding: 60px 20px;
   text-align: center;
   color: var(--text-muted);
+}
+
+/* Banner shown when /api/units result was truncated to the LIMIT cap. */
+.pf-truncation-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: color-mix(in oklch, var(--warning) 12%, var(--surface-solid));
+  border: 1px solid color-mix(in oklch, var(--warning) 35%, var(--border));
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pf-truncation-notice .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--warning);
+  flex-shrink: 0;
 }
 
 /* Non-interactive card surface — same shape as .pf-card but no hover/cursor */

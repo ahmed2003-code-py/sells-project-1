@@ -64,21 +64,21 @@
     <div class="pf-filter-grid">
     <div class="field">
       <label data-i18n="pf.col_city"></label>
-      <select id="cityFilter" onchange="applyFilters()">
+      <select id="cityFilter" onchange="onServerFilterChange()">
         <option value="" data-i18n="common.all"></option>
       </select>
     </div>
 
     <div class="field">
       <label data-i18n="pf.col_developer"></label>
-      <select id="devFilter" onchange="applyFilters()">
+      <select id="devFilter" onchange="onServerFilterChange()">
         <option value="" data-i18n="common.all"></option>
       </select>
     </div>
 
     <div class="field">
       <label data-i18n="pf.col_compound"></label>
-      <select id="compoundFilter" onchange="applyFilters()">
+      <select id="compoundFilter" onchange="onServerFilterChange()">
         <option value="" data-i18n="common.all"></option>
       </select>
     </div>
@@ -92,14 +92,14 @@
 
     <div class="field">
       <label data-i18n="pf.col_type"></label>
-      <select id="typeFilter" onchange="applyFilters()">
+      <select id="typeFilter" onchange="onServerFilterChange()">
         <option value="" data-i18n="common.all"></option>
       </select>
     </div>
 
     <div class="field">
       <label data-i18n="pf.col_bedrooms"></label>
-      <select id="bedroomsFilter" onchange="applyFilters()">
+      <select id="bedroomsFilter" onchange="onServerFilterChange()">
         <option value="" data-i18n="common.all"></option>
       </select>
     </div>
@@ -270,11 +270,58 @@ async function loadStats() {
   }
 }
 
+// Track payload truncation so we can warn the user that >1000 units exist.
+let _unitsTotal = 0;
+let _unitsTruncated = false;
+// Cached facets so language toggles don't refetch.
+let _facets = null;
+
+// Server-side filters — keys must match the query-param names accepted by /api/units.
+const SERVER_FILTERS = {
+  city:     "cityFilter",
+  dev:      "devFilter",
+  compound: "compoundFilter",
+  type:     "typeFilter",
+  bedrooms: "bedroomsFilter",
+};
+
+function _serverFilterParams() {
+  const out = new URLSearchParams();
+  for (const [param, id] of Object.entries(SERVER_FILTERS)) {
+    const el = document.getElementById(id);
+    if (el && el.value) out.set(param, el.value);
+  }
+  return out;
+}
+
+async function loadFacets() {
+  try {
+    _facets = await api("/api/units/facets");
+    populateFiltersFromFacets();
+  } catch (e) {
+    // Facets failure is non-fatal — leave dropdowns empty rather than blocking the page.
+    console.error("facets:", e);
+  }
+}
+
 async function loadUnits() {
   try {
-    _allUnits = await api("/api/units");
-    populateFilters();
+    const qs = _serverFilterParams();
+    const path = qs.toString() ? `/api/units?${qs}` : "/api/units";
+    const resp = await api(path);
+    // New response shape: { units, total, truncated, limit }. Tolerate the old
+    // list shape just in case a stale cache hits.
+    if (Array.isArray(resp)) {
+      _allUnits = resp;
+      _unitsTotal = resp.length;
+      _unitsTruncated = false;
+    } else {
+      _allUnits = resp.units || [];
+      _unitsTotal = resp.total || _allUnits.length;
+      _unitsTruncated = !!resp.truncated;
+    }
     applyFilters();
+    _renderTruncationNotice();
   } catch (e) {
     document.getElementById("gridView").innerHTML =
       `<div class="pf-empty text-danger">${escapeHTML(tError(e))}</div>`;
@@ -283,32 +330,52 @@ async function loadUnits() {
   }
 }
 
-function populateFilters() {
-  const unique = (arr) => [...new Set(arr.filter(v => v != null && v !== "" && v !== "0"))].sort((a, b) => {
-    const an = Number(a), bn = Number(b);
-    if (!isNaN(an) && !isNaN(bn)) return an - bn;
-    return String(a).localeCompare(String(b));
-  });
+// Re-fetch when a server-side filter changes; everything else stays client-side.
+function onServerFilterChange() {
+  loadUnits();
+}
 
+function _renderTruncationNotice() {
+  let host = document.getElementById("pfTruncationNotice");
+  if (!host) {
+    const countBadge = document.getElementById("countBadge");
+    if (!countBadge || !countBadge.parentElement) return;
+    host = document.createElement("div");
+    host.id = "pfTruncationNotice";
+    host.className = "pf-truncation-notice";
+    host.hidden = true;
+    countBadge.parentElement.parentElement.insertAdjacentElement("afterend", host);
+  }
+  if (!_unitsTruncated) { host.hidden = true; return; }
+  host.hidden = false;
+  host.innerHTML =
+    `<span class="material-symbols-outlined" aria-hidden="true">info</span>` +
+    `<span>${t("pf.truncated_notice").replace("{shown}", fmtNum(_allUnits.length)).replace("{total}", fmtNum(_unitsTotal))}</span>`;
+}
+
+function populateFiltersFromFacets() {
+  if (!_facets) return;
   const fillSelect = (id, values, formatter) => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
     const opts = ['<option value="">' + t("common.all") + '</option>']
-      .concat(values.map(v => `<option value="${escapeHTML(v)}">${escapeHTML(formatter ? formatter(v) : v)}</option>`));
+      .concat((values || []).map(v => `<option value="${escapeHTML(v)}">${escapeHTML(formatter ? formatter(v) : v)}</option>`));
     sel.innerHTML = opts.join("");
     if (prev) sel.value = prev;
   };
 
-  fillSelect("cityFilter",      unique(_allUnits.map(u => u.city_name)));
-  fillSelect("devFilter",       unique(_allUnits.map(u => u.developer_name)));
-  fillSelect("compoundFilter",  unique(_allUnits.map(u => u.compound_name)));
-  fillSelect("phaseFilter",     unique(_allUnits.map(u => u.phase_name)));
-  fillSelect("typeFilter",      unique(_allUnits.map(u => u.unit_type)));
-  fillSelect("bedroomsFilter",  unique(_allUnits.map(u => u.bedrooms ? String(u.bedrooms) : null)));
-  fillSelect("finishingFilter", unique(_allUnits.map(u => u.finishing_type ? String(u.finishing_type) : null)),
-             v => finishingLabel(v));
+  fillSelect("cityFilter",      _facets.cities);
+  fillSelect("devFilter",       _facets.developers);
+  fillSelect("compoundFilter",  _facets.compounds);
+  fillSelect("phaseFilter",     _facets.phases);
+  fillSelect("typeFilter",      _facets.types);
+  fillSelect("bedroomsFilter",  _facets.bedrooms);
+  fillSelect("finishingFilter", _facets.finishings, v => finishingLabel(v));
 }
+
+// Kept for backwards-compat with any caller that still expects this name.
+function populateFilters() { populateFiltersFromFacets(); }
 
 function finishingLabel(v) {
   // finishing_type stored as int — best-effort labels
@@ -437,19 +504,32 @@ function clearOne(key) {
     discount: "discountFilter", priceMin: "priceMin", priceMax: "priceMax",
     areaMin: "areaMin", areaMax: "areaMax",
   };
-  const el = document.getElementById(map[key]);
-  if (el) { el.value = ""; applyFilters(); }
+  const id = map[key];
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = "";
+  // city/dev/compound/type/bed are server-side — re-fetch when cleared.
+  const serverIds = new Set(Object.values(SERVER_FILTERS));
+  if (serverIds.has(id)) loadUnits();
+  else applyFilters();
 }
 
 function resetFilters() {
+  const serverIds = new Set(Object.values(SERVER_FILTERS));
+  let serverChanged = false;
   ["searchBox","cityFilter","devFilter","compoundFilter","phaseFilter","typeFilter",
    "bedroomsFilter","finishingFilter","deliveryFilter","outdoorFilter","discountFilter",
    "priceMin","priceMax","areaMin","areaMax"].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = "";
+    if (el && el.value) {
+      if (serverIds.has(id)) serverChanged = true;
+      el.value = "";
+    }
   });
   document.getElementById("sortBy").value = "default";
-  applyFilters();
+  // Server-side filters changed → re-fetch (loadUnits also calls applyFilters).
+  if (serverChanged) loadUnits();
+  else applyFilters();
 }
 
 function renderActive() {
@@ -712,12 +792,19 @@ async function triggerSync() {
   try {
     await api("/api/sync/trigger", { method: "POST" });
     toast(t("pf.sync_started"), "success");
-    setTimeout(() => { loadSyncStatus(); loadStats(); loadUnits(); }, 3000);
+    setTimeout(() => { loadSyncStatus(); loadStats(); loadFacets(); loadUnits(); }, 3000);
   } catch (e) { toastError(e); }
   finally { btn.disabled = false; btn.textContent = prev; }
 }
 
-function onLangChange() { loadStats(); applyFilters(); loadSyncStatus(); }
+function onLangChange() {
+  loadStats();
+  // Re-render dropdown labels (finishing) using new locale strings.
+  populateFiltersFromFacets();
+  applyFilters();
+  loadSyncStatus();
+  _renderTruncationNotice();
+}
 
 function onSearchInput() {
   const sb = document.getElementById("searchBox");
@@ -760,7 +847,8 @@ async function loadFreshnessPill() {
 }
 
 loadStats();
-loadUnits();
+// Facets + units in parallel — facets feeds the dropdowns, units feeds the grid.
+Promise.all([loadFacets(), loadUnits()]);
 if (!IS_SALES) {
   loadSyncStatus();
   setInterval(loadSyncStatus, 15000);

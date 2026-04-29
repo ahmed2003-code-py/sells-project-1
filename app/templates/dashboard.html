@@ -192,10 +192,15 @@ async function initMonths() {
   } catch (e) { console.error(e); }
 }
 
-async function loadAll() {
-  const month = document.getElementById("selMonth").value;
+async function loadAll(monthArg) {
+  // Accept an explicit month so this can run in parallel with initMonths()
+  // (which populates the <select> later). Fall back to whatever the select
+  // currently shows for change-handler invocations.
+  const month = monthArg || document.getElementById("selMonth").value || currentMonth();
   try {
-    allData = await api(`/api/kpi/report?month=${month}`);
+    // detail=1 returns the per-KPI breakdown the charts (radar, heatmap,
+    // funnel, per-KPI bar, actual-vs-target) and the table both consume.
+    allData = await api(`/api/kpi/report?month=${month}&detail=1`);
     render();
   } catch (e) { toastError(e); }
 }
@@ -415,7 +420,7 @@ function renderPrimaryCharts(rows) {
     y: topN.map(r => r.user_name).reverse(),
     colors: topN.map(r => Charts.scoreColorHex(parseFloat(r.total_score) || 0)).reverse(),
     labels: topN.map(r => (parseFloat(r.total_score)||0).toFixed(1) + "%").reverse(),
-  });
+  }, { measureLabels: true });
 
   // 6) Per-KPI achievement bar
   const kpiAvgs = KPI_KEYS.map(key => {
@@ -721,6 +726,8 @@ function _autoOpenFromQuery() {
   } catch {}
 }
 
-initMonths().then(loadAll).then(_autoOpenFromQuery);
+// Run the months listing and the report fetch in parallel — both depend only
+// on the browser's notion of "current month", not on each other.
+Promise.all([initMonths(), loadAll(currentMonth())]).then(_autoOpenFromQuery);
 </script>
 {% endblock %}

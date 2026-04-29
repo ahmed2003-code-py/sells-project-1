@@ -60,10 +60,49 @@ function _bumpToken(id) {
   return next;
 }
 
+// Per-container ResizeObserver registry. Plotly's `responsive: true` only
+// reacts to window resizes — when a chart's PARENT changes size (e.g. opening
+// a <details> deep-dive panel, sidebar collapse, mobile drawer), Plotly stays
+// at its old layout. A debounced ResizeObserver per container fixes that.
+const _resizeObservers = new Map();   // id → ResizeObserver
+const _resizeDebounce  = new Map();   // id → setTimeout handle
+
+function _attachResizeObserver(el) {
+  if (typeof ResizeObserver === 'undefined') return;
+  if (!el || !el.id) return;
+  // Already observing? Disconnect first so each fresh draw starts clean.
+  const prev = _resizeObservers.get(el.id);
+  if (prev) { try { prev.disconnect(); } catch (_) {} }
+  const ro = new ResizeObserver(() => {
+    const handle = _resizeDebounce.get(el.id);
+    if (handle) clearTimeout(handle);
+    _resizeDebounce.set(el.id, setTimeout(() => {
+      _resizeDebounce.delete(el.id);
+      // Element may have been detached (route change / template re-render).
+      if (!el.isConnected) return;
+      try {
+        if (typeof Plotly !== 'undefined' && Plotly.Plots && Plotly.Plots.resize) {
+          Plotly.Plots.resize(el);
+        }
+      } catch (_) {}
+    }, 100));
+  });
+  try { ro.observe(el); } catch (_) { return; }
+  _resizeObservers.set(el.id, ro);
+}
+
+function _detachResizeObserver(id) {
+  const ro = _resizeObservers.get(id);
+  if (ro) { try { ro.disconnect(); } catch (_) {} _resizeObservers.delete(id); }
+  const handle = _resizeDebounce.get(id);
+  if (handle) { clearTimeout(handle); _resizeDebounce.delete(id); }
+}
+
 // Single entry point for every chart mount. Bumps the container's token,
 // waits for Plotly, then on resolution: re-checks the token, purges Plotly
 // internal state on the element, wipes innerHTML (removes .chart-skel and
-// any leftover empty-state), and calls Plotly.newPlot.
+// any leftover empty-state), calls Plotly.newPlot, and attaches a debounced
+// ResizeObserver so parent-size changes redraw at the correct dimensions.
 function _drawChart(el, traces, layout, config) {
   if (!el || !el.id) return;
   const id = el.id;
@@ -73,6 +112,7 @@ function _drawChart(el, traces, layout, config) {
     try { if (typeof Plotly !== 'undefined' && Plotly.purge) Plotly.purge(el); } catch (_) {}
     el.innerHTML = '';
     Plotly.newPlot(el, traces, layout, config);
+    _attachResizeObserver(el);
   });
 }
 
@@ -84,6 +124,7 @@ function cancelPending(elOrId) {
   const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
   if (!el || !el.id) return;
   _bumpToken(el.id);
+  _detachResizeObserver(el.id);
   try { if (typeof Plotly !== 'undefined' && Plotly.purge) Plotly.purge(el); } catch (_) {}
 }
 
@@ -197,6 +238,22 @@ function drawBarChart(containerId, data, options = {}) {
   _drawChart(el, [trace], layout, _chartConfig());
 }
 
+// Reused canvas for label width measurement — avoids creating a new context per call.
+let _measureCanvas = null;
+function _measureLabelWidth(labels, fontPx, fontFamily) {
+  if (!labels || !labels.length) return 0;
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  ctx.font = `${fontPx}px ${fontFamily}`;
+  let max = 0;
+  for (const l of labels) {
+    if (l == null) continue;
+    const w = ctx.measureText(String(l)).width;
+    if (w > max) max = w;
+  }
+  return max;
+}
+
 function drawHorizontalBar(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -217,9 +274,19 @@ function drawHorizontalBar(containerId, data, options = {}) {
     hovertemplate: '<b>%{y}</b><br>%{x}<extra></extra>',
   };
 
+  // Pre-measure the longest y-label when requested so long names (e.g. full
+  // Arabic names of sales reps) don't overflow into the bars. Cap at 300px.
+  let leftMargin = 180;
+  if (options.measureLabels === true) {
+    const measured = _measureLabelWidth(data.y, 11, _chartFontFamily());
+    if (measured > 0) {
+      leftMargin = Math.min(300, Math.max(leftMargin, Math.ceil(measured) + 24));
+    }
+  }
+
   const layout = chartLayout({
     showlegend: false,
-    margin: { l: 130, r: 80, t: 24, b: 40 },
+    margin: { l: leftMargin, r: 80, t: 24, b: 40 },
     bargap: 0.35,
     ...options,
   });
@@ -230,6 +297,11 @@ function drawHorizontalBar(containerId, data, options = {}) {
 function drawDonut(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
+
+  // Single-category donut renders as a full ring; the legend is redundant
+  // and overlaps the slice label. Drop it and shrink the bottom margin.
+  const isSingle = !data.values || data.values.length <= 1;
+  const showLegend = isSingle ? false : (options.showlegend !== false);
 
   const trace = {
     type: 'pie',
@@ -248,9 +320,9 @@ function drawDonut(containerId, data, options = {}) {
   };
 
   const layout = chartLayout({
-    showlegend: options.showlegend !== false,
+    showlegend: showLegend,
     legend: { orientation: 'h', y: -0.05, x: 0.5, xanchor: 'center' },
-    margin: { t: 20, r: 20, b: 70, l: 20 },
+    margin: { t: 20, r: 20, b: showLegend ? 90 : 30, l: 20 },
     annotations: options.centerText ? [{
       text: options.centerText,
       showarrow: false,

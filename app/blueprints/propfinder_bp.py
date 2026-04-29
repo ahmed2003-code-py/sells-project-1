@@ -8,10 +8,12 @@ import threading
 import psycopg2
 import psycopg2.extras
 from decimal import Decimal
-from flask import Blueprint, jsonify, Response, session
+from flask import Blueprint, jsonify, request, Response, session
 from app.database import get_conn, table_exists
 from app.auth import error_response, login_required, role_required
 from config import Config
+
+UNITS_LIMIT = 1000  # Hard cap on /api/units result set; frontend shows a notice when truncated.
 
 log = logging.getLogger(__name__)
 propfinder_bp = Blueprint("propfinder", __name__, url_prefix="/api")
@@ -55,18 +57,57 @@ def health():
     })
 
 
+def _strip_arg(name):
+    """Read a query arg, trimmed; return None for empty/whitespace."""
+    v = request.args.get(name)
+    if v is None:
+        return None
+    v = v.strip()
+    return v or None
+
+
 @propfinder_bp.route("/units")
 @login_required
 def get_units():
     # Sales role is restricted to AVAILABLE (unsold) units only.
     available_only = session.get("role") == "sales"
+
+    # Server-side filters (Round 3, Fix #5). Search/price/area/sort still run
+    # client-side since they're either fuzzy or low-cardinality.
+    f_city     = _strip_arg("city")
+    f_dev      = _strip_arg("dev")
+    f_compound = _strip_arg("compound")
+    f_type     = _strip_arg("type")
+    f_bedrooms = _strip_arg("bedrooms")
+
     try:
         conn = get_conn()
         try:
             if not table_exists(conn, "units"):
-                return _json_response([])
+                return _json_response({"units": [], "total": 0, "truncated": False})
 
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                where = []
+                params = []
+                if available_only:
+                    where.append("COALESCE(is_sold, false) = false")
+                if f_city:
+                    where.append("city_name = %s"); params.append(f_city)
+                if f_dev:
+                    where.append("developer_name = %s"); params.append(f_dev)
+                if f_compound:
+                    where.append("compound_name = %s"); params.append(f_compound)
+                if f_type:
+                    where.append("unit_type = %s"); params.append(f_type)
+                if f_bedrooms:
+                    # bedrooms in DB may be int or text; compare via text cast.
+                    where.append("CAST(bedrooms AS TEXT) = %s"); params.append(f_bedrooms)
+
+                where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+
+                cur.execute("SELECT COUNT(*) AS c FROM units" + where_sql, params)
+                total = int(cur.fetchone()["c"])
+
                 query = """
                     SELECT
                         city_name, compound_name, compound_id,
@@ -87,11 +128,8 @@ def get_units():
                         type_id,
                         COALESCE(is_sold, false) AS is_sold
                     FROM units
-                """
-                if available_only:
-                    query += " WHERE COALESCE(is_sold, false) = false "
-                query += " ORDER BY detail_id ASC"
-                cur.execute(query)
+                """ + where_sql + " ORDER BY detail_id ASC LIMIT %s"
+                cur.execute(query, params + [UNITS_LIMIT])
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -103,9 +141,64 @@ def get_units():
                 if isinstance(v, float) and v != v:
                     d[k] = None
             cleaned.append(d)
-        return _json_response(cleaned)
+        return _json_response({
+            "units": cleaned,
+            "total": total,
+            "truncated": total > UNITS_LIMIT,
+            "limit": UNITS_LIMIT,
+        })
     except Exception as e:
         log.error(f"Error fetching units: {e}")
+        return _json_response({"error_code": "server", "error": "server"}, 500)
+
+
+@propfinder_bp.route("/units/facets")
+@login_required
+def get_units_facets():
+    """DISTINCT values for filter dropdowns. Sales role sees only AVAILABLE units."""
+    available_only = session.get("role") == "sales"
+    try:
+        conn = get_conn()
+        try:
+            if not table_exists(conn, "units"):
+                return _json_response({
+                    "cities": [], "developers": [], "compounds": [],
+                    "phases": [], "types": [], "bedrooms": [], "finishings": [],
+                })
+
+            scope = " WHERE COALESCE(is_sold, false) = false " if available_only else ""
+
+            def _distinct(col, cast_text=False):
+                expr = f"CAST({col} AS TEXT)" if cast_text else col
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"SELECT DISTINCT {expr} FROM units{scope} "
+                        f"AND {col} IS NOT NULL AND {expr} <> '' AND {expr} <> '0'"
+                        if scope else
+                        f"SELECT DISTINCT {expr} FROM units "
+                        f"WHERE {col} IS NOT NULL AND {expr} <> '' AND {expr} <> '0'"
+                    )
+                    vals = [r[0] for r in cur.fetchall() if r[0] is not None]
+                # Mixed int/string — sort numerically when possible.
+                def _key(v):
+                    try: return (0, float(v))
+                    except (TypeError, ValueError): return (1, str(v))
+                return sorted(vals, key=_key)
+
+            facets = {
+                "cities":     _distinct("city_name"),
+                "developers": _distinct("developer_name"),
+                "compounds":  _distinct("compound_name"),
+                "phases":     _distinct("phase_name"),
+                "types":      _distinct("unit_type"),
+                "bedrooms":   _distinct("bedrooms", cast_text=True),
+                "finishings": _distinct("finishing_type", cast_text=True),
+            }
+        finally:
+            conn.close()
+        return _json_response(facets)
+    except Exception as e:
+        log.error(f"Error fetching unit facets: {e}")
         return _json_response({"error_code": "server", "error": "server"}, 500)
 
 

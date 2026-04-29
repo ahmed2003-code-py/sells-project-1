@@ -347,6 +347,10 @@ def delete_entry(entry_id):
 def report():
     month = request.args.get("month")
     user_id_filter = request.args.get("user_id")
+    # ?detail=1 → include the full per-KPI breakdown (dashboard charts need this).
+    # Default omits it so the data-entry page (which never reads breakdown) gets
+    # a smaller payload and skips the per-row compute_score work.
+    want_detail = request.args.get("detail") in ("1", "true", "yes")
 
     if session.get("role") == "sales":
         return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
@@ -373,9 +377,10 @@ def report():
                 rows = [dict(r) for r in cur.fetchall()]
         finally:
             conn.close()
-        for row in rows:
-            _, _, breakdown = compute_score(row)
-            row["breakdown"] = breakdown
+        if want_detail:
+            for row in rows:
+                _, _, breakdown = compute_score(row)
+                row["breakdown"] = breakdown
         return _json(rows)
     except Exception as e:
         log.error(f"report error: {e}")
