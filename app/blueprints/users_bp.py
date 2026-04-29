@@ -50,14 +50,19 @@ def list_users():
             # falling back to "the team they belong to". This way TLs
             # always show their own team even when users.team_id wasn't
             # written when the team was created.
+            # team_leader_id/team_leader_name: only meaningful for sales reps
+            # (their TL is tm.leader_id). NULL for all other roles.
             q = """SELECT u.id, u.username, u.full_name, u.role, u.email, u.phone,
                           u.active,
                           COALESCE(tl.id,   u.team_id) AS team_id,
                           COALESCE(tl.name, tm.name)   AS team_name,
+                          CASE WHEN u.role = 'sales' THEN tm.leader_id END AS team_leader_id,
+                          CASE WHEN u.role = 'sales' THEN tlu.full_name END AS team_leader_name,
                           u.created_at, u.updated_at, u.last_login
                    FROM users u
                    LEFT JOIN teams tm ON tm.id        = u.team_id
                    LEFT JOIN teams tl ON tl.leader_id = u.id
+                   LEFT JOIN users tlu ON tlu.id      = tm.leader_id
                    WHERE 1=1"""
             params = []
             if role_filter:

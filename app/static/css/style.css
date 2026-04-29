@@ -1365,6 +1365,156 @@ fieldset.field legend {
   margin-top: 2px;
 }
 
+/* TL members list — Section 04 (TL-05/TL-06) */
+.tl-members-card {
+  margin-bottom: 22px;
+}
+.tl-members-card .card-title {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.tl-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tl-member-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  background: rgba(241, 243, 255, 0.35);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.tl-member-row:hover { background: rgba(241, 243, 255, 0.65); border-color: var(--border); }
+.tl-member-name { min-width: 0; }
+.tl-member-name-line {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tl-member-name-sub {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.tl-member-score {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--brand);
+  min-width: 56px;
+  text-align: end;
+}
+.tl-member-score.is-empty { color: var(--text-dim); font-weight: 500; }
+@media (max-width: 720px) {
+  .tl-member-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "avatar name"
+      "status status"
+      "rating score";
+    gap: 8px 12px;
+    padding: 12px;
+  }
+  .tl-member-row > .avatar { grid-area: avatar; }
+  .tl-member-row > .tl-member-name { grid-area: name; }
+  .tl-member-row > .badge:nth-of-type(1) { grid-area: status; justify-self: start; }
+  .tl-member-row > .badge:nth-of-type(2) { grid-area: rating; justify-self: start; }
+  .tl-member-row > .tl-member-score { grid-area: score; justify-self: end; min-width: auto; }
+}
+
+/* TL evaluation card — head row + expandable members panel */
+.tl-eval-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.tl-eval-members {
+  margin-top: 12px;
+  border-top: 1px solid var(--outline-variant);
+  padding-top: 10px;
+}
+.tl-eval-members > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  user-select: none;
+  transition: background 0.15s var(--ease);
+}
+.tl-eval-members > summary::-webkit-details-marker { display: none; }
+.tl-eval-members > summary:hover { background: rgba(124, 131, 253, 0.10); }
+.tl-eval-members-chev {
+  font-size: 18px;
+  transition: transform 0.2s var(--ease);
+}
+.tl-eval-members[open] > summary .tl-eval-members-chev { transform: rotate(180deg); }
+.tl-eval-members[open] > summary .tl-eval-members-label::before {
+  content: attr(data-expanded);
+}
+.tl-eval-members:not([open]) > summary .tl-eval-members-label::before {
+  content: attr(data-collapsed);
+}
+.tl-eval-members > summary .tl-eval-members-label {
+  /* Hide the original textContent so the ::before content shows instead. */
+  font-size: 0;
+}
+.tl-eval-members > summary .tl-eval-members-label::before {
+  font-size: 13px;
+}
+
+/* Unassigned-sales card on the manager evaluation page */
+.tl-eval-unassigned-card {
+  border-color: rgba(196, 114, 0, 0.32);
+  background: linear-gradient(180deg, rgba(255, 244, 224, 0.55), var(--surface-solid) 60%);
+}
+.tl-eval-unassigned-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.tl-eval-unassigned-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(196, 114, 0, 0.12);
+  color: var(--warning);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tl-eval-unassigned-icon .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+  font-size: 22px;
+}
+.tl-eval-unassigned-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+.tl-eval-unassigned-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 /* Per-KPI drill-down modal — Batch 6 */
 .kpi-drill-grid {
   display: grid;

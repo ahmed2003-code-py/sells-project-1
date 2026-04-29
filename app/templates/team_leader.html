@@ -47,6 +47,16 @@
     <div class="tl-team-grid" id="tlTeamGrid"></div>
   </div>
 
+  <!-- My team members list — TL-05/TL-06: every sales rep on this team
+       with name, status, and per-rep performance summary. -->
+  <div class="card tl-members-card" id="tlMembersCard" hidden>
+    <div class="card-title">
+      <span data-i18n="tl.team_members"></span>
+      <span class="text-muted" style="font-size:11px;margin-inline-start:8px" data-i18n="tl.team_members_hint"></span>
+    </div>
+    <div id="tlMembersList" class="tl-members-list"></div>
+  </div>
+
   <!-- Pending-eval callout (renders only when manual fields haven't been scored yet) -->
   <div class="tl-pending-callout" id="tlPendingCallout" hidden>
     <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
@@ -153,6 +163,7 @@ function render(data) {
 
   // My team card — only shown if the TL has team data this month.
   renderTeamCard(data);
+  renderTeamMembers(data);
 
   // Pending-eval card-level callout
   const isPending = !data.tl_entry || !data.tl_entry.dataentry_submitted_at;
@@ -284,6 +295,55 @@ function renderTeamCard(data) {
       <div class="val">${s.val}</div>
       ${s.sub ? `<div class="sub">${s.sub}</div>` : ""}
     </div>`).join("");
+}
+
+function memberStatusBadge(status) {
+  // evaluated → final score locked; submitted → awaiting eval; pending → not started.
+  const map = {
+    evaluated: { cls: "badge-excellent", key: "tl.member_status_evaluated" },
+    submitted: { cls: "badge-pending",   key: "tl.member_status_submitted" },
+    pending:   { cls: "badge-pending",   key: "tl.member_status_pending"   },
+  };
+  const m = map[status] || map.pending;
+  return `<span class="badge ${m.cls}">${t(m.key)}</span>`;
+}
+
+function renderTeamMembers(data) {
+  const card = document.getElementById("tlMembersCard");
+  const host = document.getElementById("tlMembersList");
+  if (!card || !host) return;
+  const members = Array.isArray(data.members) ? data.members : [];
+  if (!members.length) {
+    card.hidden = false;
+    host.innerHTML = `<div class="empty-state" style="padding:28px 12px">
+      <div class="empty-state-icon"><span class="material-symbols-outlined" aria-hidden="true">person_off</span></div>
+      <div>${t("tl.team_members_empty")}</div>
+    </div>`;
+    return;
+  }
+  card.hidden = false;
+  host.innerHTML = members.map(m => {
+    const score = (m.total_score == null) ? null : Number(m.total_score);
+    const rating = m.rating || (score != null ? localRating(score) : null);
+    const ratingBadge = rating
+      ? `<span class="badge ${ratingClass(rating)}">${t("rating." + rating)}</span>`
+      : "";
+    const scoreCell = score != null
+      ? `<span class="tl-member-score">${score.toFixed(1)}%</span>`
+      : `<span class="tl-member-score is-empty">${t("tl.member_no_score")}</span>`;
+    const initial = escapeHTMLForTL((m.full_name || "?").trim().charAt(0));
+    return `
+      <div class="tl-member-row" data-status="${escapeHTMLForTL(m.status)}">
+        <div class="avatar avatar-sm">${initial}</div>
+        <div class="tl-member-name">
+          <div class="tl-member-name-line">${escapeHTMLForTL(m.full_name || "—")}</div>
+          <div class="tl-member-name-sub text-muted">@${escapeHTMLForTL(m.username || "")}</div>
+        </div>
+        ${memberStatusBadge(m.status)}
+        ${ratingBadge}
+        ${scoreCell}
+      </div>`;
+  }).join("");
 }
 
 function escapeHTMLForTL(s) {

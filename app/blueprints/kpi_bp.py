@@ -549,6 +549,21 @@ def get_tl_kpi(tl_user_id, month):
                 """, (team_id, month))
                 team_entries = [dict(r) for r in cur.fetchall()]
 
+                # Per-rep list for TL-05/TL-06: every active sales rep on this team,
+                # with their entry data if it exists (LEFT JOIN — reps with no entry
+                # this month still appear so the TL sees their full team).
+                cur.execute("""
+                    SELECT u.id, u.full_name, u.username,
+                           e.total_score, e.rating,
+                           e.sales_submitted_at, e.dataentry_submitted_at
+                    FROM users u
+                    LEFT JOIN kpi_entries e
+                      ON e.user_id = u.id AND e.month = %s
+                    WHERE u.team_id = %s AND u.role = 'sales' AND u.active = true
+                    ORDER BY e.total_score DESC NULLS LAST, u.full_name ASC
+                """, (month, team_id))
+                member_rows = [dict(r) for r in cur.fetchall()]
+
                 # Rank context — this TL's standing among all active TLs for the month.
                 cur.execute("""
                     SELECT u.id, u.full_name, e.total_score
@@ -584,6 +599,28 @@ def get_tl_kpi(tl_user_id, month):
         tl_total = len(tl_rows)
         tl_avg = (sum(s for _, s in tl_scored) / len(tl_scored)) if tl_scored else 0.0
 
+        # Per-rep member list — Section 04, TL-05/TL-06.
+        # Status semantics:
+        #   evaluated   → dataentry_submitted_at is set (final score locked)
+        #   submitted   → sales_submitted_at is set, evaluation pending
+        #   pending     → no entry yet for this month
+        members = []
+        for r in member_rows:
+            if r.get("dataentry_submitted_at"):
+                status = "evaluated"
+            elif r.get("sales_submitted_at"):
+                status = "submitted"
+            else:
+                status = "pending"
+            members.append({
+                "id":        r["id"],
+                "full_name": r["full_name"],
+                "username":  r["username"],
+                "total_score": float(r["total_score"]) if r.get("total_score") is not None else None,
+                "rating":      r.get("rating"),
+                "status":      status,
+            })
+
         return _json({
             "tl_entry": tl_entry,
             "team_size": team_size,
@@ -601,6 +638,8 @@ def get_tl_kpi(tl_user_id, month):
             "tl_rank":  tl_rank,
             "tl_total": tl_total,
             "tl_avg":   round(tl_avg, 1),
+            # Section 04 — per-rep visibility for TL-05/TL-06
+            "members":  members,
         })
     except Exception as e:
         log.error(f"get_tl_kpi error: {e}")
@@ -699,11 +738,15 @@ def teams_summary():
         finally:
             conn.close()
 
-        # Group sales by team_id (skip those with no team)
+        # Group sales by team_id; collect unassigned (team_id IS NULL) separately
+        # so the manager view can surface them as a flagged "Unassigned" card
+        # rather than silently dropping them from the totals (TL-07).
         by_team = {}
+        unassigned_rows = []
         for r in sales_rows:
             tid = r.get("team_id")
             if tid is None:
+                unassigned_rows.append(r)
                 continue
             by_team.setdefault(int(tid), []).append(r)
 
@@ -729,6 +772,29 @@ def teams_summary():
 
             ld = leader_kpi.get(int(t["leader_id"])) if t["leader_id"] else None
 
+            # Per-rep list — same shape as tl-kpi's members so the manager
+            # cards and the TL's own page can share rendering.
+            member_list = []
+            for m in members:
+                if m.get("dataentry_submitted_at"):
+                    mstatus = "evaluated"
+                elif m.get("sales_submitted_at"):
+                    mstatus = "submitted"
+                else:
+                    mstatus = "pending"
+                member_list.append({
+                    "id":          m["user_id"],
+                    "full_name":   m["full_name"],
+                    "total_score": float(m["total_score"]) if m.get("total_score") is not None else None,
+                    "rating":      m.get("rating"),
+                    "status":      mstatus,
+                })
+            # Sort: highest score first, NULLs last; alpha tiebreak.
+            member_list.sort(key=lambda x: (
+                -(x["total_score"] if x["total_score"] is not None else -1),
+                x["full_name"] or "",
+            ))
+
             out.append({
                 "team_id":           tid,
                 "team_name":         t["team_name"],
@@ -747,6 +813,7 @@ def teams_summary():
                 "total_meetings":     int(_sum("meetings")),
                 "total_deals":        int(_sum("deals")),
                 "total_reservations": int(_sum("reservations")),
+                "members":            member_list,
             })
 
         # Rank: highest avg_member_score first, then by member_count
@@ -754,7 +821,36 @@ def teams_summary():
         for i, row in enumerate(out, 1):
             row["rank"] = i
 
-        return _json(out)
+        # Unassigned bucket — sales reps with no team. Same per-rep fields
+        # as the tl-kpi members array so the UI can render them with the
+        # same row template.
+        unassigned_members = []
+        for r in unassigned_rows:
+            if r.get("dataentry_submitted_at"):
+                status = "evaluated"
+            elif r.get("sales_submitted_at"):
+                status = "submitted"
+            else:
+                status = "pending"
+            unassigned_members.append({
+                "id":          r["user_id"],
+                "full_name":   r["full_name"],
+                "total_score": float(r["total_score"]) if r.get("total_score") is not None else None,
+                "rating":      r.get("rating"),
+                "status":      status,
+            })
+        u_submitted = sum(1 for m in unassigned_rows if m.get("sales_submitted_at"))
+        u_evaluated = sum(1 for m in unassigned_rows if m.get("dataentry_submitted_at"))
+
+        return _json({
+            "teams": out,
+            "unassigned": {
+                "member_count":      len(unassigned_members),
+                "members_submitted": u_submitted,
+                "members_evaluated": u_evaluated,
+                "members":           unassigned_members,
+            },
+        })
     except Exception as e:
         log.error(f"teams_summary error: {e}")
         return _json({"error_code": "server", "error": str(e)}, 500)

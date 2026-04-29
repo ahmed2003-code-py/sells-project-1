@@ -417,6 +417,13 @@ const I18N = {
     "tl.bars_click_hint": "اضغط على أي عمود للتفاصيل",
     "tl.drill_hint": "هذه التفاصيل من تقرير الشهر الحالي. لمعرفة تطورك عبر الأشهر، اطلب من المدير عرض الترند.",
     "tl.team_submitted_of": "من الفريق سلّموا",
+    "tl.team_members": "أعضاء الفريق",
+    "tl.team_members_hint": "كل مبيعات في فريقك مع حالة هذا الشهر",
+    "tl.team_members_empty": "لا يوجد مبيعات مرتبطين بهذا الفريق",
+    "tl.member_status_evaluated": "مُقيَّم",
+    "tl.member_status_submitted": "في انتظار التقييم",
+    "tl.member_status_pending": "لم يبدأ بعد",
+    "tl.member_no_score": "—",
 
     /* ─── TL evaluation ─── */
     "tl_eval.title": "تقييم التيم ليدر",
@@ -441,6 +448,14 @@ const I18N = {
     "tl_eval.evaluated_short": "مُقيَّم",
     "tl_eval.top_performer": "الأعلى أداءً",
     "tl_eval.no_teams_data": "لا توجد فرق لعرض أدائها",
+    "tl_eval.expand_team": "عرض أعضاء الفريق",
+    "tl_eval.collapse_team": "إخفاء أعضاء الفريق",
+    "tl_eval.unassigned_title": "مبيعات بدون قائد فريق",
+    "tl_eval.unassigned_hint": "هؤلاء المبيعات غير مرتبطين بأي فريق. اسندهم من صفحة الفرق.",
+    "tl_eval.unassigned_count": "{n} بدون قائد فريق",
+    "tl_eval.unassigned_assign": "إسناد إلى فريق",
+    "tl_eval.no_members": "لا يوجد أعضاء",
+    "common.unassigned": "بدون قائد فريق",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",
@@ -1063,6 +1078,13 @@ const I18N = {
     "tl.bars_click_hint": "Click any bar for details",
     "tl.drill_hint": "These details cover this month only. Ask your manager to share the multi-month trend if you need it.",
     "tl.team_submitted_of": "team members submitted",
+    "tl.team_members": "Team Members",
+    "tl.team_members_hint": "Each sales rep on your team with their status this month",
+    "tl.team_members_empty": "No sales reps are assigned to this team",
+    "tl.member_status_evaluated": "Evaluated",
+    "tl.member_status_submitted": "Awaiting evaluation",
+    "tl.member_status_pending": "Not started",
+    "tl.member_no_score": "—",
 
     /* ─── tl evaluation ─── */
     "tl_eval.title": "TL Evaluation",
@@ -1087,6 +1109,14 @@ const I18N = {
     "tl_eval.evaluated_short": "evaluated",
     "tl_eval.top_performer": "Top performer",
     "tl_eval.no_teams_data": "No teams to display",
+    "tl_eval.expand_team": "Show team members",
+    "tl_eval.collapse_team": "Hide team members",
+    "tl_eval.unassigned_title": "Unassigned Sales",
+    "tl_eval.unassigned_hint": "These sales reps aren't on any team. Assign them from the Teams page.",
+    "tl_eval.unassigned_count": "{n} Unassigned",
+    "tl_eval.unassigned_assign": "Assign to a team",
+    "tl_eval.no_members": "No members",
+    "common.unassigned": "Unassigned",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",

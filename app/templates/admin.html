@@ -382,7 +382,15 @@ function render() {
       </div>
     </td>
     <td><span class="badge badge-role-${u.role}">${t("role." + u.role)}</span></td>
-    <td class="admin-cell-sub">${u.team_name ? escapeHTML(u.team_name) : '—'}</td>
+    <td class="admin-cell-sub">${
+      u.team_name
+        ? (u.role === 'sales' && u.team_leader_name
+            ? escapeHTML(u.team_name) + ` <span class="text-muted" style="font-size:11px">· ${escapeHTML(u.team_leader_name)}</span>`
+            : escapeHTML(u.team_name))
+        : (u.role === 'sales'
+            ? `<span class="badge badge-pending" title="${escapeHTML(t('tl_eval.unassigned_hint'))}">${t('common.unassigned')}</span>`
+            : '—')
+    }</td>
     <td class="admin-cell-sub">
       ${escapeHTML(u.email || "—")}${u.phone ? "<br>" + escapeHTML(u.phone) : ""}
     </td>
