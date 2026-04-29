@@ -63,7 +63,7 @@
 <div class="controls">
   <div class="field">
     <label data-i18n="common.month"></label>
-    <select id="selMonth" onchange="loadAll()"></select>
+    <div id="dateRangeHost"></div>
   </div>
   <div class="field">
     <label data-i18n="common.filter"></label>
@@ -168,39 +168,22 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}"></script>
 <script>
 let allData = [];
+let _drCtrl = null;
 
 const KPI_KEYS = ["calls","meetings","crm_pct","deals","reports","reservations","attitude","presentation","followup_pct","behaviour","appearance","attendance_pct","hr_roles"];
 
 function kpiLabel(key) { return t("kpi." + key); }
 
-async function initMonths() {
-  try {
-    const months = await api("/api/kpi/months");
-    const sel = document.getElementById("selMonth");
-    const cur = currentMonth();
-    sel.innerHTML = "";
-    const monthSet = new Set(months);
-    monthSet.add(cur);
-    [...monthSet].sort().reverse().forEach(m => {
-      const o = document.createElement("option");
-      o.value = m; o.textContent = fmtMonth(m);
-      if (m === cur) o.selected = true;
-      sel.appendChild(o);
-    });
-  } catch (e) { console.error(e); }
-}
-
-async function loadAll(monthArg) {
-  // Accept an explicit month so this can run in parallel with initMonths()
-  // (which populates the <select> later). Fall back to whatever the select
-  // currently shows for change-handler invocations.
-  const month = monthArg || document.getElementById("selMonth").value || currentMonth();
+async function loadAll() {
+  if (!_drCtrl) return;
   try {
     // detail=1 returns the per-KPI breakdown the charts (radar, heatmap,
     // funnel, per-KPI bar, actual-vs-target) and the table both consume.
-    allData = await api(`/api/kpi/report?month=${month}&detail=1`);
+    const qs = _drCtrl.toQueryString({ detail: 1 });
+    allData = await api(`/api/kpi/report?${qs}`);
     render();
   } catch (e) { toastError(e); }
 }
@@ -702,32 +685,35 @@ function exportCSV() {
   a.click();
 }
 
-function onLangChange() { render(); }
+function onLangChange() {
+  if (_drCtrl) _drCtrl.refreshLabels();
+  render();
+}
 
 // Allow other pages (e.g. data-entry) to deep-link into a specific rep's detail panel.
-// URL: /dashboard?user=<id>&month=YYYY-MM
+// URL: /dashboard?user=<id>&month=YYYY-MM (legacy) or ?user=<id>&from=&to=
 function _autoOpenFromQuery() {
   try {
     const qs = new URLSearchParams(window.location.search);
     const userId = qs.get("user");
-    const month = qs.get("month");
-    if (!userId || !month) return;
-    const sel = document.getElementById("selMonth");
-    if (sel && [...sel.options].some(o => o.value === month)) sel.value = month;
+    if (!userId) return;
     const id = Number(userId);
-    if (!isNaN(id)) {
-      // Wait until allData is populated by the initial loadAll().
-      const tryOpen = () => {
-        const entry = allData.find(r => r.user_id === id && r.month === month);
-        if (entry) showDetail(id, month);
-      };
-      setTimeout(tryOpen, 200);
-    }
+    if (isNaN(id)) return;
+    // Wait until allData is populated. Match by user_id; any month in range works.
+    const tryOpen = () => {
+      const entry = allData.find(r => r.user_id === id);
+      if (entry) showDetail(id, entry.month);
+    };
+    setTimeout(tryOpen, 200);
   } catch {}
 }
 
-// Run the months listing and the report fetch in parallel — both depend only
-// on the browser's notion of "current month", not on each other.
-Promise.all([initMonths(), loadAll(currentMonth())]).then(_autoOpenFromQuery);
+// Mount the date-range picker. onChange fires once on mount → first loadAll
+// runs there, so we don't need to call loadAll() explicitly afterward.
+_drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
+  defaultPreset: "this_month",
+  mode: "full",                       // dashboard supports sub-month presets
+  onChange: () => loadAll().then(_autoOpenFromQuery),
+});
 </script>
 {% endblock %}
