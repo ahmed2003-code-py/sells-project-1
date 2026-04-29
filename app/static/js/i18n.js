@@ -485,6 +485,7 @@ const I18N = {
     "errors.sub_month_not_allowed": "العرض ده بيدعم نطاقات شهرية بس.",
     "errors.invalid_preset": "النطاق المختار غير صالح.",
     "finance.range_warning_submonth": "<strong>تنبيه:</strong> الأرقام المالية إجمالات شهرية. النطاق ده بيفلتر القيود اللي اتقدمت في الفترة دي بس — الإيراد المعروض لكل صف بيغطي الشهر بالكامل.",
+    "tl_eval.range_warning_submonth": "<strong>تنبيه:</strong> تقييم الـ TL شهري. النطاق ده بيعرض الـ TLs اللي اتقيِّموا في الفترة دي بس — كل تقييم بيغطي شهر كامل.",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",
@@ -1175,6 +1176,7 @@ const I18N = {
     "errors.sub_month_not_allowed": "This view supports monthly ranges only.",
     "errors.invalid_preset": "Invalid date range.",
     "finance.range_warning_submonth": "<strong>Heads up:</strong> financial figures are monthly totals. This range filters which entries are shown by submission date — the revenue shown per row covers the full month.",
+    "tl_eval.range_warning_submonth": "<strong>Heads up:</strong> TL evaluations are monthly. This range filters by submission date — each evaluation still covers a full month.",
 
     /* ─── propfinder ─── */
     "pf.title": "PropFinder",

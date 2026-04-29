@@ -44,6 +44,14 @@
   <div id="progress" class="text-muted" style="font-size:13px;font-weight:600"></div>
 </div>
 
+<!-- Contextual range warning — sub-month notice. -->
+<div class="dr-context-warning-host" id="rangeWarningHost" aria-live="polite">
+  <div class="dr-context-warning" id="rangeWarning" hidden>
+    <span class="material-symbols-outlined" aria-hidden="true">warning</span>
+    <div class="dr-context-warning-text" id="rangeWarningText"></div>
+  </div>
+</div>
+
 <div id="chipsRow" class="pf-chips" style="margin-bottom:12px"></div>
 
 <!-- Teams Performance row: ranking + composition donut -->
@@ -575,16 +583,32 @@ async function saveEval() {
 }
 
 function onLangChange() {
-  if (_drCtrl) _drCtrl.refreshLabels();
+  if (_drCtrl) {
+    _drCtrl.refreshLabels();
+    _updateRangeWarning(_drCtrl.getRange());
+  }
   render();
 }
 
-// TL evaluation is monthly-grain — DISTINCT-ON server side picks latest entry
-// within range, so the picker is locked to month-only mode.
+// Reactive contextual warning — shown when sub-month preset is selected.
+function _updateRangeWarning(range) {
+  const host = document.getElementById("rangeWarning");
+  const txt = document.getElementById("rangeWarningText");
+  if (!host || !txt) return;
+  if (range && range.isSubMonth) {
+    txt.innerHTML = t("tl_eval.range_warning_submonth");
+    host.hidden = false;
+  } else {
+    host.hidden = true;
+  }
+}
+
+// All presets allowed; the warning banner above the per-TL list flags
+// sub-month selections so users don't misread monthly evaluations as daily.
 _drCtrl = DateRange.mount(document.getElementById("dateRangeHost"), {
   defaultPreset: "this_month",
-  mode: "month-only",
-  onChange: () => loadAll(),
+  mode: "full",
+  onChange: (range) => { _updateRangeWarning(range); loadAll(); },
 });
 </script>
 {% endblock %}

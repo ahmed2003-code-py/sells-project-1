@@ -730,13 +730,15 @@ def get_tl_kpi(tl_user_id, month):
 @audit_query
 def list_team_leaders():
     """
-    One row per active team leader. Accepts month/range params; for multi-month
-    ranges we surface the LATEST entry within range (DISTINCT ON), so the
-    'evaluated/pending' badge means "evaluated at least once in this range."
-    Sub-month not allowed — TL evaluation is monthly-grain.
+    One row per active team leader. Accepts month/range params (incl. sub-month).
+    For multi-month / sub-month ranges, DISTINCT ON picks the LATEST entry
+    per TL within range — so 'evaluated/pending' means "evaluated at least
+    once in this range." Sub-month is allowed at the API layer; the frontend
+    surfaces a contextual warning banner so users don't misread the result
+    as a new daily evaluation.
     """
     try:
-        pr = parse_range(request.args, allow_sub_month=False)
+        pr = parse_range(request.args)
     except InvalidRangeError as e:
         return _json({"error_code": e.code, "error": e.code}, 400)
     where, where_params = _range_where(pr, alias="e")
@@ -791,15 +793,16 @@ def teams_summary():
       avg_member_score, top_performer (name + score), members[],
       total_leads/calls/meetings/deals/reservations.
 
-    For multi-month ranges:
+    Range semantics:
       - leader score/rating: latest entry within range (DISTINCT ON)
       - member totals (calls, deals, etc.): summed across all entries in range
       - avg_member_score: average of all per-(member, month) total_scores
-
-    Sub-month not allowed — team aggregation is monthly-grain.
+      - sub-month: filter rows by submission timestamp (idx_kpi_user_*_submitted);
+        members[] reflects whoever was evaluated/submitted in that window.
+        Frontend shows a contextual warning so this isn't misread as new data.
     """
     try:
-        pr = parse_range(request.args, allow_sub_month=False)
+        pr = parse_range(request.args)
     except InvalidRangeError as e:
         return _json({"error_code": e.code, "error": e.code}, 400)
     where, where_params = _range_where(pr, alias="e")
