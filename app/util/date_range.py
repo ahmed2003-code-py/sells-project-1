@@ -203,12 +203,16 @@ def parse_range(args, *, default_preset: str = "this_month",
     _validate_bounds(d_from, d_to)
 
     month_str = _is_full_calendar_month(d_from, d_to)
-    is_sub_month = month_str is None and (
-        d_from.year != d_to.year
-        or d_from.month != d_to.month
-        or d_from.day != 1
-        or d_to.day != calendar.monthrange(d_to.year, d_to.month)[1]
+    # A range is "month-aligned" when from-day=1 AND to-day=last-day-of-its-month.
+    # Single calendar month → month_str set, is_sub_month False.
+    # Multi-month aligned (e.g. 2026-03-01 → 2026-04-30) → month_str None,
+    # is_sub_month False, queried via month BETWEEN '2026-03' AND '2026-04'.
+    # Anything else → is_sub_month True, queried via submission timestamp.
+    is_aligned = (
+        d_from.day == 1
+        and d_to.day == calendar.monthrange(d_to.year, d_to.month)[1]
     )
+    is_sub_month = not is_aligned
 
     if is_sub_month and not allow_sub_month:
         raise InvalidRangeError("sub_month_not_allowed",

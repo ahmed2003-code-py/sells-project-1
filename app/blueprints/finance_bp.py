@@ -10,8 +10,10 @@ from decimal import Decimal
 from datetime import datetime, date
 from flask import Blueprint, request, session, Response
 from app.database import get_conn
-from app.auth import role_required
+from app.auth import role_required, rate_limit
 from app.kpi_logic import compute_financials, FINANCIAL_DEFAULTS
+from app.util.audit import audit_query
+from app.util.date_range import parse_range, InvalidRangeError
 
 log = logging.getLogger(__name__)
 finance_bp = Blueprint("finance", __name__, url_prefix="/api/finance")
@@ -36,16 +38,25 @@ def _json(data, status=200):
 
 @finance_bp.route("/report", methods=["GET"])
 @role_required("admin", "manager")
+@rate_limit("kpi_range_query", limit=30, window=60)
+@audit_query
 def report():
     """
-    Returns finance projection for all sales reps in a given month,
-    plus aggregated totals.
-    Optional query params:
-      - month=YYYY-MM
+    Finance projection for all sales reps within the resolved range, plus
+    aggregated totals. Filtering follows the standard date-range contract
+    (see app.util.date_range.parse_range): from/to/preset/legacy month.
+
+    Sub-month ranges not allowed — financial projection is computed from
+    monthly deal/reservation counts; sub-month proration would mislead.
+
+    Other params:
       - avg_deal_value_egp, commission_rate, avg_reservation_value_egp,
         reservation_commission_rate  (override defaults)
     """
-    month = request.args.get("month")
+    try:
+        pr = parse_range(request.args, allow_sub_month=False)
+    except InvalidRangeError as e:
+        return _json({"error_code": e.code, "error": e.code}, 400)
 
     # Allow overriding financial settings via query params
     settings = dict(FINANCIAL_DEFAULTS)
@@ -67,9 +78,14 @@ def report():
                     WHERE u.active = true
                 """
                 params = []
-                if month:
+                if pr.month_str:
                     q += " AND e.month = %s"
-                    params.append(month)
+                    params.append(pr.month_str)
+                else:
+                    # Multi-month aligned range (sub-month was rejected above).
+                    q += " AND e.month BETWEEN %s AND %s"
+                    params.append(f"{pr.from_date.year:04d}-{pr.from_date.month:02d}")
+                    params.append(f"{pr.to_date.year:04d}-{pr.to_date.month:02d}")
                 q += " ORDER BY u.full_name"
                 cur.execute(q, params)
                 rows = [dict(r) for r in cur.fetchall()]
@@ -98,7 +114,10 @@ def report():
             total_reservations += fin["reservations_count"]
 
         return _json({
-            "month": month,
+            # `month` kept for backwards compat: set when range is exactly one
+            # calendar month (matches the legacy ?month= response shape).
+            "month": pr.month_str,
+            "range": pr.to_dict(),
             "settings": settings,
             "totals": {
                 "total_revenue": round(total_revenue, 2),

@@ -24,6 +24,32 @@ from app.util.date_range import parse_range, InvalidRangeError
 # get 413 with a clear error code. TODO: paginate when consistently exceeding 5K.
 _RANGE_ROW_CAP = 10_000
 
+
+def _range_where(pr, *, alias="e", ts_field="dataentry"):
+    """
+    Translate a ParsedRange into a (sql_fragment, params) pair for filtering
+    kpi_entries. Three paths matching commit 4's report() endpoint:
+      - calendar-month-aligned → e.month = %s (existing fastpath)
+      - sub-month → e.<ts_col> half-open interval [from, to+1)
+      - multi-month aligned → e.month BETWEEN 'YYYY-MM' AND 'YYYY-MM'
+    """
+    a = alias
+    if pr.month_str:
+        return (f" AND {a}.month = %s ", [pr.month_str])
+    if pr.is_sub_month:
+        ts_col = "dataentry_submitted_at" if ts_field == "dataentry" else "sales_submitted_at"
+        return (
+            f" AND {a}.{ts_col} >= %s AND {a}.{ts_col} < %s ",
+            [pr.from_date, pr.to_date + _ONE_DAY],
+        )
+    return (
+        f" AND {a}.month BETWEEN %s AND %s ",
+        [
+            f"{pr.from_date.year:04d}-{pr.from_date.month:02d}",
+            f"{pr.to_date.year:04d}-{pr.to_date.month:02d}",
+        ],
+    )
+
 log = logging.getLogger(__name__)
 kpi_bp = Blueprint("kpi", __name__, url_prefix="/api/kpi")
 
@@ -380,7 +406,6 @@ def report():
     ts_field = request.args.get("ts_field", "dataentry").lower()
     if ts_field not in ("dataentry", "sales"):
         ts_field = "dataentry"
-    ts_col = "dataentry_submitted_at" if ts_field == "dataentry" else "sales_submitted_at"
 
     if session.get("role") == "sales":
         return _json({"error_code": "forbidden", "error": "forbidden"}, 403)
@@ -400,23 +425,8 @@ def report():
                     JOIN users u ON u.id = e.user_id
                     WHERE u.active = true
                 """
-                params = []
-                if pr.month_str:
-                    # Calendar-month-aligned range → existing fastpath, identical
-                    # to the legacy ?month= behavior. Zero plan regression.
-                    q += " AND e.month = %s"
-                    params.append(pr.month_str)
-                elif pr.is_sub_month:
-                    # Sub-month: filter by submission timestamp on the chosen
-                    # column. Composite index idx_kpi_user_*_submitted picks this up.
-                    q += f" AND e.{ts_col} >= %s AND e.{ts_col} < %s"
-                    params.append(pr.from_date)
-                    params.append(pr.to_date + _ONE_DAY)
-                else:
-                    # Multi-month range → match by month string between bounds.
-                    q += " AND e.month BETWEEN %s AND %s"
-                    params.append(f"{pr.from_date.year:04d}-{pr.from_date.month:02d}")
-                    params.append(f"{pr.to_date.year:04d}-{pr.to_date.month:02d}")
+                where, params = _range_where(pr, alias="e", ts_field=ts_field)
+                q += where
                 if user_id_filter:
                     q += " AND e.user_id = %s"
                     params.append(int(user_id_filter))
@@ -449,13 +459,22 @@ def report():
 
 @kpi_bp.route("/summary", methods=["GET"])
 @role_required("manager", "admin", "dataentry")
+@rate_limit("kpi_range_query", limit=30, window=60)
+@audit_query
 def summary():
-    month = request.args.get("month")
+    """Aggregate scalars across the resolved range. See parse_range docs."""
+    try:
+        pr = parse_range(request.args)
+    except InvalidRangeError as e:
+        return _json({"error_code": e.code, "error": e.code}, 400)
+    where, where_params = _range_where(pr, alias="e")
+
     try:
         conn = get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                q = """
+                q = (
+                    """
                     SELECT
                         COUNT(*) AS total_entries,
                         AVG(total_score) AS avg_score,
@@ -467,24 +486,23 @@ def summary():
                     FROM kpi_entries e
                     JOIN users u ON u.id = e.user_id
                     WHERE u.active = true
-                """
-                params = []
-                if month:
-                    q += " AND e.month = %s"
-                    params.append(month)
-                cur.execute(q, params)
+                    """
+                    + where
+                )
+                cur.execute(q, where_params)
                 s = dict(cur.fetchone())
 
-                # Top performer
-                q2 = """
+                # Top performer across the range
+                q2 = (
+                    """
                     SELECT u.full_name, e.total_score, e.rating
                     FROM kpi_entries e JOIN users u ON u.id = e.user_id
                     WHERE u.active = true
-                """
-                if month:
-                    q2 += " AND e.month = %s"
-                q2 += " ORDER BY e.total_score DESC LIMIT 1"
-                cur.execute(q2, params)
+                    """
+                    + where
+                    + " ORDER BY e.total_score DESC LIMIT 1"
+                )
+                cur.execute(q2, where_params)
                 top = cur.fetchone()
                 s["top"] = dict(top) if top else None
         finally:
@@ -708,22 +726,48 @@ def get_tl_kpi(tl_user_id, month):
 
 @kpi_bp.route("/team-leaders", methods=["GET"])
 @role_required("manager", "admin")
+@rate_limit("kpi_range_query", limit=30, window=60)
+@audit_query
 def list_team_leaders():
-    month = request.args.get("month")
+    """
+    One row per active team leader. Accepts month/range params; for multi-month
+    ranges we surface the LATEST entry within range (DISTINCT ON), so the
+    'evaluated/pending' badge means "evaluated at least once in this range."
+    Sub-month not allowed — TL evaluation is monthly-grain.
+    """
+    try:
+        pr = parse_range(request.args, allow_sub_month=False)
+    except InvalidRangeError as e:
+        return _json({"error_code": e.code, "error": e.code}, 400)
+    where, where_params = _range_where(pr, alias="e")
+
     try:
         conn = get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("""
+                # DISTINCT ON picks the latest entry within range per TL.
+                # When pr is exactly one month, this collapses to the original
+                # behavior (zero or one row per TL anyway).
+                cur.execute(
+                    """
                     SELECT u.id, u.full_name, u.username,
                            t.id AS team_id, t.name AS team_name,
-                           e.dataentry_submitted_at, e.notes
+                           latest.dataentry_submitted_at, latest.notes
                     FROM users u
                     LEFT JOIN teams t ON t.leader_id = u.id
-                    LEFT JOIN kpi_entries e ON e.user_id = u.id AND e.month = %s
+                    LEFT JOIN LATERAL (
+                        SELECT DISTINCT ON (e.user_id)
+                               e.dataentry_submitted_at, e.notes, e.month
+                        FROM kpi_entries e
+                        WHERE e.user_id = u.id
+                    """ + where + """
+                        ORDER BY e.user_id, e.month DESC
+                    ) latest ON true
                     WHERE u.role = 'team_leader' AND u.active = true
                     ORDER BY u.full_name
-                """, (month,))
+                    """,
+                    where_params,
+                )
                 rows = [dict(r) for r in cur.fetchall()]
         finally:
             conn.close()
@@ -737,23 +781,34 @@ def list_team_leaders():
 
 @kpi_bp.route("/teams-summary", methods=["GET"])
 @role_required("admin", "manager", "dataentry")
+@rate_limit("kpi_range_query", limit=30, window=60)
+@audit_query
 def teams_summary():
     """
-    Returns one row per team with members + aggregates for the given month:
+    Per-team aggregates across the resolved range:
       team_id, team_name, leader_id, leader_name, leader_score, leader_rating,
       leader_evaluated, member_count, members_submitted, members_evaluated,
-      avg_member_score, top_performer (name + score),
-      total_leads, total_calls, total_meetings, total_deals, total_reservations
+      avg_member_score, top_performer (name + score), members[],
+      total_leads/calls/meetings/deals/reservations.
+
+    For multi-month ranges:
+      - leader score/rating: latest entry within range (DISTINCT ON)
+      - member totals (calls, deals, etc.): summed across all entries in range
+      - avg_member_score: average of all per-(member, month) total_scores
+
+    Sub-month not allowed — team aggregation is monthly-grain.
     """
-    month = request.args.get("month")
-    if not month:
-        return _json({"error_code": "missing_month", "error": "month required"}, 400)
+    try:
+        pr = parse_range(request.args, allow_sub_month=False)
+    except InvalidRangeError as e:
+        return _json({"error_code": e.code, "error": e.code}, 400)
+    where, where_params = _range_where(pr, alias="e")
 
     try:
         conn = get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                # All teams + their leader basic info
+                # All teams + their leader basic info (range-independent)
                 cur.execute("""
                     SELECT t.id   AS team_id,
                            t.name AS team_name,
@@ -766,32 +821,47 @@ def teams_summary():
                 """)
                 teams = [dict(r) for r in cur.fetchall()]
 
-                # Leader KPI rows for the month
+                # Leader KPI rows within range (latest per leader)
                 leader_ids = [t["leader_id"] for t in teams if t["leader_id"]]
                 leader_kpi = {}
                 if leader_ids:
-                    cur.execute("""
-                        SELECT user_id, total_score, rating, dataentry_submitted_at
-                        FROM kpi_entries
-                        WHERE month = %s AND user_id = ANY(%s)
-                    """, (month, leader_ids))
+                    q_leader = (
+                        """
+                        SELECT DISTINCT ON (e.user_id)
+                               e.user_id, e.total_score, e.rating,
+                               e.dataentry_submitted_at, e.month
+                        FROM kpi_entries e
+                        WHERE e.user_id = ANY(%s)
+                        """
+                        + where
+                        + " ORDER BY e.user_id, e.month DESC"
+                    )
+                    cur.execute(q_leader, [leader_ids] + where_params)
                     for r in cur.fetchall():
                         leader_kpi[int(r["user_id"])] = dict(r)
 
-                # All sales entries for active sales users, joined to their team
-                cur.execute("""
+                # All sales entries within range, joined to their team. For a
+                # multi-month range each (user, month) yields one row, which
+                # the Python aggregation below sums into team totals.
+                # Range filter placed in the LEFT JOIN ON clause (not WHERE)
+                # so users with no entry in range still appear with NULLs.
+                q_sales = (
+                    """
                     SELECT u.id AS user_id, u.full_name, u.team_id,
                            e.fresh_leads, e.calls, e.meetings, e.deals,
                            e.reservations, e.crm_pct, e.followup_pct,
-                           e.total_score, e.rating,
+                           e.total_score, e.rating, e.month,
                            e.sales_submitted_at, e.dataentry_submitted_at,
                            e.attitude, e.presentation, e.behaviour, e.appearance,
                            e.attendance_pct, e.hr_roles, e.reports
                     FROM users u
                     LEFT JOIN kpi_entries e
-                      ON e.user_id = u.id AND e.month = %s
-                    WHERE u.role = 'sales' AND u.active = true
-                """, (month,))
+                      ON e.user_id = u.id
+                    """
+                    + where
+                    + " WHERE u.role = 'sales' AND u.active = true"
+                )
+                cur.execute(q_sales, where_params)
                 sales_rows = [dict(r) for r in cur.fetchall()]
         finally:
             conn.close()

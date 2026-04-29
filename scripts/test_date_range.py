@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.util.date_range import (  # noqa: E402
-    parse_range, resolve_preset, ParsedRange, InvalidRangeError, PRESET_KEYS,
+    parse_range, InvalidRangeError, PRESET_KEYS,
 )
 
 
@@ -71,8 +71,18 @@ def main():
     _check("crosses-month range → month_str None", pr.month_str is None)
 
     pr = parse_range({"from": "2026-01-01", "to": "2026-12-31"})
-    _check("calendar year is sub-month (not single month)", pr.is_sub_month is True)
-    _check("calendar year → month_str None", pr.month_str is None)
+    # Calendar year is multi-month-aligned (Jan 1 + Dec 31 = full months on both
+    # ends), so is_sub_month=False — queried via month BETWEEN, not by timestamp.
+    _check("calendar year → is_sub_month False", pr.is_sub_month is False)
+    _check("calendar year → month_str None (multi-month, not single)", pr.month_str is None)
+
+    # Sub-month sanity: partial start
+    pr = parse_range({"from": "2026-01-15", "to": "2026-12-31"})
+    _check("partial-start range → is_sub_month True", pr.is_sub_month is True)
+
+    # Sub-month sanity: partial end
+    pr = parse_range({"from": "2026-01-01", "to": "2026-12-15"})
+    _check("partial-end range → is_sub_month True", pr.is_sub_month is True)
 
     print("\n─── parse_range: presets ───")
 
@@ -161,9 +171,14 @@ def main():
                   lambda: parse_range({"from": "2026-04-05", "to": "2026-04-12"},
                                       allow_sub_month=False))
 
-    # Multi-month aligned: must reject because it's not exactly one calendar month either
-    _expect_error("multi-month range rejected when disallowed", "sub_month_not_allowed",
-                  lambda: parse_range({"from": "2026-03-01", "to": "2026-04-30"},
+    # Multi-month aligned: passes — it's queried via month BETWEEN, no timestamp filter needed.
+    pr = parse_range({"from": "2026-03-01", "to": "2026-04-30"}, allow_sub_month=False)
+    _check("multi-month aligned passes when sub_month disallowed",
+           pr.is_sub_month is False and pr.month_str is None)
+
+    # Mixed: aligned start, sub-month end → still sub-month, reject.
+    _expect_error("partial-end multi-month rejected when disallowed", "sub_month_not_allowed",
+                  lambda: parse_range({"from": "2026-03-01", "to": "2026-04-15"},
                                       allow_sub_month=False))
 
     print("\n─── PRESET_KEYS exposes the public set ───")
