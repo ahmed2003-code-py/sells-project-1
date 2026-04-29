@@ -185,12 +185,27 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat17"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat18"></script>
 <script>
 // Snapshot the current admin's user_id once — used by render() to suppress the
 // self-delete button. Pulled via |tojson so a null user.id surfaces as `null`,
 // not an empty string that would break the JS expression.
 const CURRENT_USER_ID = {{ user.id|tojson }};
+const CURRENT_ROLE   = {{ user.role|tojson }};
+
+// Role hierarchy mirror of app/auth.py:_CAN_CREATE_ROLES — the JS uses this
+// to (a) filter the role picker on user-create / edit, (b) hide the Edit /
+// Delete / Activate / Deactivate buttons on rows the actor isn't allowed
+// to manage. Backend enforces the same rules; this is UX, not security.
+const CAN_CREATE_ROLES = {
+  admin:     ["admin","manager","team_leader","dataentry","sales","marketing"],
+  manager:   ["team_leader","dataentry","sales","marketing"],
+  dataentry: ["sales","marketing"],
+};
+const ALLOWED_ROLES = CAN_CREATE_ROLES[CURRENT_ROLE] || [];
+function canManageRow(targetRole) {
+  return ALLOWED_ROLES.indexOf(targetRole) >= 0;
+}
 
 let users = [];
 let teams = [];
@@ -399,6 +414,7 @@ function render() {
       : '<span class="badge badge-pending">' + t("common.inactive") + '</span>'}</td>
     <td>
       <div class="flex gap-1 admin-row-actions">
+        ${canManageRow(u.role) ? `
         <button class="btn btn-sm btn-primary" onclick="openEdit(${u.id})">${t("common.edit")}</button>
         <button class="btn btn-sm" onclick="toggleActive(${u.id}, ${!u.active})">
           ${u.active ? t("admin.deactivate") : t("admin.activate")}
@@ -406,6 +422,7 @@ function render() {
         ${u.id !== CURRENT_USER_ID
           ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">${t("common.delete")}</button>`
           : ''}
+        ` : `<span class="text-muted" style="font-size:11px">—</span>`}
       </div>
     </td>
   </tr>`).join("");
@@ -418,6 +435,24 @@ function escapeHTML(s) {
   ));
 }
 
+// Hide role <option>s the actor isn't allowed to assign. Idempotent —
+// safe to call before every modal open.
+function _filterRoleOptions(currentRoleValue) {
+  const sel = document.getElementById("mRole");
+  if (!sel) return;
+  let firstAllowed = null;
+  [...sel.options].forEach(opt => {
+    const allowed = canManageRow(opt.value);
+    opt.hidden = !allowed;
+    opt.disabled = !allowed;
+    if (allowed && firstAllowed === null) firstAllowed = opt.value;
+  });
+  // If the currently selected option became hidden, snap to the first allowed one.
+  if (sel.value && sel.options[sel.selectedIndex]?.hidden) {
+    sel.value = currentRoleValue && canManageRow(currentRoleValue) ? currentRoleValue : (firstAllowed || "");
+  }
+}
+
 function openNew() {
   editingId = null;
   document.getElementById("modalTitle").textContent = t("admin.new_user");
@@ -428,6 +463,7 @@ function openNew() {
   // New-user: rules visible from the start so admin sees the contract.
   document.getElementById("mPwRules").hidden = false;
   refreshAdminPwRules();
+  _filterRoleOptions(null);
   applyLang(true);
   openModal("userModal");
 }
@@ -440,6 +476,7 @@ function openEdit(id) {
   document.getElementById("mName").value = u.full_name || "";
   document.getElementById("mUsername").value = u.username || "";
   document.getElementById("mRole").value = u.role || "sales";
+  _filterRoleOptions(u.role);
   document.getElementById("mEmail").value = u.email || "";
   document.getElementById("mPhone").value = u.phone || "";
   document.getElementById("mPassword").value = "";
