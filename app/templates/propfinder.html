@@ -34,8 +34,8 @@
     <div class="pf-title-row" data-i18n="pf.filters_title"></div>
     <div class="pf-filter-head-actions">
       <div class="view-toggle" id="viewToggle">
-        <button data-view="grid" class="active" title="Grid"><span class="material-symbols-outlined" aria-hidden="true">view_module</span><span data-i18n="pf.view_grid"></span></button>
-        <button data-view="table" title="Table"><span class="material-symbols-outlined" aria-hidden="true">view_list</span><span data-i18n="pf.view_table"></span></button>
+        <button data-view="grid" class="active" data-i18n-title="pf.view_grid" title="Grid"><span class="material-symbols-outlined" aria-hidden="true">view_module</span><span data-i18n="pf.view_grid"></span></button>
+        <button data-view="table" data-i18n-title="pf.view_table" title="Table"><span class="material-symbols-outlined" aria-hidden="true">view_list</span><span data-i18n="pf.view_table"></span></button>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="pf.clear_filters"></button>
     </div>
@@ -409,7 +409,7 @@ function renderChips(f) {
     if (val === "" || val == null) return;
     const lbl = labelI18n ? t(labelI18n) : key;
     const display = fmt ? fmt(val) : val;
-    chips.push(`<span class="pf-chip">${escapeHTML(lbl)}: ${escapeHTML(display)}<button onclick="clearOne('${key}')" aria-label="remove">✕</button></span>`);
+    chips.push(`<span class="pf-chip">${escapeHTML(lbl)}: ${escapeHTML(display)}<button onclick="clearOne('${key}')" aria-label="${t('common.remove')}">✕</button></span>`);
   };
   push("q", f.q, "common.search");
   push("city", f.city, "pf.col_city");
