@@ -1,49 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Ain KPI{% endblock %}
 
-{% block head %}
-<style>
-.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px}
-.tab-btn{padding:10px 24px;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:.2s;font-family:inherit}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-pane{display:none}.tab-pane.active{display:block}
-.mkt-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
-.mkt-kpi-card{background:var(--surface);border:.5px solid var(--outline-variant);border-radius:12px;padding:16px;transition:all .25s var(--ease)}
-.mkt-kpi-card:hover{transform:translateY(-2px);border-color:rgba(69,241,187,0.18);box-shadow:var(--shadow-sm)}
-.mkt-kpi-card .lbl{font-size:11px;color:var(--text-muted);margin-bottom:4px}
-.mkt-kpi-card .val{font-size:20px;font-weight:700;color:var(--accent);font-family:var(--font-mono)}
-.mkt-kpi-card .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
-.status-on{color:#22c55e;font-weight:600}
-.status-warn{color:#f59e0b;font-weight:600}
-.status-crit{color:#ef4444;font-weight:600}
-.status-pend{color:var(--text-muted)}
-.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px}
-.ov-item{background:var(--surface);border:.5px solid var(--outline-variant);border-radius:10px;padding:12px 16px;transition:transform .25s var(--ease)}
-.ov-item:hover{transform:translateY(-2px)}
-.ov-item .lbl{font-size:11px;color:var(--text-muted)}
-.ov-item .val{font-size:15px;font-weight:600;margin-top:2px;font-family:var(--font-mono)}
-.insight-item{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:8px;align-items:flex-start}
-.insight-icon{font-size:15px;margin-top:1px}
-.action-item{padding:6px 12px;background:var(--surface-3);border-radius:6px;font-size:13px;margin-bottom:6px}
-.rec-box{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:20px;margin-top:16px}
-.rec-title{font-weight:700;font-size:15px;color:var(--accent);margin-bottom:12px}
-.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-.rec-item .lbl{font-size:11px;color:var(--text-muted)}
-.rec-item .val{font-weight:700;font-size:16px;font-family:var(--font-mono)}
-.actual-input{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:inherit;font-size:14px;font-family:inherit}
-.actual-input:focus{outline:none;border-color:var(--brand)}
-</style>
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block content %}
-<div class="hero-ribbon">
-  <div class="page-header" style="margin-bottom:0">
-    <div>
-      <h1 class="page-title" data-i18n="mk.title"></h1>
-      <p class="page-subtitle" data-i18n="mk.subtitle"></p>
-    </div>
-    <button class="btn btn-primary hyper-btn" onclick="openNew()" data-i18n="mk.new_campaign"></button>
+<div class="page-header">
+  <div>
+    <h1 class="page-title" data-i18n="mk.title"></h1>
+    <p class="page-subtitle" data-i18n="mk.subtitle"></p>
   </div>
+  <button class="btn btn-primary" onclick="openNew()" data-i18n="mk.new_campaign"></button>
 </div>
 
 <!-- Campaign selector -->
@@ -60,19 +26,19 @@
 
 <!-- Empty state -->
 <div id="emptyState" class="empty-state">
-  <div class="empty-state-icon">📊</div>
+  <div class="empty-state-icon"><span class="material-symbols-outlined" aria-hidden="true">analytics</span></div>
   <div data-i18n="mk.empty_state"></div>
 </div>
 
 <!-- Dashboard -->
 <div id="dashboard" class="hidden">
-  <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('phase1',this)" data-i18n="mk.phase1"></button>
-    <button class="tab-btn" onclick="switchTab('phase2',this)" data-i18n="mk.phase2"></button>
+  <div class="tab-bar" role="tablist" aria-label="Campaign phases">
+    <button class="tab-btn active" id="tab-phase1" role="tab" aria-selected="true" aria-controls="phase1" tabindex="0" onclick="switchTab('phase1',this)" data-i18n="mk.phase1"></button>
+    <button class="tab-btn" id="tab-phase2" role="tab" aria-selected="false" aria-controls="phase2" tabindex="-1" onclick="switchTab('phase2',this)" data-i18n="mk.phase2"></button>
   </div>
 
   <!-- PHASE 1 -->
-  <div class="tab-pane active" id="phase1">
+  <div class="tab-pane active" id="phase1" role="tabpanel" aria-labelledby="tab-phase1" tabindex="0">
     <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.overview"></div>
     <div class="ov-grid" id="ovGrid"></div>
 
@@ -116,13 +82,13 @@
     <div class="rec-box" id="recBox"></div>
 
     <div style="text-align:center;margin-top:24px">
-      <button class="btn btn-primary hyper-btn" onclick="switchTab('phase2', document.querySelectorAll('.tab-btn')[1])"
+      <button class="btn btn-primary" onclick="switchTab('phase2', document.querySelectorAll('.tab-btn')[1])"
               data-i18n="mk.goto_phase2"></button>
     </div>
   </div>
 
   <!-- PHASE 2 -->
-  <div class="tab-pane" id="phase2">
+  <div class="tab-pane" id="phase2" role="tabpanel" aria-labelledby="tab-phase2" tabindex="0">
     <div class="form-section-title" style="margin-bottom:12px" data-i18n="mk.final_targets"></div>
     <div class="table-wrap" style="margin-bottom:24px">
       <table>
@@ -141,38 +107,38 @@
       <div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
           <div class="field">
-            <label data-i18n="mk.actual_spend"></label>
-            <input type="number" min="0" class="actual-input" id="a_spend" oninput="calcActuals()">
+            <label for="a_spend" data-i18n="mk.actual_spend"></label>
+            <input type="number" min="0" id="a_spend" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label data-i18n="mk.actual_leads"></label>
-            <input type="number" min="0" class="actual-input" id="a_leads" oninput="calcActuals()">
+            <label for="a_leads" data-i18n="mk.actual_leads"></label>
+            <input type="number" min="0" id="a_leads" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label data-i18n="mk.actual_ql"></label>
-            <input type="number" min="0" class="actual-input" id="a_ql" oninput="calcActuals()">
+            <label for="a_ql" data-i18n="mk.actual_ql"></label>
+            <input type="number" min="0" id="a_ql" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label data-i18n="mk.actual_meetings"></label>
-            <input type="number" min="0" class="actual-input" id="a_meet" oninput="calcActuals()">
+            <label for="a_meet" data-i18n="mk.actual_meetings"></label>
+            <input type="number" min="0" id="a_meet" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label data-i18n="mk.actual_fu"></label>
-            <input type="number" min="0" class="actual-input" id="a_fu" oninput="calcActuals()">
+            <label for="a_fu" data-i18n="mk.actual_fu"></label>
+            <input type="number" min="0" id="a_fu" oninput="calcActuals()">
           </div>
           <div class="field">
-            <label data-i18n="mk.actual_deals"></label>
-            <input type="number" min="0" class="actual-input" id="a_deals" oninput="calcActuals()">
+            <label for="a_deals" data-i18n="mk.actual_deals"></label>
+            <input type="number" min="0" id="a_deals" oninput="calcActuals()">
           </div>
         </div>
         <div style="margin-top:16px;display:flex;gap:10px">
-          <button class="btn btn-primary hyper-btn" onclick="saveActuals()" data-i18n="mk.save_actuals"></button>
+          <button class="btn btn-primary" onclick="saveActuals()" data-i18n="mk.save_actuals"></button>
         </div>
-        <div style="margin-top:16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--text-muted)">
-          <span><span data-i18n="mk.actual_cpl"></span>: <strong id="disp_cpl">—</strong></span>
-          <span><span data-i18n="mk.actual_cr"></span>: <strong id="disp_cr">—</strong></span>
-          <span><span data-i18n="mk.actual_cpd"></span>: <strong id="disp_cpd">—</strong></span>
-          <span><span data-i18n="mk.actual_rev_proxy"></span>: <strong id="disp_rev">—</strong></span>
+        <div class="mk-actuals-display">
+          <div class="ov-item"><div class="lbl" data-i18n="mk.actual_cpl"></div><div class="val" id="disp_cpl">—</div></div>
+          <div class="ov-item"><div class="lbl" data-i18n="mk.actual_cr"></div><div class="val" id="disp_cr">—</div></div>
+          <div class="ov-item"><div class="lbl" data-i18n="mk.actual_cpd"></div><div class="val" id="disp_cpd">—</div></div>
+          <div class="ov-item"><div class="lbl" data-i18n="mk.actual_rev_proxy"></div><div class="val" id="disp_rev">—</div></div>
         </div>
       </div>
     </div>
@@ -213,35 +179,35 @@
 </div>
 
 <!-- Campaign Modal -->
-<div class="modal-backdrop" id="campModal">
+<div class="modal-backdrop" id="campModal" role="dialog" aria-modal="true" aria-labelledby="campModalTitle">
   <div class="modal" style="max-width:540px">
     <div class="modal-header">
       <div class="modal-title" id="campModalTitle"></div>
-      <button class="modal-close" onclick="closeModal('campModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('campModal')" data-i18n-aria-label="common.close">✕</button>
     </div>
     <div class="modal-body">
-      <div class="error-msg" id="campErr"></div>
+      <div class="error-msg" id="campErr" role="alert" aria-live="assertive"></div>
       <div class="field">
-        <label><span data-i18n="mk.field_name"></span> <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="f_name" style="width:100%" maxlength="200">
+        <label for="f_name"><span data-i18n="mk.field_name"></span> <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f_name" style="width:100%" maxlength="200" required>
       </div>
       <div class="field-row">
         <div class="field">
-          <label data-i18n="mk.field_price"></label>
+          <label for="f_price" data-i18n="mk.field_price"></label>
           <input type="number" min="0" id="f_price">
         </div>
         <div class="field">
-          <label data-i18n="mk.field_budget"></label>
+          <label for="f_budget" data-i18n="mk.field_budget"></label>
           <input type="number" min="0" id="f_budget">
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label data-i18n="mk.field_comm"></label>
+          <label for="f_comm" data-i18n="mk.field_comm"></label>
           <input type="number" min="0" step="0.01" id="f_comm">
         </div>
         <div class="field">
-          <label data-i18n="mk.field_ctype"></label>
+          <label for="f_ctype" data-i18n="mk.field_ctype"></label>
           <select id="f_ctype">
             <option value="percentage" data-i18n="mk.ctype_pct"></option>
             <option value="fixed" data-i18n="mk.ctype_fixed"></option>
@@ -250,22 +216,40 @@
       </div>
       <div class="field-row">
         <div class="field">
-          <label data-i18n="mk.field_cr"></label>
+          <label for="f_cr" data-i18n="mk.field_cr"></label>
           <input type="number" min="0" max="100" step="0.1" id="f_cr">
         </div>
         <div class="field">
-          <label data-i18n="mk.field_tax"></label>
+          <label for="f_tax" data-i18n="mk.field_tax"></label>
           <input type="number" min="0" max="100" id="f_tax" value="19">
         </div>
       </div>
       <div class="field">
-        <label data-i18n="mk.field_month"></label>
+        <label for="f_month" data-i18n="mk.field_month"></label>
         <input type="month" id="f_month">
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary hyper-btn" onclick="saveCampaign()" data-i18n="mk.save_campaign"></button>
+      <button class="btn btn-primary" onclick="saveCampaign()" data-i18n="mk.save_campaign"></button>
       <button class="btn btn-ghost" onclick="closeModal('campModal')" data-i18n="common.cancel"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal — replaces native confirm() so the destructive action gets proper UX -->
+<div class="modal-backdrop" id="campDeleteModal" role="dialog" aria-modal="true" aria-labelledby="campDeleteTitle">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title" id="campDeleteTitle" data-i18n="mk.confirm_delete_title"></div>
+      <button class="modal-close" onclick="closeModal('campDeleteModal')" data-i18n-aria-label="common.close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="mk.confirm_delete_body"></p>
+      <p style="margin-top:10px;font-weight:600" id="campDeleteName"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="confirmDelete()" data-i18n="common.delete"></button>
+      <button class="btn btn-ghost" onclick="closeModal('campDeleteModal')" data-i18n="common.cancel"></button>
     </div>
   </div>
 </div>
@@ -328,11 +312,21 @@ function status(actual, target, lessIsBetter) {
     return 'crit';
 }
 
-function statusLabel(code) {
-  return { on:'✅ ' + t("mk.status_on"), warn:'⚠️ ' + t("mk.status_warn"),
-           crit:'🔴 ' + t("mk.status_crit"), pend:'—' }[code];
+// Status renders as the shared .status-pill component (icon + label + tinted background).
+// Replaces the old text+emoji pattern; consistent with dashboard / dataentry.
+const STATUS_ICON = { on: 'check_circle', warn: 'warning', crit: 'error', pend: 'remove' };
+function statusPillHTML(code) {
+  if (code === 'pend') {
+    return `<span class="status-pill is-pending">
+      <span class="material-symbols-outlined" aria-hidden="true">${STATUS_ICON.pend}</span>—
+    </span>`;
+  }
+  const labels = { on: t("mk.status_on"), warn: t("mk.status_warn"), crit: t("mk.status_crit") };
+  const cls = code === 'on' ? 'is-done' : code === 'warn' ? 'is-warn' : 'is-bad';
+  return `<span class="status-pill ${cls}">
+    <span class="material-symbols-outlined" aria-hidden="true">${STATUS_ICON[code]}</span>${labels[code]}
+  </span>`;
 }
-const statusClass = { on:'status-on', warn:'status-warn', crit:'status-crit', pend:'status-pend' };
 
 // ─── Render Phase 1 ────────────────────────────────────────────────
 function renderPhase1(c, calc) {
@@ -354,11 +348,11 @@ function renderPhase1(c, calc) {
         [t("mk.ov_budget"), egp(c.campaign_budget), ''],
     ].map(([l,v,s]) => `<div class="ov-item"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div style="font-size:11px;color:var(--text-muted)">${s}</div>`:''}</div>`).join('');
 
-    const scenColor = ['var(--accent)', 'var(--brand)', '#f59e0b'];
+    const scenColor = ['var(--accent-2)', 'var(--brand)', 'var(--warning)'];
     const scenBadge = [
-        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--accent);color:var(--accent)">Conservative</span>`,
-        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--brand);color:var(--brand)">Balanced</span>`,
-        `<span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid #f59e0b;color:#f59e0b">Aggressive</span>`,
+        `<span class="mk-scen-badge mk-scen-cons">Conservative</span>`,
+        `<span class="mk-scen-badge mk-scen-bal">Balanced</span>`,
+        `<span class="mk-scen-badge mk-scen-agg">Aggressive</span>`,
     ];
     const kpiCards = [
         {lbl:t("mk.card_net_comm"),      val:egp(net), sub:'', color:'var(--text)'},
@@ -479,7 +473,7 @@ function calcActuals() {
             <td>${var_ != null ? (var_>=0?'+':'')+fmt2(var_) : '—'}</td>
             <td>${varP != null ? (varP>=0?'+':'')+varP.toFixed(1)+'%' : '—'}</td>
             <td>${achP != null ? achP.toFixed(1)+'%' : '—'}</td>
-            <td class="${statusClass[st]}">${statusLabel(st)}</td>
+            <td>${statusPillHTML(st)}</td>
         </tr>`;
     }).join('');
 
@@ -521,18 +515,23 @@ function renderInsights(calc, a) {
       dealsNone:  isAr ? 'لم يُدخل Deals بعد'                                     : 'No deals data yet',
     };
 
+    // status: 'ok' | 'warn' | 'bad' | 'pend' — used for both icon name and .insight-item tint class (Batch 7).
+    const OK = (txt) => ({ status:'ok',   icon:'check_circle',           txt });
+    const WN = (txt) => ({ status:'warn', icon:'warning',                txt });
+    const BD = (txt) => ({ status:'bad',  icon:'error',                  txt });
+    const PD = (txt) => ({ status:'pend', icon:'radio_button_unchecked', txt });
     const insights = [
-        a.spend != null ? (a.spend <= budget ? {icon:'✅',txt:M.spendOk} : {icon:'🔴',txt:M.spendBad}) : {icon:'⚪',txt:M.spendNone},
-        a.aCPL != null ? (a.aCPL <= rec.cpl ? {icon:'✅',txt:M.cplOk}   : {icon:'⚠️',txt:M.cplBad})   : {icon:'⚪',txt:M.cplNone},
-        a.aCR != null ?  (a.aCR >= crTarget ? {icon:'✅',txt:M.crOk}    : {icon:'⚠️',txt:M.crBad})    : {icon:'⚪',txt:M.crNone},
-        a.leads != null ? (a.leads >= rec.expL ? {icon:'✅',txt:M.leadsOk} : {icon:'⚠️',txt:M.leadsBad}) : {icon:'⚪',txt:M.leadsNone},
-        a.ql != null ?    (a.ql >= rec.expQL ? {icon:'✅',txt:M.qlOk}  : {icon:'⚠️',txt:M.qlBad}) : {icon:'⚪',txt:M.qlNone},
-        a.meet != null ?  (a.meet >= rec.expMeet ? {icon:'✅',txt:M.meetOk} : {icon:'⚠️',txt:M.meetBad}) : {icon:'⚪',txt:M.meetNone},
-        a.deals != null ? (a.deals >= rec.td ? {icon:'✅',txt:M.dealsOk} : {icon:'⚠️',txt:M.dealsBad}) : {icon:'⚪',txt:M.dealsNone},
+        a.spend != null ? (a.spend <= budget ? OK(M.spendOk) : BD(M.spendBad)) : PD(M.spendNone),
+        a.aCPL  != null ? (a.aCPL  <= rec.cpl ? OK(M.cplOk)   : WN(M.cplBad))   : PD(M.cplNone),
+        a.aCR   != null ? (a.aCR   >= crTarget ? OK(M.crOk)   : WN(M.crBad))    : PD(M.crNone),
+        a.leads != null ? (a.leads >= rec.expL ? OK(M.leadsOk) : WN(M.leadsBad)) : PD(M.leadsNone),
+        a.ql    != null ? (a.ql    >= rec.expQL ? OK(M.qlOk)  : WN(M.qlBad))    : PD(M.qlNone),
+        a.meet  != null ? (a.meet  >= rec.expMeet ? OK(M.meetOk) : WN(M.meetBad)) : PD(M.meetNone),
+        a.deals != null ? (a.deals >= rec.td ? OK(M.dealsOk)  : WN(M.dealsBad)) : PD(M.dealsNone),
     ];
 
     document.getElementById('insightsBody').innerHTML = insights
-        .map(i=>`<div class="insight-item"><span class="insight-icon">${i.icon}</span><span>${i.txt}</span></div>`)
+        .map(i => `<div class="insight-item is-${i.status}"><span class="material-symbols-outlined insight-icon" aria-hidden="true">${i.icon}</span><span>${i.txt}</span></div>`)
         .join('');
 
     const ACT = {
@@ -578,17 +577,21 @@ function renderDashboard(c) {
     if (c.actual_deals != null) document.getElementById('a_deals').value = c.actual_deals || '';
     calcActuals();
 
+    const grossSrc = c.commission_type === 'percentage'
+      ? t('mk.formula_gross_pct')
+      : t('mk.formula_gross_fixed');
+    const taxPct = (parseFloat(c.tax_rate) * 100).toFixed(0);
     document.getElementById('formulaBox').innerHTML = [
-        `Gross Commission = ${c.commission_type==='percentage' ? 'unit price × commission %' : 'fixed commission'}`,
-        `Net Commission = Gross × (1 − ${(parseFloat(c.tax_rate)*100).toFixed(0)}%)`,
-        `Target Cost/Deal = Net Commission × 16% (Balanced)`,
-        `Target CPL = Target Cost/Deal × Close Rate`,
-        `Expected Leads = Budget ÷ Target CPL`,
-        `Expected Deals = Expected Leads × Close Rate | Target Deals = ceil(Expected Deals)`,
-        `Actual Close Rate = Actual Deals ÷ Actual Leads`,
-        `Actual CPL = Actual Spend ÷ Actual Leads`,
-        `Actual Cost/Deal = Actual Spend ÷ Actual Deals`,
-        `Actual Revenue Proxy = Actual Deals × Net Commission`,
+        t('mk.formula_gross').replace('{src}', grossSrc),
+        t('mk.formula_net').replace('{tax}', taxPct),
+        t('mk.formula_cpd'),
+        t('mk.formula_cpl'),
+        t('mk.formula_exp_leads'),
+        t('mk.formula_exp_deals'),
+        t('mk.formula_actual_cr'),
+        t('mk.formula_actual_cpl'),
+        t('mk.formula_actual_cpd'),
+        t('mk.formula_actual_rev'),
     ].join('<br>');
 
     document.getElementById('emptyState').classList.add('hidden');
@@ -712,10 +715,18 @@ async function saveCampaign() {
     }
 }
 
-async function deleteCurrent() {
-    if (!currentCamp || !confirm(t("mk.confirm_delete"))) return;
+function deleteCurrent() {
+    if (!currentCamp) return;
+    document.getElementById('campDeleteName').textContent = currentCamp.campaign_name || '';
+    openModal('campDeleteModal');
+}
+
+async function confirmDelete() {
+    if (!currentCamp) { closeModal('campDeleteModal'); return; }
+    const id = currentCamp.id;
     try {
-        await api(`/api/marketing/campaigns/${currentCamp.id}`, {method:'DELETE'});
+        await api(`/api/marketing/campaigns/${id}`, {method:'DELETE'});
+        closeModal('campDeleteModal');
         toast(t("common.deleted"), 'success');
         currentCamp = null;
         document.getElementById('campSelect').value = '';
@@ -725,11 +736,36 @@ async function deleteCurrent() {
 }
 
 function switchTab(id, btn) {
-    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    btn.classList.add('active');
+    document.querySelectorAll('.tab-pane').forEach(p => {
+        const isActive = p.id === id;
+        p.classList.toggle('active', isActive);
+    });
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        const isActive = b === btn;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        b.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
 }
+
+// Arrow-key nav between tabs (WAI-ARIA tab pattern)
+document.addEventListener('keydown', (e) => {
+    const tab = e.target.closest('.tab-btn[role="tab"]');
+    if (!tab) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    const tabs = [...tab.parentElement.querySelectorAll('.tab-btn[role="tab"]')];
+    const idx = tabs.indexOf(tab);
+    let next;
+    if (e.key === 'Home')      next = tabs[0];
+    else if (e.key === 'End')  next = tabs[tabs.length - 1];
+    else if (e.key === 'ArrowLeft')  next = tabs[(idx - 1 + tabs.length) % tabs.length];
+    else if (e.key === 'ArrowRight') next = tabs[(idx + 1) % tabs.length];
+    if (next) {
+        next.focus();
+        switchTab(next.getAttribute('aria-controls'), next);
+    }
+});
 
 function escapeHTML(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => (

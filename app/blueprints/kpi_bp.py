@@ -534,19 +534,51 @@ def get_tl_kpi(tl_user_id, month):
                 """, (team_id,))
                 team_size = cur.fetchone()["cnt"]
 
-                # Submitted team entries for this month
+                # Submitted team entries for this month — joined to user_name so we can
+                # surface top/weakest performer in the response.
                 cur.execute("""
-                    SELECT e.* FROM kpi_entries e
+                    SELECT e.*, u.full_name AS user_name FROM kpi_entries e
                     JOIN users u ON u.id = e.user_id
                     WHERE u.team_id = %s AND u.role = 'sales' AND u.active = true
                     AND e.month = %s
                 """, (team_id, month))
                 team_entries = [dict(r) for r in cur.fetchall()]
 
+                # Rank context — this TL's standing among all active TLs for the month.
+                cur.execute("""
+                    SELECT u.id, u.full_name, e.total_score
+                    FROM users u
+                    LEFT JOIN kpi_entries e ON e.user_id = u.id AND e.month = %s
+                    WHERE u.role = 'team_leader' AND u.active = true
+                """, (month,))
+                tl_rows = [dict(r) for r in cur.fetchall()]
+
         finally:
             conn.close()
 
         total, rating, breakdown = compute_tl_score(tl_entry, team_entries)
+
+        # Team aggregates — computed from team_entries we already loaded.
+        scored_members = [
+            (m.get("user_name") or "", float(m["total_score"]))
+            for m in team_entries
+            if m.get("total_score") is not None
+        ]
+        team_avg_score = (
+            sum(s for _, s in scored_members) / len(scored_members)
+        ) if scored_members else 0.0
+        team_above_55 = sum(1 for _, s in scored_members if s >= 55)
+        team_below_55 = sum(1 for _, s in scored_members if s < 55)
+        team_top = max(scored_members, key=lambda x: x[1]) if scored_members else None
+        team_weakest = min(scored_members, key=lambda x: x[1]) if scored_members else None
+
+        # TL rank — sort all TLs by total_score desc; nulls last.
+        tl_scored = [(r["id"], float(r["total_score"])) for r in tl_rows if r["total_score"] is not None]
+        tl_scored.sort(key=lambda x: x[1], reverse=True)
+        tl_rank = next((i + 1 for i, (uid, _) in enumerate(tl_scored) if uid == tl_user_id), None)
+        tl_total = len(tl_rows)
+        tl_avg = (sum(s for _, s in tl_scored) / len(tl_scored)) if tl_scored else 0.0
+
         return _json({
             "tl_entry": tl_entry,
             "team_size": team_size,
@@ -554,6 +586,16 @@ def get_tl_kpi(tl_user_id, month):
             "total_score": total,
             "rating": rating,
             "breakdown": breakdown,
+            # Batch 5 — team-context aggregates
+            "team_avg_score":  round(team_avg_score, 1),
+            "team_above_55":   team_above_55,
+            "team_below_55":   team_below_55,
+            "team_top":        ({"name": team_top[0], "score": round(team_top[1], 1)} if team_top else None),
+            "team_weakest":    ({"name": team_weakest[0], "score": round(team_weakest[1], 1)} if team_weakest else None),
+            # Batch 5 — TL rank context
+            "tl_rank":  tl_rank,
+            "tl_total": tl_total,
+            "tl_avg":   round(tl_avg, 1),
         })
     except Exception as e:
         log.error(f"get_tl_kpi error: {e}")
