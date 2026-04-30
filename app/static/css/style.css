@@ -3171,6 +3171,7 @@ kbd {
 .pf-pill.brand   { background: var(--brand-soft);     color: var(--brand);     border-color: rgba(71, 77, 197, 0.25); }
 .pf-pill.accent  { background: var(--accent-soft);    color: var(--accent-2);  border-color: rgba(0, 131, 124, 0.22); }
 .pf-pill.warn    { background: rgba(255, 184, 77, 0.16); color: #b97000;       border-color: rgba(255, 184, 77, 0.30); }
+.pf-pill.discount { background: var(--warning-soft); color: var(--warning); border-color: rgba(196, 114, 0, 0.30); font-weight: 700; }
 
 .pf-card-price {
   display: flex;
@@ -3199,20 +3200,6 @@ kbd {
   font-weight: 600;
   margin-top: 2px;
 }
-.pf-card-price .discount-badge {
-  position: absolute;
-  top: -32px;
-  inset-inline-end: -4px;
-  background: var(--warning-soft);
-  color: var(--warning);
-  border: 1px solid rgba(196, 114, 0, 0.20);
-  font-size: 10px;
-  font-weight: 700;
-  font-family: var(--font-display);
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-}
-
 .pf-empty {
   background: var(--surface-solid);
   border: 1px dashed var(--outline-variant);

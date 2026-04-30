@@ -571,6 +571,7 @@ function renderGrid(rows) {
       u.built_up_area_sqm ? `<span class="pf-pill"><span class="material-symbols-outlined pf-pill-icon" aria-hidden="true">square_foot</span>${u.built_up_area_sqm} m²</span>` : "",
       (u.outdoor_area && String(u.outdoor_area).trim() && String(u.outdoor_area).trim() !== "0") ? `<span class="pf-pill accent"><span class="material-symbols-outlined pf-pill-icon" aria-hidden="true">deck</span>${escapeHTML(u.outdoor_area)}</span>` : "",
       u.delivery_from_months ? `<span class="pf-pill warn"><span class="material-symbols-outlined pf-pill-icon" aria-hidden="true">schedule</span>${u.delivery_from_months} ${t("pf.months_short")}</span>` : "",
+      discount > 0 ? `<span class="pf-pill discount"><span class="material-symbols-outlined pf-pill-icon" aria-hidden="true">sell</span>-${discount}%</span>` : "",
     ].filter(Boolean).join("");
     const uid = u.id || u.detail_id || ("idx-" + idx);
     return `<div class="pf-card clickable" data-unit-id="${escapeHTML(String(uid))}">
@@ -583,7 +584,6 @@ function renderGrid(rows) {
       </div>
       <div class="pf-card-meta">${pills}</div>
       <div class="pf-card-price">
-        ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
         <span class="label">${t("pf.col_price")}</span>
         <span class="value">${u.total_price_egp ? fmtCompactMoney(u.total_price_egp) + " " + t("fin.egp") : "—"}</span>
         ${u.cash_price_from_egp && discount > 0 ? `<span class="cash">${t("pf.cash")}: ${fmtCompactMoney(u.cash_price_from_egp)}</span>` : ""}
