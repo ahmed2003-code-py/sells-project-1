@@ -3621,18 +3621,16 @@ html[dir="ltr"] { text-align: left; }
   .plotly-container.short { min-height: 200px; }
   .plotly-container.tall { min-height: 320px; }
 
-  /* Headline (avg-KPI score + gauge) — compress padding/font on mobile so
-     the two stacked cards don't dwarf the smaller stat tiles below them. */
-  .tl-headline { gap: 12px; margin-bottom: 14px; }
+  /* Headline (avg-KPI score) — on mobile the score card carries the full
+     story and the gauge card just adds an awkward, mostly-empty card.
+     Hide the gauge entirely below 768px and tighten the score card so
+     the headline matches the visual scale of the stat tiles below it. */
+  .tl-headline { gap: 12px; margin-bottom: 14px; grid-template-columns: 1fr; }
+  .tl-headline-gauge { display: none; }
   .tl-headline-score { padding: 18px 18px 16px; }
-  .tl-headline-value { font-size: 44px; margin-top: 2px; }
+  .tl-headline-value { font-size: 42px; margin-top: 2px; }
   .tl-headline-rating { font-size: 12px; margin-top: 4px; }
   .tl-headline-meta { font-size: 12px; margin-top: 8px; }
-
-  /* Gauge wrapper — half the desktop padding and a shorter inner chart
-     so the indicator doesn't dominate the viewport. */
-  .tl-headline-gauge { padding: 8px; }
-  .tl-headline-gauge .plotly-container { min-height: 170px; max-width: 100%; }
 
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi-cell { padding: 12px; }
