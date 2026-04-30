@@ -3593,7 +3593,16 @@ html[dir="ltr"] { text-align: left; }
   .btn { padding: 11px 16px; font-size: 13px; }
   .btn-sm { padding: 8px 12px; font-size: 12px; }
 
-  .table-wrap { border-radius: var(--radius); }
+  /* Tables get horizontal scroll on mobile so the action column (edit /
+     activate / delete) doesn't get clipped. The wrapper switches from
+     overflow:hidden → overflow-x:auto, and a min-width on the table forces
+     it to keep its column structure instead of cramming. */
+  .table-wrap {
+    border-radius: var(--radius);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-wrap table { min-width: 720px; }
   th, td { padding: 12px 10px; font-size: 12px; }
 
   .modal-backdrop { padding: 0; align-items: flex-end; }
@@ -3612,10 +3621,18 @@ html[dir="ltr"] { text-align: left; }
   .plotly-container.short { min-height: 200px; }
   .plotly-container.tall { min-height: 320px; }
 
-  /* Headline gauge — tighten the wrapper on mobile so the indicator
-     doesn't dominate the viewport with a half-empty arc + tall padding. */
+  /* Headline (avg-KPI score + gauge) — compress padding/font on mobile so
+     the two stacked cards don't dwarf the smaller stat tiles below them. */
+  .tl-headline { gap: 12px; margin-bottom: 14px; }
+  .tl-headline-score { padding: 18px 18px 16px; }
+  .tl-headline-value { font-size: 44px; margin-top: 2px; }
+  .tl-headline-rating { font-size: 12px; margin-top: 4px; }
+  .tl-headline-meta { font-size: 12px; margin-top: 8px; }
+
+  /* Gauge wrapper — half the desktop padding and a shorter inner chart
+     so the indicator doesn't dominate the viewport. */
   .tl-headline-gauge { padding: 8px; }
-  .tl-headline-gauge .plotly-container { min-height: 180px; max-width: 100%; }
+  .tl-headline-gauge .plotly-container { min-height: 170px; max-width: 100%; }
 
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi-cell { padding: 12px; }
