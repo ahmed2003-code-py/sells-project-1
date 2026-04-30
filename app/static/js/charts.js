@@ -388,13 +388,20 @@ function drawGauge(containerId, value, options = {}) {
               : value >= 40 ? CHART_COLORS.warning2
               : CHART_COLORS.danger;
 
+  // Scale number/tick fonts down on narrow viewports so the indicator fits
+  // mobile screens without the value glyph overflowing the arc.
+  const isNarrow = (typeof window !== 'undefined' && window.innerWidth < 600);
+  const numSize = isNarrow ? 26 : 36;
+  const tickSize = isNarrow ? 9 : 10;
+  const margin = isNarrow ? { t: 14, r: 14, b: 14, l: 14 } : { t: 20, r: 20, b: 20, l: 20 };
+
   const trace = {
     type: 'indicator',
     mode: 'gauge+number',
     value: value,
-    number: { suffix: '%', font: { color: CHART_COLORS.text, size: 36, family: _chartFontFamily() } },
+    number: { suffix: '%', font: { color: CHART_COLORS.text, size: numSize, family: _chartFontFamily() } },
     gauge: {
-      axis: { range: [0, 100], tickcolor: CHART_COLORS.muted, tickfont: { size: 10 } },
+      axis: { range: [0, 100], tickcolor: CHART_COLORS.muted, tickfont: { size: tickSize } },
       bar: { color: color, thickness: 0.78 },
       bgcolor: CHART_COLORS.surface2,
       borderwidth: 0,
@@ -413,7 +420,7 @@ function drawGauge(containerId, value, options = {}) {
   };
 
   const layout = chartLayout({
-    margin: { t: 20, r: 20, b: 20, l: 20 },
+    margin: margin,
     showlegend: false,
     ...options,
   });

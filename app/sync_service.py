@@ -162,7 +162,12 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
     now = datetime.now()
     new_count = updated_count = sold_count = 0
     fresh_ids = {u["detail_id"] for u in fresh_units if u.get("detail_id")}
-    safe_to_mark_sold = len(fresh_ids) >= max(1, len(existing) * 0.10)
+    # Only mark missing units as sold when the API returned ≥70% of what we
+    # already had — a low threshold caused a regression where partial API
+    # responses gradually flagged the entire catalogue as sold over multiple
+    # runs. 70% is conservative enough to skip sold-marking during outages
+    # while still catching genuine catalogue churn.
+    safe_to_mark_sold = len(fresh_ids) >= max(1, int(len(existing) * 0.70))
 
     with conn.cursor() as cur:
         for unit in fresh_units:
@@ -218,7 +223,14 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
                     """, {**unit, "last_seen": now})
                     updated_count += 1
                 else:
-                    cur.execute("UPDATE units SET last_seen = %s WHERE detail_id = %s", (now, did))
+                    # Unchanged unit re-appeared — refresh last_seen AND clear
+                    # any stale is_sold flag (a previous partial sync may have
+                    # incorrectly marked it sold).
+                    cur.execute(
+                        "UPDATE units SET last_seen = %s, is_sold = FALSE, sold_at = NULL "
+                        "WHERE detail_id = %s",
+                        (now, did),
+                    )
 
         if safe_to_mark_sold:
             for did in set(existing.keys()) - fresh_ids:

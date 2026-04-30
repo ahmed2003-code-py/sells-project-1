@@ -3608,7 +3608,14 @@ html[dir="ltr"] { text-align: left; }
   .modal-footer { flex-wrap: wrap; }
   .modal-footer .btn { flex: 1 1 auto; }
 
-  .plotly-container { min-height: 280px; }
+  .plotly-container { min-height: 240px; }
+  .plotly-container.short { min-height: 200px; }
+  .plotly-container.tall { min-height: 320px; }
+
+  /* Headline gauge — tighten the wrapper on mobile so the indicator
+     doesn't dominate the viewport with a half-empty arc + tall padding. */
+  .tl-headline-gauge { padding: 8px; }
+  .tl-headline-gauge .plotly-container { min-height: 180px; max-width: 100%; }
 
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi-cell { padding: 12px; }
