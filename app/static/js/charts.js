@@ -9,25 +9,31 @@
 // point at the live object — and so callers can keep using property
 // access (CHART_COLORS.brand) without needing to re-read every render.
 const _CHART_PALETTES = {
+  // Light-mode chart palette — softened on purpose. The CSS design tokens
+  // (--brand etc.) stay at full saturation for buttons, badges, and tiles
+  // — those sit on small surfaces and benefit from contrast. Charts cover
+  // large areas of saturated colour against white, which gets harsh fast,
+  // so the chart-only versions are nudged to medium saturation / medium
+  // lightness for comfortable long viewing.
   light: {
-    brand:       '#474dc5',  // periwinkle primary
-    brand2:      '#6067df',  // periwinkle lighter
-    brand3:      '#bfc2ff',  // periwinkle dim
-    accent:      '#006762',  // teal tertiary
-    accent2:     '#00837c',
-    accent3:     '#40dcd1',  // mint highlight
-    secondary:   '#884f41',  // coral / brown
-    secondary2:  '#ffb4a2',  // soft coral
-    info:        '#5a7cff',
-    warning:     '#c47200',
-    warning2:    '#ffb84d',
-    danger:      '#ba1a1a',
-    danger2:     '#ff6b8a',
-    muted:       '#767685',
-    text:        '#181b24',
-    textMuted:   '#464653',
+    brand:       '#5e64db',  // periwinkle, slightly softer than the CSS --brand
+    brand2:      '#7d83e8',
+    brand3:      '#bfc2ff',
+    accent:      '#2eb5a8',  // medium teal — lighter than the deep #006762
+    accent2:     '#4ec5b9',
+    accent3:     '#7fdcd0',
+    secondary:   '#c98c7d',  // warm coral, easier than the dark brown
+    secondary2:  '#f1b4a4',
+    info:        '#6b8fed',
+    warning:     '#d68c2a',  // amber, less burnt than #c47200
+    warning2:    '#f0b463',
+    danger:      '#d65962',  // muted red, still clearly a warning
+    danger2:     '#ec828a',
+    muted:       '#8a8e9c',
+    text:        '#2d3142',  // softened from pure black for axis labels
+    textMuted:   '#5b6072',
     bg:          '#ffffff',
-    surface2:    '#f5f6fc',
+    surface2:    '#f7f8fc',
     border:      '#e5e7ef',
     grid:        '#eef0f6',
     gridStrong:  '#d8dbe8',
