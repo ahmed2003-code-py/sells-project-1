@@ -99,8 +99,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat33"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat33"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat34"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat34"></script>
 <script>
 let leaders = [];
 let teams = [];
@@ -408,9 +408,12 @@ function memberRowHTML(m) {
     return `<span class="badge ${x.cls}">${t(x.key)}</span>`;
   })();
   const initial = escapeHTML((m.full_name || "?").trim().charAt(0));
+  const avatarMarkup = m.avatar_url
+    ? `<div class="avatar avatar-sm avatar-img"><img src="${escapeHTML(m.avatar_url)}" alt=""></div>`
+    : `<div class="avatar avatar-sm">${initial}</div>`;
   return `
     <div class="tl-member-row" data-status="${escapeHTML(m.status || "")}">
-      <div class="avatar avatar-sm">${initial}</div>
+      ${avatarMarkup}
       <div class="tl-member-name">
         <div class="tl-member-name-line">${escapeHTML(m.full_name || "—")}</div>
       </div>

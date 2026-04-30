@@ -1244,6 +1244,123 @@ html[dir="ltr"] .toast.show { transform: translateX(-50%) translateY(0); }
 .team-card-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+/* Stacked avatar pile — overlapping circles in the team-card meta row.
+   The first ~5 members are rendered, then a "+N" pill takes the rest. */
+.team-card-leader-line,
+.team-card-members-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-avatars-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.team-avatar-stacked {
+  margin-inline-start: -8px;
+  outline: 2px solid var(--surface-solid);
+  outline-offset: 0;
+  position: relative;
+  z-index: 1;
+}
+.team-avatar-stacked:first-child { margin-inline-start: 0; }
+.team-avatar-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 32px;
+  padding: 0 8px;
+  margin-inline-start: -8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-recessed);
+  border: 2px solid var(--surface-solid);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Expandable details panel — closed by default, opens on summary click */
+.team-card { padding: 0; overflow: hidden; }
+.team-card > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 22px;
+  user-select: none;
+}
+.team-card > summary::-webkit-details-marker { display: none; }
+.team-card > summary::marker { content: ""; }
+
+.team-card-chev {
+  font-size: 22px;
+  color: var(--text-muted);
+  transition: transform 0.2s var(--ease);
+  margin-inline-start: 4px;
+}
+.team-card[open] > summary .team-card-chev {
+  transform: rotate(180deg);
+}
+
+.team-card-expand {
+  border-top: 1px solid var(--outline-variant);
+  padding: 16px 22px 20px;
+  background: var(--surface-recessed);
+  animation: fadeIn 0.25s var(--ease);
+}
+.team-expand-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.team-expand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.team-expand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-solid);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+.team-expand-meta { flex: 1; min-width: 0; }
+.team-expand-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.team-expand-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.team-expand-contact {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  color: var(--brand);
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.team-expand-contact:hover { background: var(--brand); color: #fff; }
+.team-expand-contact .material-symbols-outlined { font-size: 16px; }
+.team-expand-empty {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 20px;
 }
 
 /* Members fieldset — used inside the team modal */

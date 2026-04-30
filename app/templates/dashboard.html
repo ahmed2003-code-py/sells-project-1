@@ -167,8 +167,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat33"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat33"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat34"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat34"></script>
 <script>
 let allData = [];
 let _drCtrl = null;
@@ -574,7 +574,11 @@ function renderTable(rows) {
       <td><span class="rank ${rankCls}">${i + 1}</span></td>
       <td>
         <div class="row-actor">
-          <div class="avatar avatar-sm">${(r.user_name||'?')[0]}</div>
+          <div class="avatar avatar-sm${r.avatar_url ? ' avatar-img' : ''}">${
+            r.avatar_url
+              ? `<img src="${escapeHTML(r.avatar_url)}" alt="">`
+              : (r.user_name||'?')[0]
+          }</div>
           <div>
             <div class="row-actor-name">${r.user_name}</div>
             <div class="row-actor-sub">${t("dash.fresh_leads_short")}: ${fresh}</div>

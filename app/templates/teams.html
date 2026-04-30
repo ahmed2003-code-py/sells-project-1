@@ -123,32 +123,72 @@ function render() {
 
   container.innerHTML = teams.map(team => {
     const leaderName = team.leader_name || t("teams.no_leader");
-    const cnt = team.member_count || 0;
+    const members = Array.isArray(team.members) ? team.members : [];
+    const cnt = team.member_count != null ? team.member_count : members.length;
+    const stackedAvatars = members.slice(0, 5).map(m =>
+      _avatarHTML(m, "avatar avatar-sm team-avatar-stacked", "")
+    ).join("");
+    const moreCount = cnt > 5 ? `<span class="team-avatar-more">+${cnt - 5}</span>` : "";
+    const leaderAvatar = team.leader_id
+      ? _avatarHTML({ full_name: leaderName, avatar_url: team.leader_avatar_url }, "avatar avatar-sm", "")
+      : "";
+
     return `
-      <div class="card team-card">
-        <div class="team-card-row">
+      <details class="card team-card" data-team-id="${team.id}">
+        <summary class="team-card-row" aria-label="${escapeHTML(team.name)}">
           <div class="team-card-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></div>
           <div class="team-card-body">
             <div class="team-card-name">${escapeHTML(team.name)}</div>
             ${team.description ? `<div class="team-card-desc">${escapeHTML(team.description)}</div>` : ""}
             <div class="team-card-meta">
-              <span>
-                <span class="text-muted">${t("teams.leader")}:</span>
-                <strong>${escapeHTML(leaderName)}</strong>
+              <span class="team-card-leader-line">
+                ${leaderAvatar}
+                <span><span class="text-muted">${t("teams.leader")}:</span> <strong>${escapeHTML(leaderName)}</strong></span>
               </span>
-              <span>
-                <span class="text-muted">${t("teams.members")}:</span>
-                <strong>${cnt} ${t("teams.members_count")}</strong>
+              <span class="team-card-members-line">
+                <span class="team-avatars-stack">${stackedAvatars}${moreCount}</span>
+                <span><strong>${cnt}</strong> <span class="text-muted">${t("teams.members_count")}</span></span>
               </span>
             </div>
           </div>
           <div class="team-card-actions">
-            <button class="btn btn-sm btn-primary" onclick="openEdit(${team.id})">${t("common.edit")}</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.id})">${t("common.delete")}</button>
+            <button class="btn btn-sm btn-primary" type="button" onclick="event.preventDefault();event.stopPropagation();openEdit(${team.id})">${t("common.edit")}</button>
+            <button class="btn btn-sm btn-danger" type="button" onclick="event.preventDefault();event.stopPropagation();deleteTeam(${team.id})">${t("common.delete")}</button>
+            <span class="team-card-chev material-symbols-outlined" aria-hidden="true">expand_more</span>
           </div>
+        </summary>
+        <div class="team-card-expand">
+          <div class="team-expand-title">${t("teams.members")} (${cnt})</div>
+          ${members.length
+            ? `<div class="team-expand-grid">
+                ${members.map(m => `
+                  <div class="team-expand-row">
+                    ${_avatarHTML(m, "avatar avatar-sm", "")}
+                    <div class="team-expand-meta">
+                      <div class="team-expand-name">${escapeHTML(m.full_name)}</div>
+                      <div class="team-expand-sub">@${escapeHTML(m.username)}</div>
+                    </div>
+                    ${m.email ? `<a class="team-expand-contact" href="mailto:${escapeHTML(m.email)}" title="${escapeHTML(m.email)}"><span class="material-symbols-outlined" aria-hidden="true">mail</span></a>` : ""}
+                  </div>
+                `).join("")}
+              </div>`
+            : `<div class="team-expand-empty">${t("teams.empty_members")}</div>`}
         </div>
-      </div>`;
+      </details>`;
   }).join("");
+}
+
+// Single source of truth for rendering an avatar — accepts a user-like
+// object ({full_name, avatar_url}) and returns either an <img> wrapper
+// or the initial-letter fallback. Used both in the team card list and
+// the expand panel below it.
+function _avatarHTML(user, classes, extraStyle) {
+  const initial = ((user && user.full_name) || "?").trim()[0] || "?";
+  const style = extraStyle ? ` style="${extraStyle}"` : "";
+  if (user && user.avatar_url) {
+    return `<div class="${classes} avatar-img"${style}><img src="${escapeHTML(user.avatar_url)}" alt=""></div>`;
+  }
+  return `<div class="${classes}"${style}>${escapeHTML(initial)}</div>`;
 }
 
 function buildLeaderOptions(selectedId) {

@@ -31,9 +31,19 @@ def list_teams():
                     SELECT t.id, t.name, t.description, t.created_at,
                            t.leader_id,
                            u.full_name AS leader_name, u.username AS leader_username,
+                           u.avatar_url AS leader_avatar_url,
                            (SELECT COUNT(*) FROM users m
                             WHERE m.team_id = t.id AND m.role = 'sales' AND m.active = true
-                           ) AS member_count
+                           ) AS member_count,
+                           (SELECT COALESCE(json_agg(json_build_object(
+                               'id', m.id,
+                               'full_name', m.full_name,
+                               'username', m.username,
+                               'avatar_url', m.avatar_url
+                           ) ORDER BY m.full_name), '[]'::json)
+                            FROM users m
+                            WHERE m.team_id = t.id AND m.role = 'sales' AND m.active = true
+                           ) AS members
                     FROM teams t
                     LEFT JOIN users u ON u.id = t.leader_id
                     ORDER BY t.name
@@ -58,7 +68,8 @@ def get_team(team_id):
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
                     SELECT t.id, t.name, t.description, t.leader_id,
-                           u.full_name AS leader_name
+                           u.full_name AS leader_name, u.username AS leader_username,
+                           u.avatar_url AS leader_avatar_url
                     FROM teams t
                     LEFT JOIN users u ON u.id = t.leader_id
                     WHERE t.id = %s
@@ -68,7 +79,7 @@ def get_team(team_id):
                     return jsonify({"error_code": "not_found", "error": "not_found"}), 404
 
                 cur.execute("""
-                    SELECT id, full_name, username, role, active
+                    SELECT id, full_name, username, role, active, avatar_url, email, phone
                     FROM users
                     WHERE team_id = %s AND role = 'sales'
                     ORDER BY full_name

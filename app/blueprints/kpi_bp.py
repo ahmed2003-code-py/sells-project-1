@@ -337,7 +337,7 @@ def get_entry(user_id, month):
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT e.*, u.full_name AS user_name, u.username
+                    SELECT e.*, u.full_name AS user_name, u.username, u.avatar_url
                     FROM kpi_entries e
                     JOIN users u ON u.id = e.user_id
                     WHERE e.user_id = %s AND e.month = %s
@@ -420,7 +420,7 @@ def report():
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 q = """
-                    SELECT e.*, u.full_name AS user_name, u.username
+                    SELECT e.*, u.full_name AS user_name, u.username, u.avatar_url
                     FROM kpi_entries e
                     JOIN users u ON u.id = e.user_id
                     WHERE u.active = true
@@ -618,7 +618,7 @@ def get_tl_kpi(tl_user_id, month):
                 # Submitted team entries for this month — joined to user_name so we can
                 # surface top/weakest performer in the response.
                 cur.execute("""
-                    SELECT e.*, u.full_name AS user_name FROM kpi_entries e
+                    SELECT e.*, u.full_name AS user_name, u.avatar_url FROM kpi_entries e
                     JOIN users u ON u.id = e.user_id
                     WHERE u.team_id = %s AND u.role = 'sales' AND u.active = true
                     AND e.month = %s
@@ -629,7 +629,7 @@ def get_tl_kpi(tl_user_id, month):
                 # with their entry data if it exists (LEFT JOIN — reps with no entry
                 # this month still appear so the TL sees their full team).
                 cur.execute("""
-                    SELECT u.id, u.full_name, u.username,
+                    SELECT u.id, u.full_name, u.username, u.avatar_url,
                            e.total_score, e.rating,
                            e.sales_submitted_at, e.dataentry_submitted_at
                     FROM users u
@@ -752,7 +752,7 @@ def list_team_leaders():
                 # behavior (zero or one row per TL anyway).
                 cur.execute(
                     """
-                    SELECT u.id, u.full_name, u.username,
+                    SELECT u.id, u.full_name, u.username, u.avatar_url,
                            t.id AS team_id, t.name AS team_name,
                            latest.dataentry_submitted_at, latest.notes
                     FROM users u
