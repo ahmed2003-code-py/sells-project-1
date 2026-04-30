@@ -562,6 +562,19 @@ html[dir="rtl"] .topnav-user { padding: 4px 4px 4px 10px; }
   font-size: 13px; font-weight: 700;
   flex-shrink: 0;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,0.45);
+  overflow: hidden;
+}
+/* When the user has an uploaded avatar we wrap an <img> instead of the
+   initial. Drop the gradient bg + inset ring so the photo isn't tinted. */
+.avatar.avatar-img {
+  background: var(--surface-solid);
+  box-shadow: inset 0 0 0 1px var(--border);
+  padding: 0;
+}
+.avatar.avatar-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .user-info { font-size: 12px; display: flex; flex-direction: column; line-height: 1.2; }
@@ -2621,30 +2634,217 @@ kbd {
 }
 .pw-rules li.passed { color: var(--accent-2); }
 
-/* ──────────────────────────────────────────────────────────────────
-   PROFILE — read-only account info as definition list
-   ────────────────────────────────────────────────────────────────── */
-.profile-info {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
-  margin: 0 0 12px;
+/* ════════════════════════════════════════════════════════════════════
+   PROFILE PAGE
+   Hero card + quick stats + editable info + change-password.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Hero card ───────────────────────────────────────────────────── */
+.profile-hero {
+  position: relative;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 30px 32px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  isolation: isolate;
 }
-.profile-info-item dd {
-  font-size: 14px;
-  color: var(--text);
-  font-weight: 500;
-  margin: 0;
-  word-break: break-word;
+.profile-hero-bg {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: -1;
 }
-.profile-contact-hint {
+.profile-hero-blob {
+  position: absolute;
+  top: -120px; inset-inline-end: -100px;
+  width: 360px; height: 360px;
+  background: radial-gradient(circle, rgba(124, 131, 253, 0.18) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(40px);
+}
+[data-theme="dark"] .profile-hero-blob {
+  background: radial-gradient(circle, rgba(124, 131, 253, 0.22) 0%, transparent 70%);
+}
+
+.profile-hero-body {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+/* Avatar container — circle with hover affordance + camera button overlay */
+.profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 110px; height: 110px;
+}
+.profile-avatar {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  color: #ffffff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 42px;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(71, 77, 197, 0.28),
+              inset 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+.profile-avatar img {
+  width: 100%; height: 100%;
+  object-fit: cover;
   display: block;
-  margin-top: 8px;
-  font-size: 12px;
+}
+.profile-avatar-fallback { user-select: none; }
+
+.profile-avatar-btn,
+.profile-avatar-remove {
+  position: absolute;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--surface-solid);
+  background: var(--brand);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  box-shadow: 0 4px 12px rgba(71, 77, 197, 0.28);
+}
+.profile-avatar-btn { bottom: 0; inset-inline-end: 0; }
+.profile-avatar-btn:hover { transform: scale(1.06); background: var(--brand-2); }
+.profile-avatar-btn .material-symbols-outlined { font-size: 18px; }
+
+.profile-avatar-remove {
+  top: 0; inset-inline-end: 0;
+  background: var(--danger);
+  width: 28px; height: 28px;
+}
+.profile-avatar-remove:hover { transform: scale(1.06); }
+.profile-avatar-remove .material-symbols-outlined { font-size: 14px; }
+
+.profile-hero-meta { flex: 1; min-width: 0; }
+.profile-hero-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-wrap: balance;
+}
+.profile-hero-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.profile-hero-username {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-en);
+}
+.profile-hero-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
   color: var(--text-muted);
 }
+.profile-hero-contact span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.profile-hero-contact .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--brand);
+  font-variation-settings: 'FILL' 1, 'wght' 500;
+}
+
 @media (max-width: 600px) {
-  .profile-info { grid-template-columns: 1fr; gap: 14px; }
+  .profile-hero { padding: 22px 18px; }
+  .profile-hero-body { flex-direction: column; align-items: center; text-align: center; gap: 18px; }
+  .profile-avatar-wrap { width: 96px; height: 96px; }
+  .profile-avatar { font-size: 38px; }
+  .profile-hero-name { font-size: 22px; }
+  .profile-hero-contact { justify-content: center; }
+}
+
+/* ── Quick stats row ─────────────────────────────────────────────── */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.profile-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-xs);
+}
+.profile-stat-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.profile-stat-icon .material-symbols-outlined {
+  font-size: 22px;
+  font-variation-settings: 'FILL' 1, 'wght' 500;
+}
+.profile-stat-body { min-width: 0; }
+.profile-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.profile-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .profile-stats { grid-template-columns: 1fr; }
+}
+
+/* ── Editable personal info card ─────────────────────────────────── */
+.profile-card-title {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px;
+}
+.profile-card-title .btn-sm { font-size: 12px; padding: 6px 12px; }
+
+.profile-info-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.profile-contact-hint {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ════════════════════════════════════════════════════════════════════

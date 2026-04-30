@@ -1,38 +1,115 @@
 {% extends "base.html" %}
-{% block title %}Ain KPI{% endblock %}
+{% block title %}Ain KPI · Profile{% endblock %}
 {% block main_class %}narrow{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title" data-i18n="profile.title"></h1>
-    <p class="page-subtitle" data-i18n="profile.subtitle"></p>
+<!-- ── Hero card ──────────────────────────────────────────────────────────
+     Avatar with hover-edit affordance, name + role badge, primary contact.
+     Inline edit-name button keeps quick edits one click away. -->
+<section class="profile-hero">
+  <div class="profile-hero-bg" aria-hidden="true">
+    <span class="profile-hero-blob"></span>
   </div>
-</div>
 
+  <div class="profile-hero-body">
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="profileAvatar">
+        {% if user.avatar_url %}
+          <img id="profileAvatarImg" src="{{ user.avatar_url }}" alt="{{ user.full_name }}">
+        {% else %}
+          <span id="profileAvatarFallback" class="profile-avatar-fallback">{{ user.full_name[0] if user.full_name else 'U' }}</span>
+        {% endif %}
+      </div>
+      <button type="button" class="profile-avatar-btn" id="profileAvatarBtn" data-i18n-aria-label="profile.change_avatar" data-i18n-title="profile.change_avatar">
+        <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+      </button>
+      <button type="button" class="profile-avatar-remove" id="profileAvatarRemove" data-i18n-aria-label="profile.remove_avatar" data-i18n-title="profile.remove_avatar" {% if not user.avatar_url %}hidden{% endif %}>
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+      <input type="file" id="profileAvatarInput" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+
+    <div class="profile-hero-meta">
+      <h1 class="profile-hero-name" id="profileHeroName">{{ user.full_name }}</h1>
+      <div class="profile-hero-sub">
+        <span class="badge badge-role-{{ user.role }}" id="profileRoleBadge" data-i18n="role.{{ user.role }}">{{ user.role }}</span>
+        <span class="profile-hero-username">@{{ user.username }}</span>
+      </div>
+      <div class="profile-hero-contact" id="profileHeroContact">
+        {% if user.email %}<span><span class="material-symbols-outlined" aria-hidden="true">mail</span>{{ user.email }}</span>{% endif %}
+        {% if user.phone %}<span><span class="material-symbols-outlined" aria-hidden="true">call</span>{{ user.phone }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Quick stats (account snapshot) ─────────────────────────────────── -->
+<section class="profile-stats" id="profileStats">
+  <div class="profile-stat">
+    <div class="profile-stat-icon"><span class="material-symbols-outlined" aria-hidden="true">verified_user</span></div>
+    <div class="profile-stat-body">
+      <div class="profile-stat-label" data-i18n="profile.stat_role"></div>
+      <div class="profile-stat-value" id="statRole" data-i18n="role.{{ user.role }}">{{ user.role }}</div>
+    </div>
+  </div>
+  <div class="profile-stat">
+    <div class="profile-stat-icon"><span class="material-symbols-outlined" aria-hidden="true">event_available</span></div>
+    <div class="profile-stat-body">
+      <div class="profile-stat-label" data-i18n="profile.stat_member_since"></div>
+      <div class="profile-stat-value" id="statSince">—</div>
+    </div>
+  </div>
+  <div class="profile-stat">
+    <div class="profile-stat-icon"><span class="material-symbols-outlined" aria-hidden="true">login</span></div>
+    <div class="profile-stat-body">
+      <div class="profile-stat-label" data-i18n="profile.stat_last_login"></div>
+      <div class="profile-stat-value" id="statLastLogin">—</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Personal info (editable) ───────────────────────────────────────── -->
 <div class="card reveal">
-  <div class="card-title" data-i18n="profile.account_info"></div>
-  <dl class="profile-info">
-    <div class="profile-info-item">
-      <dt data-i18n="auth.full_name"></dt>
-      <dd>{{ user.full_name }}</dd>
+  <div class="card-title profile-card-title">
+    <span data-i18n="profile.personal_info"></span>
+    <button type="button" class="btn btn-ghost btn-sm" id="editInfoBtn" data-i18n="common.edit"></button>
+  </div>
+
+  <form id="infoForm" novalidate>
+    <div class="field-row">
+      <div class="field">
+        <label for="profFullName" data-i18n="auth.full_name"></label>
+        <input type="text" id="profFullName" maxlength="150" value="{{ user.full_name }}" disabled>
+      </div>
+      <div class="field">
+        <label for="profUsername" data-i18n="auth.username"></label>
+        <input type="text" id="profUsername" value="@{{ user.username }}" disabled readonly>
+      </div>
     </div>
-    <div class="profile-info-item">
-      <dt data-i18n="auth.username"></dt>
-      <dd>{{ user.username }}</dd>
+    <div class="field-row">
+      <div class="field">
+        <label for="profEmail" data-i18n="auth.email"></label>
+        <input type="email" id="profEmail" maxlength="150" value="{{ user.email or '' }}" disabled>
+      </div>
+      <div class="field">
+        <label for="profPhone">
+          <span data-i18n="auth.phone"></span>
+          <small data-i18n="common.optional"></small>
+        </label>
+        <input type="tel" id="profPhone" maxlength="20" value="{{ user.phone or '' }}" disabled>
+      </div>
     </div>
-    <div class="profile-info-item">
-      <dt data-i18n="admin.role"></dt>
-      <dd id="roleDisplay">{{ user.role }}</dd>
+
+    <div class="profile-info-actions" id="infoActions" hidden>
+      <button type="submit" class="btn btn-primary" id="infoSaveBtn" data-i18n="common.save"></button>
+      <button type="button" class="btn btn-ghost" id="infoCancelBtn" data-i18n="common.cancel"></button>
     </div>
-    <div class="profile-info-item">
-      <dt data-i18n="auth.email"></dt>
-      <dd>{{ user.email or '—' }}</dd>
-    </div>
-  </dl>
-  <small class="text-muted profile-contact-hint" data-i18n="profile.contact_admin"></small>
+  </form>
+
+  <small class="text-muted profile-contact-hint" data-i18n="profile.contact_admin_hint"></small>
 </div>
 
+<!-- ── Change password ───────────────────────────────────────────────── -->
 <div class="card reveal">
   <div class="card-title" data-i18n="profile.change_pw"></div>
   <form id="pwForm" novalidate>
@@ -70,20 +147,238 @@
         </div>
       </div>
     </div>
-    <button type="submit" class="btn btn-primary" id="pwBtn"
-            data-i18n="profile.change_btn"></button>
+    <button type="submit" class="btn btn-primary" id="pwBtn" data-i18n="profile.change_btn"></button>
   </form>
+</div>
+
+<!-- Avatar remove confirm modal -->
+<div class="modal-backdrop" id="avatarRemoveModal" role="dialog" aria-modal="true" aria-labelledby="avatarRemoveTitle">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="avatarRemoveTitle" data-i18n="profile.remove_avatar_title"></div>
+      <button class="modal-close" onclick="closeModal('avatarRemoveModal')" data-i18n-aria-label="common.close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p data-i18n="profile.remove_avatar_body"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('avatarRemoveModal')" data-default-focus data-i18n="common.cancel"></button>
+      <button type="button" class="btn btn-danger" id="avatarRemoveConfirmBtn" data-i18n="profile.remove_avatar_btn"></button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function onLangChange() {
-  const roleEl = document.getElementById("roleDisplay");
-  if (roleEl) roleEl.textContent = t("role.{{ user.role }}");
-}
-document.addEventListener("DOMContentLoaded", onLangChange);
+const USER_ID = {{ user.id|tojson }};
+const CURRENT_ROLE = {{ user.role|tojson }};
 
+// ─── Populate stats (created_at + last_login) ────────────────────────
+async function loadStats() {
+  try {
+    // /api/users/<id> requires admin/manager. Self-service users don't have it,
+    // so we surface only what /api/auth/me already gave us. Keeping the call
+    // gated keeps the fallback graceful.
+    const me = await api("/api/auth/me");
+    if (me && me.created_at) document.getElementById("statSince").textContent = fmtDate(me.created_at);
+    if (me && me.last_login) document.getElementById("statLastLogin").textContent = fmtDate(me.last_login);
+  } catch (_) {}
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const lang = (typeof getLang === "function" ? getLang() : "ar") === "ar" ? "ar-EG" : "en-GB";
+    return d.toLocaleDateString(lang, { year: "numeric", month: "short", day: "numeric" });
+  } catch (_) { return iso; }
+}
+
+// ─── Avatar upload ───────────────────────────────────────────────────
+// Resize client-side so the payload stays small (~30-80KB) before posting.
+// Skips Pillow on the server, keeps DB rows lean.
+const AVATAR_TARGET = 256;     // pixels (square)
+const AVATAR_QUALITY = 0.85;
+
+function _readFileAsImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read_failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("image_decode_failed"));
+      img.onload = () => resolve(img);
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function _resizeToDataURL(img) {
+  // Center-crop to square, scale to AVATAR_TARGET, encode as JPEG. The
+  // exception is PNG with transparency — we still encode JPEG because
+  // round-cropped square avatars don't need alpha and JPEG is ~2× smaller.
+  const side = Math.min(img.width, img.height);
+  const sx = (img.width - side) / 2;
+  const sy = (img.height - side) / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = AVATAR_TARGET;
+  canvas.height = AVATAR_TARGET;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_TARGET, AVATAR_TARGET);
+  return canvas.toDataURL("image/jpeg", AVATAR_QUALITY);
+}
+
+async function uploadAvatar(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    return toast(t("errors.avatar_unsupported_type"), "error");
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    // Source bound: even before client-side resize we won't try to decode huge
+    // files in memory. The post-resize cap is enforced server-side too.
+    return toast(t("errors.avatar_too_large"), "error");
+  }
+
+  let dataUrl;
+  try {
+    const img = await _readFileAsImage(file);
+    dataUrl = _resizeToDataURL(img);
+  } catch (_) {
+    return toast(t("errors.avatar_invalid"), "error");
+  }
+
+  // Optimistic UI: show the new avatar immediately, roll back on failure.
+  const prev = _setAvatarPreview(dataUrl);
+  try {
+    await api("/api/auth/avatar", { method: "POST", body: { avatar_url: dataUrl } });
+    toast(t("profile.avatar_updated"), "success");
+    _broadcastAvatar(dataUrl);
+    document.getElementById("profileAvatarRemove").hidden = false;
+  } catch (e) {
+    _restoreAvatarPreview(prev);
+    toastError(e);
+  }
+}
+
+function _setAvatarPreview(dataUrl) {
+  const wrap = document.getElementById("profileAvatar");
+  const prevHTML = wrap.innerHTML;
+  wrap.innerHTML = `<img id="profileAvatarImg" src="${escapeAttr(dataUrl)}" alt="">`;
+  return prevHTML;
+}
+
+function _restoreAvatarPreview(prevHTML) {
+  document.getElementById("profileAvatar").innerHTML = prevHTML;
+}
+
+function escapeAttr(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+// Update every avatar-bearing surface on the same page (topnav avatar).
+function _broadcastAvatar(dataUrl) {
+  document.querySelectorAll(".topnav-user .avatar").forEach(a => {
+    a.classList.add("avatar-img");
+    a.innerHTML = `<img src="${escapeAttr(dataUrl)}" alt="">`;
+  });
+}
+
+function _broadcastAvatarRemoved(initial) {
+  document.querySelectorAll(".topnav-user .avatar").forEach(a => {
+    a.classList.remove("avatar-img");
+    a.textContent = initial || "U";
+  });
+}
+
+document.getElementById("profileAvatarBtn").addEventListener("click", () => {
+  document.getElementById("profileAvatarInput").click();
+});
+document.getElementById("profileAvatarInput").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  uploadAvatar(file);
+  e.target.value = "";  // allow reselecting the same file
+});
+
+// ─── Avatar remove ──────────────────────────────────────────────────
+document.getElementById("profileAvatarRemove").addEventListener("click", () => {
+  openModal("avatarRemoveModal");
+});
+document.getElementById("avatarRemoveConfirmBtn").addEventListener("click", async () => {
+  const initial = (document.getElementById("profileHeroName").textContent || "U").trim()[0] || "U";
+  try {
+    await api("/api/auth/avatar", { method: "DELETE" });
+    document.getElementById("profileAvatar").innerHTML =
+      `<span id="profileAvatarFallback" class="profile-avatar-fallback">${escapeAttr(initial)}</span>`;
+    document.getElementById("profileAvatarRemove").hidden = true;
+    _broadcastAvatarRemoved(initial);
+    closeModal("avatarRemoveModal");
+    toast(t("profile.avatar_removed"), "success");
+  } catch (e) { toastError(e); }
+});
+
+// ─── Personal info edit ─────────────────────────────────────────────
+const infoFields = ["profFullName", "profEmail", "profPhone"];
+let _infoSnapshot = null;
+
+document.getElementById("editInfoBtn").addEventListener("click", () => {
+  _infoSnapshot = Object.fromEntries(infoFields.map(id => [id, document.getElementById(id).value]));
+  infoFields.forEach(id => { document.getElementById(id).disabled = false; });
+  document.getElementById("editInfoBtn").hidden = true;
+  document.getElementById("infoActions").hidden = false;
+  document.getElementById("profFullName").focus();
+});
+
+document.getElementById("infoCancelBtn").addEventListener("click", () => {
+  if (_infoSnapshot) {
+    infoFields.forEach(id => { document.getElementById(id).value = _infoSnapshot[id] || ""; });
+  }
+  _exitInfoEdit();
+});
+
+function _exitInfoEdit() {
+  infoFields.forEach(id => { document.getElementById(id).disabled = true; });
+  document.getElementById("editInfoBtn").hidden = false;
+  document.getElementById("infoActions").hidden = true;
+}
+
+document.getElementById("infoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = {
+    full_name: document.getElementById("profFullName").value.trim(),
+    email: document.getElementById("profEmail").value.trim().toLowerCase(),
+    phone: document.getElementById("profPhone").value.trim(),
+  };
+  if (!body.full_name) return toast(t("errors.required_fields_missing"), "error");
+
+  const btn = document.getElementById("infoSaveBtn");
+  btn.disabled = true;
+  try {
+    const r = await api("/api/auth/profile", { method: "PATCH", body });
+    const u = (r && r.user) || {};
+    document.getElementById("profileHeroName").textContent = u.full_name || body.full_name;
+    _renderHeroContact(u.email || body.email, u.phone || body.phone);
+    _exitInfoEdit();
+    toast(t("common.saved"), "success");
+  } catch (err) {
+    toastError(err);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function _renderHeroContact(email, phone) {
+  const host = document.getElementById("profileHeroContact");
+  const parts = [];
+  if (email) parts.push(`<span><span class="material-symbols-outlined" aria-hidden="true">mail</span>${escapeAttr(email)}</span>`);
+  if (phone) parts.push(`<span><span class="material-symbols-outlined" aria-hidden="true">call</span>${escapeAttr(phone)}</span>`);
+  host.innerHTML = parts.join("");
+}
+
+// ─── Change password (existing flow) ────────────────────────────────
 function checkPwRules() {
   const v = document.getElementById("newPw").value;
   const rules = {
@@ -116,15 +411,24 @@ document.getElementById("pwForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("pwBtn");
   btn.disabled = true;
   try {
-    await api("/api/auth/change-password", {
-      method: "POST",
-      body: { old_password: oldPw, new_password: newPw },
-    });
+    await api("/api/auth/change-password", { method: "POST", body: { old_password: oldPw, new_password: newPw } });
     toast(t("profile.pw_changed"), "success");
     document.getElementById("pwForm").reset();
     checkPwRules();
   } catch (err) { toastError(err); }
   finally { btn.disabled = false; }
+});
+
+function onLangChange() {
+  const roleEl = document.getElementById("statRole");
+  if (roleEl) roleEl.textContent = t("role.{{ user.role }}");
+  // Re-format dates in the active locale.
+  loadStats();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadStats();
+  onLangChange();
 });
 </script>
 {% endblock %}

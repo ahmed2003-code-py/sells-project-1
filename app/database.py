@@ -184,6 +184,11 @@ def init_all_tables():
                 ("preferred_theme", "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_theme VARCHAR(10) DEFAULT 'dark'"),
                 ("failed_logins", "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER DEFAULT 0"),
                 ("locked_until", "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP"),
+                # avatar_url stores a base64 data URL (data:image/png;base64,...)
+                # so it works on Railway's ephemeral filesystem without an S3
+                # dependency. The auth endpoint caps the size to keep the row
+                # size sane.
+                ("avatar_url", "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"),
             ]:
                 if not column_exists(conn, "users", col):
                     cur.execute(ddl)

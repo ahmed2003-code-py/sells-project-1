@@ -54,7 +54,7 @@ def list_users():
             # team_leader_id/team_leader_name: only meaningful for sales reps
             # (their TL is tm.leader_id). NULL for all other roles.
             q = """SELECT u.id, u.username, u.full_name, u.role, u.email, u.phone,
-                          u.active,
+                          u.active, u.avatar_url,
                           COALESCE(tl.id,   u.team_id) AS team_id,
                           COALESCE(tl.name, tm.name)   AS team_name,
                           CASE WHEN u.role = 'sales' THEN tm.leader_id END AS team_leader_id,
@@ -100,7 +100,7 @@ def get_user(user_id):
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, username, full_name, role, email, phone, active,
+                SELECT id, username, full_name, role, email, phone, active, avatar_url,
                        created_at, updated_at, last_login
                 FROM users WHERE id = %s
             """, (user_id,))

@@ -194,6 +194,9 @@ def current_user():
         "username": session.get("username"),
         "full_name": session.get("full_name"),
         "role": session.get("role"),
+        "email": session.get("email"),
+        "phone": session.get("phone"),
+        "avatar_url": session.get("avatar_url"),
     }
 
 

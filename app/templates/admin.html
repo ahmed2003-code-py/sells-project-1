@@ -185,7 +185,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat31"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat32"></script>
 <script>
 // Snapshot the current admin's user_id once — used by render() to suppress the
 // self-delete button. Pulled via |tojson so a null user.id surfaces as `null`,
@@ -389,7 +389,11 @@ function render() {
   tbody.innerHTML = rows.map(u => `<tr>
     <td>
       <div class="row-actor">
-        <div class="avatar avatar-sm">${escapeHTML((u.full_name || "?")[0])}</div>
+        <div class="avatar avatar-sm${u.avatar_url ? ' avatar-img' : ''}">${
+          u.avatar_url
+            ? `<img src="${escapeHTML(u.avatar_url)}" alt="">`
+            : escapeHTML((u.full_name || "?")[0])
+        }</div>
         <div>
           <div class="row-actor-name">${escapeHTML(u.full_name)}</div>
           <div class="row-actor-sub">@${escapeHTML(u.username)}</div>

@@ -73,7 +73,7 @@ def login():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT id, username, full_name, password_hash, role, active, email,
-                       failed_logins, locked_until
+                       phone, avatar_url, failed_logins, locked_until
                 FROM users WHERE LOWER(username) = %s
             """, (username,))
             user = cur.fetchone()
@@ -118,6 +118,9 @@ def login():
         session["username"] = user["username"]
         session["full_name"] = user["full_name"]
         session["role"] = user["role"]
+        session["email"] = user.get("email")
+        session["phone"] = user.get("phone")
+        session["avatar_url"] = user.get("avatar_url")
         session.permanent = True
         ensure_csrf_token()
         rate_limit_reset("login")
@@ -158,6 +161,30 @@ def me():
     u = current_user()
     if not u:
         return error_response("unauthorized", 401)
+    # Enrich the session payload with DB-side fields the profile page needs
+    # (created_at, last_login). Cheap, single-row lookup; the connection pool
+    # absorbs the per-request cost.
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT email, phone, avatar_url, created_at, last_login
+                FROM users WHERE id = %s
+            """, (u["id"],))
+            row = cur.fetchone()
+        if row:
+            u["email"] = row.get("email") or u.get("email")
+            u["phone"] = row.get("phone") or u.get("phone")
+            u["avatar_url"] = row.get("avatar_url") or u.get("avatar_url")
+            for k in ("created_at", "last_login"):
+                v = row.get(k)
+                u[k] = v.isoformat() if v else None
+    except Exception as e:
+        log.warning("me: enrichment failed: %s", e)
+    finally:
+        if conn:
+            conn.close()
     u["csrf"] = ensure_csrf_token()
     return jsonify(u)
 
@@ -196,6 +223,171 @@ def change_password():
         return jsonify({"ok": True})
     except Exception as e:
         log.error("change-password error: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
+
+
+# ─── Profile updates (self-service) ────────────────────────────────────────
+
+# Cap on the avatar payload AFTER base64 decoding. ~150 KB is plenty for a
+# 256×256 JPEG/PNG and keeps the user row from ballooning the DB.
+_AVATAR_MAX_BYTES = 200 * 1024
+_AVATAR_ALLOWED_MIMES = {"image/png", "image/jpeg", "image/webp"}
+
+
+def _validate_avatar_data_url(data_url: str):
+    """Returns (mime, size_bytes, error_code).
+
+    Accepts only data:image/{png,jpeg,webp};base64,<...> URLs and rejects
+    anything that isn't a real image of bounded size. Defense-in-depth on
+    top of the cap on the column itself.
+    """
+    if not data_url or not isinstance(data_url, str):
+        return None, 0, "avatar_invalid"
+    if not data_url.startswith("data:"):
+        return None, 0, "avatar_invalid"
+    try:
+        header, b64 = data_url.split(",", 1)
+    except ValueError:
+        return None, 0, "avatar_invalid"
+    if ";base64" not in header:
+        return None, 0, "avatar_invalid"
+    mime = header[5:].split(";", 1)[0].strip().lower()
+    if mime not in _AVATAR_ALLOWED_MIMES:
+        return None, 0, "avatar_unsupported_type"
+    # Reject anything that won't decode cleanly
+    import base64 as _b64
+    try:
+        raw = _b64.b64decode(b64, validate=True)
+    except Exception:
+        return None, 0, "avatar_invalid"
+    if len(raw) == 0:
+        return None, 0, "avatar_invalid"
+    if len(raw) > _AVATAR_MAX_BYTES:
+        return None, len(raw), "avatar_too_large"
+    return mime, len(raw), None
+
+
+@auth_bp.route("/avatar", methods=["POST"])
+@login_required
+def upload_avatar():
+    """Save (or replace) the current user's avatar.
+
+    The client resizes to 256×256 in a canvas and posts the resulting data
+    URL — keeps payload small and avoids us needing Pillow on the server.
+    """
+    data = request.get_json(silent=True) or {}
+    data_url = data.get("avatar_url") or ""
+
+    mime, size, err = _validate_avatar_data_url(data_url)
+    if err:
+        return error_response(err, 400)
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET avatar_url = %s, updated_at = NOW() WHERE id = %s",
+                (data_url, session["user_id"]),
+            )
+        conn.commit()
+        session["avatar_url"] = data_url
+        log.info("avatar updated for user_id=%s mime=%s size=%d", session["user_id"], mime, size)
+        return jsonify({"ok": True, "avatar_url": data_url})
+    except Exception as e:
+        log.error("upload_avatar error: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/avatar", methods=["DELETE"])
+@login_required
+def delete_avatar():
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET avatar_url = NULL, updated_at = NOW() WHERE id = %s",
+                (session["user_id"],),
+            )
+        conn.commit()
+        session["avatar_url"] = None
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error("delete_avatar error: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/profile", methods=["PATCH"])
+@login_required
+def update_profile():
+    """Self-service edits: full_name, email, phone. Username + role are
+    admin-only. Validates each field with the same helpers /api/users uses."""
+    data = request.get_json(silent=True) or {}
+    fields = []
+    params = []
+
+    if "full_name" in data:
+        full_name = (data.get("full_name") or "").strip()
+        if not full_name:
+            return error_response("required_fields_missing", 400)
+        fields.append("full_name = %s")
+        params.append(full_name[:150])
+
+    if "email" in data:
+        email = (data.get("email") or "").strip().lower() or None
+        if email:
+            if (err := validate_email(email)):
+                return error_response(err, 400)
+        fields.append("email = %s")
+        params.append(email)
+
+    if "phone" in data:
+        phone = (data.get("phone") or "").strip() or None
+        if (err := validate_phone(phone, required=False)):
+            return error_response(err, 400)
+        fields.append("phone = %s")
+        params.append(phone)
+
+    if not fields:
+        return error_response("required_fields_missing", 400)
+
+    fields.append("updated_at = NOW()")
+    params.append(session["user_id"])
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            try:
+                cur.execute(
+                    f"UPDATE users SET {', '.join(fields)} WHERE id = %s "
+                    f"RETURNING full_name, email, phone",
+                    params,
+                )
+            except psycopg2.errors.UniqueViolation:
+                conn.rollback()
+                return error_response("email_taken", 409)
+            row = cur.fetchone()
+        conn.commit()
+
+        # Mirror back into session so subsequent page renders see the new values.
+        if row:
+            session["full_name"] = row["full_name"]
+            session["email"] = row.get("email")
+            session["phone"] = row.get("phone")
+        return jsonify({"ok": True, "user": dict(row) if row else {}})
+    except Exception as e:
+        log.error("update_profile error: %s", e)
         return error_response("server", 500)
     finally:
         if conn:
