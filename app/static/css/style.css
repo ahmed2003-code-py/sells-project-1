@@ -2653,7 +2653,7 @@ kbd {
    the right. Brand panel collapses on mobile and is replaced by a thin
    mini-brand strip in the form header.
    ════════════════════════════════════════════════════════════════════ */
-body:has(.auth-shell) { overflow: hidden; }
+body:has(.auth-shell) { overflow-x: hidden; }
 .auth-main {
   padding: 0 !important;
   max-width: none !important;
@@ -2666,9 +2666,19 @@ body:has(.auth-shell) { overflow: hidden; }
   min-height: 100vh;
   background: var(--bg);
 }
+@media (min-width: 961px) {
+  body:has(.auth-shell) { overflow: hidden; }
+}
+/* Mobile shell: stack vertically. Brand becomes a compact hero strip on
+   top, form panel scoops up over it via a rounded top edge. Hides the
+   heavy storytelling content (features, full trust pill) so the form
+   sits above the fold without scrolling. */
 @media (max-width: 960px) {
-  .auth-shell { grid-template-columns: 1fr; }
-  .auth-brand { display: none; }
+  .auth-shell {
+    display: block;
+    min-height: 100vh;
+    overflow: visible;
+  }
 }
 
 /* ── Brand panel (left) ─────────────────────────────────────────── */
@@ -2973,11 +2983,105 @@ body:has(.auth-shell) { overflow: hidden; }
   border-top: 1px solid var(--outline-variant);
 }
 
-/* Mobile spacing — the form panel absorbs the brand panel's padding. */
-@media (max-width: 480px) {
-  .auth-form-panel { padding: 20px 18px; }
+/* ── Mobile auth (≤960px) — single-column hero + scoop-card form ───── */
+@media (max-width: 960px) {
+  /* Brand becomes a compact storytelling hero strip on top. Keeps the
+     gradient + blobs so the page feels rich, drops features/heavy text
+     to keep the form above the fold. */
+  .auth-brand {
+    display: flex;
+    min-height: 320px;
+    padding: 24px 22px 64px;
+    align-items: stretch;
+    justify-content: flex-start;
+    border-radius: 0;
+  }
+  .auth-brand-content {
+    padding: 8px 0 0;
+    max-width: none;
+    width: 100%;
+    text-align: center;
+  }
+  .auth-brand-logo {
+    margin-bottom: 22px;
+    justify-content: center;
+  }
+  .auth-brand-mark { width: 52px; height: 52px; border-radius: 14px; }
+  .auth-brand-name { font-size: 26px; }
+  .auth-brand-tagline { font-size: 10px; letter-spacing: 0.28em; }
+  .auth-brand-headline {
+    font-size: 22px;
+    line-height: 1.25;
+    margin-bottom: 8px;
+    text-wrap: balance;
+  }
+  .auth-brand-sub {
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 auto 18px;
+    max-width: 320px;
+  }
+  /* Drop the feature list on mobile — the hero's job is brand setup,
+     not selling. Trust badge stays as a centered chip. */
+  .auth-brand-features { display: none; }
+  .auth-brand-trust {
+    margin: 0 auto;
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  /* Form panel "scoops" up over the bottom of the hero — modern app feel,
+     keeps the focal point on the form once the user has scrolled
+     ~250px in (or just sees it directly on tall phones). */
+  .auth-form-panel {
+    margin-top: -36px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 28px 28px 0 0;
+    padding: 22px 22px 28px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 -12px 30px rgba(20, 24, 40, 0.08);
+    min-height: auto;
+  }
+  [data-theme="dark"] .auth-form-panel {
+    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.40);
+  }
+
+  /* Header on mobile: hide the redundant mini-brand (hero shows it),
+     anchor the toggles to the right so they float on the rounded edge. */
+  .auth-form-mini-brand { display: none; }
+  .auth-form-header {
+    margin-bottom: 4px;
+    justify-content: flex-end;
+  }
+  .auth-form-actions { gap: 8px; }
+  .auth-form-actions .theme-toggle,
+  .auth-form-actions .lang-toggle { width: 40px; height: 40px; }
+
+  .auth-form-card {
+    padding: 12px 0 16px;
+    max-width: 100%;
+  }
   .auth-form-title { font-size: 24px; }
   .auth-form-sub { font-size: 13px; margin-bottom: 22px; }
+
+  .auth-form-footer {
+    margin-top: 22px;
+    font-size: 10px;
+    padding-top: 14px;
+  }
+}
+
+/* Tightest phones — pull the hero in further so the form reaches the
+   fold even at 360×640. */
+@media (max-width: 480px) {
+  .auth-brand { min-height: 280px; padding: 20px 18px 56px; }
+  .auth-brand-headline { font-size: 20px; }
+  .auth-brand-sub { font-size: 12px; max-width: 280px; }
+  .auth-form-panel { padding: 18px 18px 24px; }
+  .auth-form-title { font-size: 22px; margin-bottom: 6px; }
+  .auth-form-sub { margin-bottom: 18px; }
 }
 
 .error-msg {
