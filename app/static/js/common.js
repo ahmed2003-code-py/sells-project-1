@@ -254,7 +254,18 @@ function getTheme() {
 
 function setTheme(theme) {
   const t = theme === "dark" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", t);
+  // Pulse a transition class for ~320ms so backgrounds, text, borders
+  // and SVG fills cross-fade between palettes instead of snapping. The
+  // class is removed afterwards so it can't interfere with normal
+  // hover / focus animations elsewhere in the app.
+  const root = document.documentElement;
+  root.classList.add("theme-transitioning");
+  if (setTheme._pulseTimer) clearTimeout(setTheme._pulseTimer);
+  setTheme._pulseTimer = setTimeout(() => {
+    root.classList.remove("theme-transitioning");
+  }, 320);
+
+  root.setAttribute("data-theme", t);
   try { localStorage.setItem("ain_theme", t); } catch (_) {}
   // Broadcast so chart-rendering modules can swap their palette + redraw.
   window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: t } }));

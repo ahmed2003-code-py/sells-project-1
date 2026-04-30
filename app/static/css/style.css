@@ -152,6 +152,25 @@
 
 [data-theme="light"] { color-scheme: light; }
 
+/* Smooth theme transitions — applied ONLY during the moment of toggle.
+   common.js adds .theme-transitioning to <html> for ~300ms after the
+   user clicks the theme button, then removes it. Outside that window
+   no transition is active so hover / focus / open-modal interactions
+   keep their normal snappy feel. */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 220ms ease,
+    background        220ms ease,
+    color             220ms ease,
+    border-color      220ms ease,
+    box-shadow        220ms ease,
+    fill              220ms ease,
+    stroke            220ms ease !important;
+}
+
 body.lang-en, html.lang-en body { --font-sans: var(--font-en); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -814,10 +833,10 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 input[type=range]::-moz-range-thumb {
   width: 18px; height: 18px;
   border-radius: 50%;
-  background: #474dc5;
+  background: var(--brand);
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(71, 77, 197, 0.40);
-  border: 2px solid #fff;
+  border: 2px solid var(--surface-solid);
 }
 
 /* Inline glass select arrow */
@@ -4422,7 +4441,7 @@ html[dir="ltr"] { text-align: left; }
 .tile-accent  .kpi-tile-icon { background: var(--accent-soft);    color: var(--accent-2); }
 .tile-warm    .kpi-tile-icon { background: var(--warning-soft);   color: var(--warning); }
 .tile-coral   .kpi-tile-icon { background: var(--secondary-soft); color: var(--secondary); }
-.tile-violet  .kpi-tile-icon { background: rgba(198,191,255,0.30); color: #5d4eb6; }
+.tile-violet  .kpi-tile-icon { background: var(--brand-soft); color: var(--brand); }
 
 .kpi-tile-value {
   font-family: var(--font-display);
