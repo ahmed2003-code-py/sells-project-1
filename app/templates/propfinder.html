@@ -676,9 +676,30 @@ function showUnit(idx) {
   const deliveryStr = u.delivery_from_months
     ? (u.delivery_from_months + (u.delivery_to_months && u.delivery_to_months !== u.delivery_from_months ? "–" + u.delivery_to_months : "") + " " + t("pf.months_short"))
     : null;
+
+  // Payment plans: Master V returns a list per compound; render a <select>
+  // when there's more than one option so the user can compare them. Falls
+  // back to a plain cell when only one plan exists.
+  let paymentPlanCell = "";
+  const plans = Array.isArray(u.payment_plans) ? u.payment_plans : [];
+  if (plans.length > 1) {
+    const opts = plans.map((p, i) =>
+      `<option value="${i}">${escapeHTML(p.label || ((p.down_pct || 0) + "% down, " + (p.months || 0) + " months"))}</option>`
+    ).join("");
+    paymentPlanCell = `
+      <div class="pf-detail-item pf-detail-item-wide">
+        <div class="k">${t("pf.payment_plan")} <span class="text-muted" style="font-size:11px">(${plans.length})</span></div>
+        <div class="v">
+          <select class="pf-plan-select">${opts}</select>
+        </div>
+      </div>`;
+  } else if (u.payment_plan) {
+    paymentPlanCell = payCell("pf.payment_plan", u.payment_plan);
+  }
+
   const paySection = [
     payCell("pf.delivery", deliveryStr),
-    payCell("pf.payment_plan", u.payment_plan),
+    paymentPlanCell,
   ].filter(Boolean).join("");
 
   // Section: fees

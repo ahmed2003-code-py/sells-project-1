@@ -3,6 +3,7 @@ Master V API sync service
 Pulls real estate units and stores them in the `units` table.
 """
 import os
+import json
 import time
 import logging
 import threading
@@ -97,13 +98,22 @@ def fetch_compound_details(compound_id: int, developer_id: int, city_id: int) ->
 def flatten_compound(compound_info: Dict, compound_data: Dict, city_name: str) -> List[Dict]:
     rows = []
     now = datetime.now()
-    payment_plans = compound_data.get("DataPayPlans", [])
-    payment_plan_text = ""
-    if payment_plans:
-        plan = payment_plans[0]
-        dp = plan.get("PayPlanDownPayment", 0) * 100
-        inst = plan.get("PayPlanInstalment", 0)
-        payment_plan_text = f"{dp}% down, {inst} months"
+    # Master V returns a list of plans per compound — keep all of them as
+    # JSONB so the UI can render a dropdown of every option, and keep the
+    # legacy `payment_plan` text (first plan) for backwards compatibility
+    # with any consumer reading it directly.
+    raw_plans = compound_data.get("DataPayPlans", []) or []
+    plans_list = []
+    for plan in raw_plans:
+        dp = (plan.get("PayPlanDownPayment", 0) or 0) * 100
+        inst = plan.get("PayPlanInstalment", 0) or 0
+        plans_list.append({
+            "down_pct": round(dp, 2),
+            "months": int(inst) if inst else 0,
+            "label": f"{dp}% down, {inst} months",
+        })
+    payment_plan_text = plans_list[0]["label"] if plans_list else ""
+    payment_plans_json = json.dumps(plans_list) if plans_list else None
     finishing_info = compound_data.get("DataFinishing", {})
     unit_details = compound_data.get("DataDetails", {})
     for unit_type, units in unit_details.items():
@@ -127,6 +137,7 @@ def flatten_compound(compound_info: Dict, compound_data: Dict, city_name: str) -
                 "delivery_from_months": compound_data.get("DataPhasDeliveryFrom"),
                 "delivery_to_months": compound_data.get("DataPhasDeliveryTo"),
                 "payment_plan": payment_plan_text,
+                "payment_plans": payment_plans_json,
                 "maintenance": compound_data.get("DataPhasMaintenance"),
                 "club_fees": compound_data.get("DataPhasClubFees"),
                 "parking_fees": compound_data.get("DataPhasParkingFees"),
@@ -153,7 +164,8 @@ def ensure_columns(conn):
                 ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS is_sold BOOLEAN DEFAULT FALSE,
-                ADD COLUMN IF NOT EXISTS sold_at TIMESTAMP;
+                ADD COLUMN IF NOT EXISTS sold_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS payment_plans JSONB;
         """)
     conn.commit()
 
@@ -180,7 +192,7 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
                         city_name, compound_name, compound_id, developer_name, developer_id,
                         phase_name, phase_id, unit_type, bedrooms, built_up_area_sqm,
                         total_price_egp, price_per_sqm_egp, cash_price_from_egp,
-                        delivery_from_months, delivery_to_months, payment_plan,
+                        delivery_from_months, delivery_to_months, payment_plan, payment_plans,
                         maintenance, club_fees, parking_fees, finishing_type,
                         cash_discount_percent, cash_price_to_egp, city_id, detail_id,
                         outdoor_area, status, sub_type, total_price_to_egp, type_id,
@@ -189,7 +201,7 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
                         %(city_name)s, %(compound_name)s, %(compound_id)s, %(developer_name)s, %(developer_id)s,
                         %(phase_name)s, %(phase_id)s, %(unit_type)s, %(bedrooms)s, %(built_up_area_sqm)s,
                         %(total_price_egp)s, %(price_per_sqm_egp)s, %(cash_price_from_egp)s,
-                        %(delivery_from_months)s, %(delivery_to_months)s, %(payment_plan)s,
+                        %(delivery_from_months)s, %(delivery_to_months)s, %(payment_plan)s, %(payment_plans)s,
                         %(maintenance)s, %(club_fees)s, %(parking_fees)s, %(finishing_type)s,
                         %(cash_discount_percent)s, %(cash_price_to_egp)s, %(city_id)s, %(detail_id)s,
                         %(outdoor_area)s, %(status)s, %(sub_type)s, %(total_price_to_egp)s, %(type_id)s,
@@ -210,6 +222,7 @@ def sync_units(conn, fresh_units: List[Dict], existing: Dict[int, Dict]):
                             price_per_sqm_egp = %(price_per_sqm_egp)s,
                             status = %(status)s,
                             payment_plan = %(payment_plan)s,
+                            payment_plans = %(payment_plans)s,
                             delivery_from_months = %(delivery_from_months)s,
                             delivery_to_months = %(delivery_to_months)s,
                             maintenance = %(maintenance)s,

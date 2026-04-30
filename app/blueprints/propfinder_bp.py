@@ -120,7 +120,7 @@ def get_units():
                         NULLIF(CAST(cash_price_from_egp AS FLOAT), 'NaN') AS cash_price_from_egp,
                         NULLIF(CAST(cash_price_to_egp AS FLOAT), 'NaN') AS cash_price_to_egp,
                         delivery_from_months, delivery_to_months,
-                        payment_plan, maintenance, club_fees,
+                        payment_plan, payment_plans, maintenance, club_fees,
                         parking_fees, finishing_type,
                         NULLIF(CAST(cash_discount_percent AS FLOAT), 'NaN') AS cash_discount_percent,
                         city_id, detail_id, outdoor_area, status, sub_type,

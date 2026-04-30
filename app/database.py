@@ -492,6 +492,37 @@ def init_all_tables():
                 units_count = cur.fetchone()[0]
                 log.info(f"📦 `units` table: {units_count:,} rows (from PropFinder)")
 
+            # PropFinder: payment_plans JSONB — Master V's DataPayPlans is a
+            # list of plans per compound, but the legacy schema flattened it
+            # to the first plan as text. Add a JSONB column to hold the full
+            # list and backfill existing rows from the legacy text column so
+            # the UI can render a dropdown of every option.
+            if not column_exists(conn, "units", "payment_plans"):
+                with conn.cursor() as cur:
+                    cur.execute("ALTER TABLE units ADD COLUMN payment_plans JSONB")
+                    # Backfill: parse "X% down, Y months" → [{down_pct, months, label}]
+                    cur.execute("""
+                        UPDATE units
+                        SET payment_plans = jsonb_build_array(
+                            jsonb_build_object(
+                                'down_pct', NULLIF(
+                                    regexp_replace(payment_plan, '^([0-9.]+)%.*$', '\\1'),
+                                    payment_plan
+                                )::float,
+                                'months', NULLIF(
+                                    regexp_replace(payment_plan, '^.*,\\s*([0-9]+)\\s+months?$', '\\1'),
+                                    payment_plan
+                                )::int,
+                                'label', payment_plan
+                            )
+                        )
+                        WHERE payment_plan IS NOT NULL
+                          AND payment_plan <> ''
+                          AND payment_plans IS NULL
+                    """)
+                    conn.commit()
+                    log.info("📦 Added units.payment_plans JSONB and backfilled from payment_plan")
+
             # Indexes for the PropFinder-owned table — only create if the
             # underlying column actually exists in this deployment.
             with conn.cursor() as cur:

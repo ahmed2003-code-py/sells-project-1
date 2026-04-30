@@ -3405,6 +3405,31 @@ kbd {
   word-break: break-word;
 }
 
+/* Detail-item that needs to span both columns of pf-detail-grid — used by
+   the payment-plans dropdown so the <select> doesn't get a cramped width. */
+.pf-detail-item-wide { grid-column: 1 / -1; }
+
+/* Payment-plans dropdown inside the unit detail modal. Matches the
+   neutral-recessed look of the surrounding cells but exposes the
+   chevron and a comfortable click target. */
+.pf-plan-select {
+  width: 100%;
+  margin-top: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.pf-plan-select:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .pf-table-wrap { overflow-x: auto; }
 
 /* ──────────────────────────────────────────────────────────────────
