@@ -115,8 +115,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat38"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat38"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat39"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat39"></script>
 <script>
 const TL_ID = {{ user.id }};
 let cfg = null;
@@ -305,38 +305,62 @@ function renderTeamCard(data) {
   const submittedRatio = data.team_size
     ? Math.round((data.team_submitted / data.team_size) * 100)
     : 0;
+  // tone = visual accent strip + icon tint. Picked semantically:
+  //   brand → headline averages, accent → "above" / positive counts,
+  //   info → submission progress, warm → top performer (gold-ish),
+  //   danger → weakest performer.
   const stats = [
     {
       lbl: t("tl.team_avg_label"),
       val: (data.team_avg_score || 0).toFixed(1) + "%",
       sub: data.team_size + " " + t("tl_eval.members"),
+      icon: "trending_up",
+      tone: "brand",
+      isName: false,
     },
     {
       lbl: t("tl.team_above_55"),
       val: data.team_above_55 || 0,
       sub: (data.team_below_55 || 0) + " " + t("tl.below_55"),
+      icon: "verified",
+      tone: "accent",
+      isName: false,
     },
     {
       lbl: t("tl.submitted_count"),
       val: (data.team_submitted || 0) + "/" + (data.team_size || 0),
       sub: submittedRatio + "%",
+      icon: "assignment_turned_in",
+      tone: "info",
+      isName: false,
     },
     {
       lbl: t("tl.top_performer"),
       val: data.team_top ? escapeHTMLForTL(data.team_top.name) : "—",
       sub: data.team_top ? data.team_top.score + "%" : "",
+      icon: "emoji_events",
+      tone: "warm",
+      isName: true,
     },
     {
       lbl: t("tl.weakest_performer"),
       val: data.team_weakest ? escapeHTMLForTL(data.team_weakest.name) : "—",
       sub: data.team_weakest ? data.team_weakest.score + "%" : "",
+      icon: "trending_down",
+      tone: "danger",
+      isName: true,
     },
   ];
   grid.innerHTML = stats.map(s => `
-    <div class="tl-team-stat">
-      <div class="lbl">${s.lbl}</div>
-      <div class="val">${s.val}</div>
-      ${s.sub ? `<div class="sub">${s.sub}</div>` : ""}
+    <div class="tl-team-stat tone-${s.tone}">
+      <div class="tl-team-stat-icon" aria-hidden="true">
+        <span class="material-symbols-outlined">${s.icon}</span>
+      </div>
+      <div class="tl-team-stat-body">
+        <div class="lbl">${s.lbl}</div>
+        <div class="val${s.isName ? ' is-name' : ''}" title="${typeof s.val === 'string' ? s.val.replace(/"/g,'&quot;') : s.val}">${s.val}</div>
+        ${s.sub ? `<div class="sub">${s.sub}</div>` : ""}
+      </div>
     </div>`).join("");
 }
 

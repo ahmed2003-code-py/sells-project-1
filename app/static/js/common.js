@@ -356,13 +356,34 @@ function fmtMoney(n) {
 }
 
 // Compact money — use on dense KPI tiles where 50,000,000 wouldn't fit.
+// Billions → B / مليار, millions → M / م, thousands → K / ك.
+// Decimals trimmed to one when the magnitude is large enough that the unit
+// already conveys the order of magnitude (e.g. "1.2B" not "1.20B").
 function fmtCompactMoney(n) {
   if (n == null || isNaN(n)) return "—";
   const v = Number(n);
+  const sign = v < 0 ? "-" : "";
+  const a = Math.abs(v);
   const lang = getLang();
-  if (v >= 1e6) return (v / 1e6).toFixed(v >= 10e6 ? 1 : 2) + (lang === "ar" ? "م" : "M");
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + (lang === "ar" ? "ك" : "K");
+  if (a >= 1e9) return sign + (a / 1e9).toFixed(a >= 10e9 ? 1 : 2) + (lang === "ar" ? "B" : "B");
+  if (a >= 1e6) return sign + (a / 1e6).toFixed(a >= 10e6 ? 1 : 2) + (lang === "ar" ? "M" : "M");
+  if (a >= 1e3) return sign + (a / 1e3).toFixed(0) + (lang === "ar" ? "K" : "K");
   return fmtMoney(v);
+}
+
+// Compact non-money number — share the same M/B/K abbreviations so dense
+// charts (treemaps, bars, donuts) read at a glance instead of forcing the
+// eye to count digit groups. Use this anywhere a raw number could exceed
+// 10K and the surface is too dense for the full digit run.
+function fmtCompactNum(n) {
+  if (n == null || isNaN(n)) return "—";
+  const v = Number(n);
+  const sign = v < 0 ? "-" : "";
+  const a = Math.abs(v);
+  if (a >= 1e9) return sign + (a / 1e9).toFixed(a >= 10e9 ? 1 : 2) + "B";
+  if (a >= 1e6) return sign + (a / 1e6).toFixed(a >= 10e6 ? 1 : 2) + "M";
+  if (a >= 1e3) return sign + (a / 1e3).toFixed(a >= 10e3 ? 0 : 1) + "K";
+  return fmtNum(v);
 }
 
 // ─── Modal dialog (focus trap, Escape, focus return) ──────────────

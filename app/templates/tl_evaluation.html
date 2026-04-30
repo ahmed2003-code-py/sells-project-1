@@ -13,21 +13,21 @@
   </div>
 </div>
 
-<div class="controls">
+<div class="controls controls-sticky">
   <div class="field">
     <label data-i18n="common.month"></label>
     <div id="dateRangeHost"></div>
   </div>
   <div class="field">
     <label data-i18n="filters.team"></label>
-    <select id="teamFilter" onchange="render()">
+    <select id="teamFilter" onchange="onSearchInput()">
       <option value="" data-i18n="common.all"></option>
       <option value="none" data-i18n="filters.no_team"></option>
     </select>
   </div>
   <div class="field">
     <label data-i18n="common.filter"></label>
-    <select id="statusFilter" onchange="render()">
+    <select id="statusFilter" onchange="onSearchInput()">
       <option value="" data-i18n="common.all"></option>
       <option value="done" data-i18n="tl_eval.evaluated"></option>
       <option value="pending" data-i18n="tl_eval.pending"></option>
@@ -35,7 +35,7 @@
   </div>
   <div class="field" style="flex:1;min-width:180px">
     <label data-i18n="common.search"></label>
-    <input type="text" id="searchBox" oninput="render()" data-i18n-placeholder="filters.search_user_ph">
+    <input type="text" id="searchBox" oninput="onSearchInput()" data-i18n-placeholder="filters.search_user_ph" autocomplete="off">
   </div>
   <div class="field" style="align-self:flex-end">
     <button class="btn btn-ghost btn-sm" onclick="resetFilters()" data-i18n="filters.reset"></button>
@@ -99,8 +99,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat38"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat38"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat39"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat39"></script>
 <script>
 let leaders = [];
 let teams = [];
@@ -268,6 +268,44 @@ function resetFilters() {
   document.getElementById("statusFilter").value = "";
   document.getElementById("searchBox").value = "";
   render();
+  _scrollListIntoView();
+}
+
+// Debounced filter trigger — repaints the list and (if the user is searching
+// or filtering) brings the result list into view so they don't have to scroll
+// past the headline charts to see who matched. Skips the scroll on the very
+// first input (typing into an empty field) so the cursor doesn't jump on the
+// first keypress; from the second character onwards we anchor the list.
+let _filterDebounce = null;
+let _lastSearchLen = 0;
+function onSearchInput() {
+  if (_filterDebounce) clearTimeout(_filterDebounce);
+  _filterDebounce = setTimeout(() => {
+    render();
+    const search = (document.getElementById("searchBox").value || "").trim();
+    const teamVal = document.getElementById("teamFilter").value;
+    const statusVal = document.getElementById("statusFilter").value;
+    const isFiltering = !!(search || teamVal || statusVal);
+    // Only nudge scroll once the user has narrowed the list — avoids jumping
+    // when they're just opening a dropdown they'll close again.
+    if (isFiltering && (search.length !== _lastSearchLen || !search)) {
+      _scrollListIntoView();
+    }
+    _lastSearchLen = search.length;
+  }, 90);
+}
+
+function _scrollListIntoView() {
+  const list = document.getElementById("list");
+  if (!list) return;
+  // Use scrollIntoView with `block: 'start'` so the first matched card sits
+  // right under the sticky filter bar. Position-sticky controls keep the
+  // search box visible while the list is anchored at the top.
+  try {
+    list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (_) {
+    list.scrollIntoView();
+  }
 }
 
 function clearChip(id, val) {

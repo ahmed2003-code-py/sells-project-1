@@ -3,7 +3,7 @@ Flask application factory
 """
 import logging
 import os
-from flask import Flask
+from flask import Flask, request
 from config import Config
 
 logging.basicConfig(
@@ -69,13 +69,22 @@ def create_app():
             return jsonify({"error_code": "forbidden", "error": "method_not_allowed"}), 405
         return "Method not allowed", 405
 
-    # Security-hardening response headers
+    # Security-hardening response headers + freshness guarantees on API
+    # responses. Without an explicit Cache-Control, browsers can apply a
+    # heuristic cache (typically a fraction of the resource's age) to GET
+    # responses — the symptom is "I clicked filter and the data didn't
+    # update from the database." `no-store` on /api/* forces every call
+    # to round-trip; static assets keep their default caching.
     @app.after_request
     def _sec_headers(resp):
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        if request.path.startswith("/api/"):
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
         return resp
 
     log.info("✅ Flask app ready — all blueprints registered")

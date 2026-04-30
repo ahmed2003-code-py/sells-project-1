@@ -1610,23 +1610,119 @@ fieldset.field legend {
   margin-bottom: 22px;
   box-shadow: var(--shadow-xs);
 }
-.tl-team-card .card-title { margin-bottom: 12px; }
+.tl-team-card .card-title { margin-bottom: 14px; }
 .tl-team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
 }
+
+/* Stat tile — refreshed pass. Icon chip (left) + body (right), accent tone
+   strip at the inline-start edge, soft gradient surface and lift on hover.
+   Per-stat tone variants paint the strip / icon chip / value emphasis. */
+.tl-team-stat {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px 14px 18px;
+  background: linear-gradient(180deg,
+              color-mix(in srgb, var(--surface-solid) 92%, transparent) 0%,
+              var(--surface-solid) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.tl-team-stat::before {
+  content: "";
+  position: absolute;
+  inset-block: 10px;
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+  opacity: 0.85;
+}
+.tl-team-stat:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: color-mix(in srgb, var(--brand) 25%, var(--border));
+}
+.tl-team-stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.tl-team-stat-icon .material-symbols-outlined { font-size: 22px; }
+.tl-team-stat-body { min-width: 0; }
 .tl-team-stat .val {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 22px;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--text);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tl-team-stat .val.is-name {
+  font-size: 16px;
+  letter-spacing: -0.01em;
 }
 .tl-team-stat .sub {
   font-size: 11px;
   color: var(--text-dim);
-  margin-top: 2px;
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Tone variants — only the accent strip + icon chip change so the cards
+   read as a coherent set rather than five different colour blobs. */
+.tl-team-stat.tone-brand::before    { background: var(--brand); }
+.tl-team-stat.tone-brand .tl-team-stat-icon {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+}
+.tl-team-stat.tone-accent::before   { background: var(--accent, #006762); }
+.tl-team-stat.tone-accent .tl-team-stat-icon {
+  background: color-mix(in srgb, var(--accent, #006762) 12%, transparent);
+  color: var(--accent, #006762);
+}
+.tl-team-stat.tone-info::before     { background: #5b7de8; }
+.tl-team-stat.tone-info .tl-team-stat-icon {
+  background: color-mix(in srgb, #5b7de8 12%, transparent);
+  color: #5b7de8;
+}
+.tl-team-stat.tone-warm::before     { background: var(--warning, #c47200); }
+.tl-team-stat.tone-warm .tl-team-stat-icon {
+  background: color-mix(in srgb, var(--warning, #c47200) 14%, transparent);
+  color: var(--warning, #c47200);
+}
+.tl-team-stat.tone-danger::before   { background: var(--danger, #ba1a1a); }
+.tl-team-stat.tone-danger .tl-team-stat-icon {
+  background: color-mix(in srgb, var(--danger, #ba1a1a) 12%, transparent);
+  color: var(--danger, #ba1a1a);
+}
+
+@media (max-width: 640px) {
+  .tl-team-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tl-team-stat { padding: 12px 12px 12px 14px; gap: 10px; }
+  .tl-team-stat-icon { width: 32px; height: 32px; }
+  .tl-team-stat-icon .material-symbols-outlined { font-size: 18px; }
+  .tl-team-stat .val { font-size: 18px; }
+  .tl-team-stat .val.is-name { font-size: 14px; }
 }
 
 /* TL members list — Section 04 (TL-05/TL-06) */
@@ -3640,6 +3736,36 @@ body:has(.auth-shell) { overflow-x: hidden; }
 
 .controls .field { margin-bottom: 0; flex: 0 0 auto; min-width: 140px; }
 .controls .spacer { flex: 1; }
+
+/* Sticky filter bar — opt-in via .controls-sticky. Pages that have a
+   tall headline (charts, summary cards) before the actual list use this
+   so search/filter inputs remain visible while the user scrolls through
+   results. The bar lifts onto a glass surface with a subtle shadow when
+   pinned. */
+.controls-sticky {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  background: var(--surface-solid, var(--surface));
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+.controls-sticky::after {
+  content: "";
+  position: absolute;
+  inset-inline: 12px;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
+}
+@supports (selector(:is(.foo))) {
+  /* Reveal the divider only once the bar is pinned — avoids the line
+     showing in normal flow at the top of the page. */
+  .controls-sticky:where(.is-stuck)::after { opacity: 1; }
+}
 
 /* ──────────────────────────────────────────────────────────────────
    CHART CARDS

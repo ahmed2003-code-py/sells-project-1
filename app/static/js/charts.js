@@ -650,29 +650,75 @@ function drawHeatmap(containerId, data, options = {}) {
 
 /**
  * Treemap — useful for breaking down revenue / lead allocation.
+ *
+ * Plotly's default treemap text crams "label + raw value + percent" in any
+ * available pixels and crops everything when a tile is small. We override:
+ *   • `text` is pre-rendered: name on one line, compact value (M/B/K) on a
+ *     second line separated by <br> — readable even on narrow tiles.
+ *   • textfont stays bold and a touch larger (14px) so the smallest tiles
+ *     still surface a name fragment instead of going blank.
+ *   • textposition defaults to 'middle center' for visual balance.
+ *
+ * `options.compactValues = false` falls back to raw values for callers that
+ * need exact numbers (e.g. count breakdowns under 1k).
  */
 function drawTreemap(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
+  const labels = data.labels || [];
+  const values = data.values || [];
+  const useCompact = options.compactValues !== false;
+  const valueFormatter = options.valueFormatter
+    || (typeof window !== 'undefined' && window.fmtCompactMoney
+        ? window.fmtCompactMoney
+        : (v) => (typeof v === 'number' ? v.toLocaleString() : String(v)));
+
+  // Pre-built per-tile text: name + (compact) value on a second line.
+  // Survives crop-to-fit better than Plotly's default templated stacking.
+  const text = labels.map((lbl, i) => {
+    const v = values[i];
+    const formatted = useCompact ? valueFormatter(v) : (typeof v === 'number' ? v.toLocaleString() : String(v));
+    return `${lbl}<br><span style="font-size:11px;font-weight:500;opacity:0.92">${formatted}</span>`;
+  });
+
   const trace = {
     type: 'treemap',
-    labels: data.labels,
-    parents: data.parents || data.labels.map(() => ''),
-    values: data.values,
+    labels: labels,
+    parents: data.parents || labels.map(() => ''),
+    values: values,
     branchvalues: 'total',
+    text: text,
+    textinfo: 'text',
+    textposition: 'middle center',
+    texttemplate: '%{text}',
     marker: {
       colors: data.colors || PALETTE,
       line: { color: CHART_COLORS.bg, width: 2 },
+      pad: { t: 4, r: 4, b: 4, l: 4 },
     },
-    textfont: { color: CHART_COLORS.bg, size: 13, family: _chartFontFamily() },
-    textinfo: 'label+value+percent parent',
-    hovertemplate: '<b>%{label}</b><br>%{value}<extra></extra>',
+    textfont: {
+      color: '#ffffff',
+      size: 14,
+      family: _chartFontFamily(),
+    },
+    insidetextfont: {
+      color: '#ffffff',
+      size: 14,
+      family: _chartFontFamily(),
+    },
+    outsidetextfont: {
+      color: CHART_COLORS.text,
+      size: 12,
+      family: _chartFontFamily(),
+    },
+    hovertemplate: '<b>%{label}</b><br>' + (useCompact ? '%{value:,.0f}' : '%{value}') + '<extra></extra>',
   };
 
   const layout = chartLayout({
     margin: { t: 10, r: 10, b: 10, l: 10 },
     showlegend: false,
+    uniformtext: { mode: 'hide', minsize: 10 },
     ...options,
   });
 
