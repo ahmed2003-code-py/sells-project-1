@@ -171,11 +171,32 @@ def init_all_tables():
                     last_login TIMESTAMP
                 );
             """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(LOWER(username));")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_team_role_active ON users(team_id, role, active);")
+
+            # Case-insensitive UNIQUE constraint on username — the column-level
+            # UNIQUE is byte-exact, so without this you could end up with both
+            # "Ahmed" and "ahmed" in the table even though the app treats
+            # logins as case-insensitive. Wrapped in its own savepoint because
+            # an existing case-collision in the data would otherwise abort the
+            # whole startup transaction; we log and skip instead.
+            try:
+                cur.execute("SAVEPOINT username_lower_unique")
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower
+                    ON users (LOWER(username))
+                """)
+                cur.execute("RELEASE SAVEPOINT username_lower_unique")
+            except psycopg2.Error as e:
+                cur.execute("ROLLBACK TO SAVEPOINT username_lower_unique")
+                cur.execute("RELEASE SAVEPOINT username_lower_unique")
+                log.warning(
+                    "Skipping case-insensitive username UNIQUE index — likely "
+                    "existing case-collision rows. Resolve duplicates and "
+                    "restart to enforce. (%s)", e
+                )
 
             # Migrate old users table
             for col, ddl in [

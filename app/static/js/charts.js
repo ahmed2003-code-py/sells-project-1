@@ -485,13 +485,17 @@ function drawDonut(containerId, data, options = {}) {
   const showLegend = isSingle ? false : (options.showlegend !== false);
 
   const sliceColors = data.colors || PALETTE;
-  // Per-slice inside text colour — light pastel slices need dark text,
-  // deep purples need white. Plotly's pie textfont.color accepts an array
-  // matched to slice order.
   const insideTextColors = Array.isArray(sliceColors)
     ? sliceColors.map(_contrastTextColor)
     : _contrastTextColor(sliceColors);
 
+  // Inside-only text. Outside labels were clipping at the chart-card edge
+  // ("Deals Revenue 87.4%" was getting half-cut at the bottom of the
+  // donut row on mobile). Since the legend below already carries the
+  // label↔colour mapping, we put the percent INSIDE each slice in a
+  // contrast colour and rely on the legend for the name. Slices too
+  // small to fit the percent will hide their text automatically — the
+  // legend still tells you what colour they are.
   const trace = {
     type: 'pie',
     labels: data.labels,
@@ -499,19 +503,13 @@ function drawDonut(containerId, data, options = {}) {
     hole: 0.62,
     marker: {
       colors: sliceColors,
-      // Separator matches the page surface — invisible against the card,
-      // visible cuts between adjacent slices.
       line: { color: CHART_COLORS.bg, width: 2 },
     },
-    // 'label+percent' inside the slice if it fits, else label leaders out
-    // of the donut so we never get the truncated half-words the user
-    // pointed out.
-    textinfo: options.textinfo || 'label+percent',
-    textposition: options.textposition || 'auto',
+    textinfo: options.textinfo || 'percent',
+    textposition: options.textposition || 'inside',
     insidetextorientation: 'horizontal',
-    insidetextfont: { color: insideTextColors, size: isNarrow ? 11 : 12, family: _chartFontFamily(), weight: 600 },
-    outsidetextfont: { color: CHART_COLORS.text, size: isNarrow ? 11 : 12, family: _chartFontFamily(), weight: 600 },
-    automargin: true, // Plotly auto-grows margins so outside labels never clip
+    insidetextfont: { color: insideTextColors, size: isNarrow ? 12 : 14, family: _chartFontFamily(), weight: 700 },
+    automargin: true,
     hovertemplate: '<b>%{label}</b><br>%{value} (%{percent})<extra></extra>',
     sort: false,
   };
@@ -526,10 +524,12 @@ function drawDonut(containerId, data, options = {}) {
       font: { color: CHART_COLORS.text, size: isNarrow ? 11 : 12, family: _chartFontFamily() },
     },
     margin: {
-      t: 24,
-      r: isNarrow ? 24 : 40,
-      b: showLegend ? (isNarrow ? 70 : 80) : 24,
-      l: isNarrow ? 24 : 40,
+      // Tighter margins because we no longer have outside labels needing
+      // a gutter. Legend reserves bottom padding when shown.
+      t: 16,
+      r: isNarrow ? 16 : 24,
+      b: showLegend ? (isNarrow ? 64 : 72) : 16,
+      l: isNarrow ? 16 : 24,
     },
     annotations: options.centerText ? [{
       text: options.centerText,
