@@ -177,6 +177,7 @@ def update_campaign(cid):
 
                 cur.execute("""
                     UPDATE marketing_campaigns SET
+
                         campaign_name        = %s,
                         avg_unit_price       = %s,
                         commission_input     = %s,
@@ -265,7 +266,8 @@ def _check_campaign_access(cur, cid):
     if not row:
         return None, _json({"error_code": "not_found", "error": "not_found"}, 404)
     role = session.get("role")
-    if role == "marketing" and row[1] != session.get("user_id"):
+    owner_id = row["user_id"] if hasattr(row, "keys") else row[1]
+    if role == "marketing" and owner_id != session.get("user_id"):
         return None, _json({"error_code": "forbidden", "error": "forbidden"}, 403)
     return row, None
 
