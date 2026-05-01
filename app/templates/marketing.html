@@ -19,7 +19,6 @@
     <select id="campSelect" onchange="selectCampaign()"></select>
   </div>
   <div id="campActions" class="hidden" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-    <button class="btn btn-sm btn-primary" onclick="openActualsModal()">📥 إدخال الأرقام الفعلية</button>
     <button class="btn btn-sm" onclick="editCurrent()" data-i18n="common.edit"></button>
     <button class="btn btn-sm btn-danger" onclick="deleteCurrent()" data-i18n="common.delete"></button>
   </div>
@@ -78,6 +77,46 @@
       <span data-i18n="mk.section_dynamic_spend"></span>
     </h2>
     <div id="ovDynamicHeadline" class="mkt-headline-row"></div>
+
+    <!-- Inline actuals entry card -->
+    <div id="actualsInlineCard" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span id="actualsInlineTitle" style="font-weight:600;font-size:15px;color:var(--text)"></span>
+        <button id="actualsToggleBtn" class="btn btn-sm" onclick="toggleActualsForm()" style="display:none"></button>
+      </div>
+      <div id="actualsInlineBody">
+        <p id="actualsInlineHint" style="font-size:13px;color:var(--text-muted);margin-bottom:14px"></p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div class="field">
+            <label data-i18n="mk.actual_spend"></label>
+            <input type="number" min="0" id="a_spend" class="form-input" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-i18n="mk.actual_leads"></label>
+            <input type="number" min="0" id="a_leads" class="form-input" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-i18n="mk.actual_ql"></label>
+            <input type="number" min="0" id="a_ql" class="form-input" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-i18n="mk.actual_meetings"></label>
+            <input type="number" min="0" id="a_meet" class="form-input" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-i18n="mk.actual_fu"></label>
+            <input type="number" min="0" id="a_fu" class="form-input" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-i18n="mk.actual_deals"></label>
+            <input type="number" min="0" id="a_deals" class="form-input" placeholder="0">
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <button class="btn btn-primary" onclick="saveActuals()" data-i18n="mk.save_actuals"></button>
+        </div>
+      </div>
+    </div>
 
     <div class="form-section-title" data-i18n="mk.volume_kpis" style="margin-top:14px"></div>
     <div class="table-wrap">
@@ -230,51 +269,6 @@
     </summary>
     <div id="ovFormulas"></div>
   </details>
-</div>
-
-<!-- Actuals entry modal -->
-<div class="modal-backdrop" id="actualsModal" role="dialog" aria-modal="true">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-header">
-      <div class="modal-title">📥 إدخال الأرقام الفعلية التراكمية</div>
-      <button class="modal-close" onclick="closeModal('actualsModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-        أدخل الأرقام الفعلية التراكمية للحملة حتى تاريخ اليوم. ستتحرك sections 4 و 5 و 6 تلقائياً بعد الحفظ.
-      </p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div class="field">
-          <label>Actual Spend (جنيه)</label>
-          <input type="number" min="0" id="a_spend" class="form-input" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Actual Leads</label>
-          <input type="number" min="0" id="a_leads" class="form-input" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Actual Qualified Leads</label>
-          <input type="number" min="0" id="a_ql" class="form-input" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Actual Meetings</label>
-          <input type="number" min="0" id="a_meet" class="form-input" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Actual Follow-ups</label>
-          <input type="number" min="0" id="a_fu" class="form-input" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Actual Deals</label>
-          <input type="number" min="0" id="a_deals" class="form-input" placeholder="0">
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveActuals()">💾 حفظ وتحديث Dashboard</button>
-      <button class="btn btn-ghost" onclick="closeModal('actualsModal')">إلغاء</button>
-    </div>
-  </div>
 </div>
 
 <!-- Campaign create/edit modal -->
@@ -673,6 +667,7 @@ function renderMaster() {
 // 4) Dynamic by Spend
 function renderDynamicBySpend() {
   const d = dashboard.dynamic_by_spend;
+  const a = dashboard.actuals || {};
   document.getElementById("ovDynamicHeadline").innerHTML = `
     <div class="mkt-headline-card">
       <div class="mkt-headline-label">${t("mk.dyn_spend_progress")}</div>
@@ -682,6 +677,31 @@ function renderDynamicBySpend() {
       <div class="mkt-headline-label">${t("mk.tp_actual_spend")}</div>
       <div class="mkt-headline-value">${egp(d.actual_spend)}</div>
     </div>`;
+
+  // Inline actuals form
+  const card     = document.getElementById("actualsInlineCard");
+  const titleEl  = document.getElementById("actualsInlineTitle");
+  const hintEl   = document.getElementById("actualsInlineHint");
+  const toggleBtn= document.getElementById("actualsToggleBtn");
+  const body     = document.getElementById("actualsInlineBody");
+  card.style.display = "";
+  hintEl.textContent = t("mk.actuals_form_hint");
+  document.getElementById("a_spend").value = a.actual_spend  || "";
+  document.getElementById("a_leads").value = a.actual_leads  || "";
+  document.getElementById("a_ql").value    = a.actual_qualified_leads || "";
+  document.getElementById("a_meet").value  = a.actual_meetings || "";
+  document.getElementById("a_fu").value    = a.actual_follow_ups || "";
+  document.getElementById("a_deals").value = a.actual_deals  || "";
+  if (!d.actuals_present) {
+    titleEl.textContent = t("mk.enter_actuals_title");
+    toggleBtn.style.display = "none";
+    body.style.display = "";
+  } else {
+    titleEl.textContent = t("mk.update_actuals_title");
+    toggleBtn.style.display = "";
+    toggleBtn.textContent = t("mk.show_entry_form");
+    body.style.display = "none";
+  }
 
   if (!d.actuals_present) {
     document.getElementById("ovDynamicVolume").innerHTML =
@@ -943,16 +963,12 @@ function renderFormulas() {
 }
 
 // ─── Actuals entry ──────────────────────────────────────────────────────
-function openActualsModal() {
-  if (!currentCamp) return;
-  const a = dashboard && dashboard.actuals || {};
-  document.getElementById("a_spend").value  = a.actual_spend  || "";
-  document.getElementById("a_leads").value  = a.actual_leads  || "";
-  document.getElementById("a_ql").value     = a.actual_qualified_leads || "";
-  document.getElementById("a_meet").value   = a.actual_meetings || "";
-  document.getElementById("a_fu").value     = a.actual_follow_ups || "";
-  document.getElementById("a_deals").value  = a.actual_deals  || "";
-  openModal("actualsModal");
+function toggleActualsForm() {
+  const body = document.getElementById("actualsInlineBody");
+  const btn  = document.getElementById("actualsToggleBtn");
+  const open = body.style.display === "none";
+  body.style.display = open ? "" : "none";
+  btn.textContent = open ? t("mk.hide_entry_form") : t("mk.show_entry_form");
 }
 
 async function saveActuals() {
@@ -967,8 +983,7 @@ async function saveActuals() {
   };
   try {
     await api(`/api/marketing/campaigns/${currentCamp.id}/actuals`, { method: "PUT", body });
-    closeModal("actualsModal");
-    toast("تم حفظ الأرقام الفعلية ✓", "success");
+    toast(t("mk.save_actuals") + " ✓", "success");
     await selectCampaign();   // refresh full dashboard
   } catch (e) { toastError(e); }
 }
