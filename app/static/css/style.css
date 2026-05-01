@@ -1223,6 +1223,22 @@ html[dir="rtl"] tbody tr.clickable:hover { transform: translateX(-2px); }
 }
 .fin-summary.is-expanded .fin-expand-chev { transform: rotate(180deg); }
 
+/* Spacer to keep the avatar + name aligned for rows that don't get an
+   expand button (rep had zero revenue across the whole range). Width
+   matches the button width so the rows below line up regardless of
+   which ones have expanders. */
+.fin-expand-spacer {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.fin-summary.is-empty {
+  cursor: default;
+  opacity: 0.85;
+}
+.fin-summary.is-empty:hover { background: transparent; }
+
 .fin-detail-row > td {
   padding: 0 !important;
   background: var(--surface);

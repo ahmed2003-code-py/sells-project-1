@@ -114,8 +114,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat48"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat48"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat49"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat49"></script>
 <script>
 let reportData = null;
 let trendData = null;
@@ -509,18 +509,26 @@ function renderTable(rows) {
   const aggregates = [...byUser.values()]
     .sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
 
-  // Each rep gets two rows: a clickable summary row (always visible)
-  // and a hidden detail row that expands inline. The summary row uses
-  // a chevron + .is-expanded class to drive the rotation; the detail
-  // row's <table> mirrors the parent column widths so numbers line up.
+  // Each rep gets a summary row + (only if they had any productive
+  // months) a hidden detail row that expands inline. Months with zero
+  // revenue across all metrics are filtered out — showing a row of
+  // zeros for "Mar 2026" when the rep just didn't sell anything that
+  // month would just clutter the panel. If a rep had ZERO activity in
+  // every month of the range, we drop the expand button entirely so
+  // the summary row stays visible (the user still sees the underperformer)
+  // but isn't promised a detail panel that would only contain zeros.
   tbody.innerHTML = aggregates.map((u, i) => {
     const rankCls = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-    // Sort months chronologically (newest last) so the timeline reads
-    // top → bottom = older → newer when the panel expands.
-    const monthsSorted = [...u.months].sort((a, b) =>
-      (a.month || "").localeCompare(b.month || "")
-    );
-    const detailRows = monthsSorted.map(m => `
+
+    // Productive months only. We treat a month as "productive" if the
+    // total revenue is positive; this captures both deal revenue and
+    // reservation revenue without having to OR them at the call site.
+    const productive = u.months
+      .filter(m => (m.total_revenue || 0) > 0)
+      .sort((a, b) => (a.month || "").localeCompare(b.month || ""));
+    const hasActivity = productive.length > 0;
+
+    const detailRows = productive.map(m => `
       <tr class="fin-detail-month">
         <td>${escapeHTML(fmtMonth(m.month))}</td>
         <td>${m.deals_count || 0}</td>
@@ -531,18 +539,29 @@ function renderTable(rows) {
         <td class="money">${fmtMoney(m.total_commission)}</td>
       </tr>`).join("");
 
-    const monthCount = monthsSorted.length;
-    const subText = monthCount === 1
-      ? fmtMonth(monthsSorted[0].month)
-      : `${monthCount} ${t("fin.months_label")} · ${fmtMonth(monthsSorted[0].month)} → ${fmtMonth(monthsSorted[monthCount-1].month)}`;
+    let subText;
+    if (!hasActivity) {
+      subText = t('fin.no_activity_in_range');
+    } else if (productive.length === 1) {
+      subText = fmtMonth(productive[0].month);
+    } else {
+      subText = `${productive.length} ${t("fin.months_label")} · ${fmtMonth(productive[0].month)} → ${fmtMonth(productive[productive.length-1].month)}`;
+    }
 
-    return `<tr class="fin-summary" data-user="${u.user_id}">
+    // Spacer keeps the avatar/text aligned with rows that DO have an
+    // expand button. Rendering the button conditionally without it
+    // shifts non-expandable rows ~38px to the left.
+    const leadingControl = hasActivity
+      ? `<button class="fin-expand-btn" type="button" aria-expanded="false" aria-label="${escapeHTML(t('common.details'))}">
+           <span class="material-symbols-outlined fin-expand-chev" aria-hidden="true">expand_more</span>
+         </button>`
+      : `<span class="fin-expand-spacer" aria-hidden="true"></span>`;
+
+    const summaryRow = `<tr class="fin-summary${hasActivity ? '' : ' is-empty'}" data-user="${u.user_id}">
       <td><span class="rank ${rankCls}">${i + 1}</span></td>
       <td style="font-weight:600">
         <div style="display:flex;align-items:center;gap:10px">
-          <button class="fin-expand-btn" type="button" aria-expanded="false" aria-label="${escapeHTML(t('common.details'))}">
-            <span class="material-symbols-outlined fin-expand-chev" aria-hidden="true">expand_more</span>
-          </button>
+          ${leadingControl}
           <div class="avatar" style="width:30px;height:30px;font-size:12px">${escapeHTML((u.user_name||'?')[0])}</div>
           <div style="display:flex;flex-direction:column;line-height:1.25">
             <span>${escapeHTML(u.user_name)}</span>
@@ -556,8 +575,11 @@ function renderTable(rows) {
       <td class="money">${fmtMoney(u.reservation_revenue)}</td>
       <td class="money fin-key-num">${fmtMoney(u.total_revenue)}</td>
       <td class="money fin-key-num">${fmtMoney(u.total_commission)}</td>
-    </tr>
-    <tr class="fin-detail-row" hidden>
+    </tr>`;
+
+    // Skip emitting the detail row entirely when there's nothing to put
+    // in it — saves DOM nodes and avoids an empty <tr> in the table.
+    const detailRow = hasActivity ? `<tr class="fin-detail-row" hidden>
       <td colspan="8">
         <div class="fin-detail-wrap">
           <div class="fin-detail-title">${escapeHTML(t('fin.activity_breakdown'))}</div>
@@ -575,18 +597,20 @@ function renderTable(rows) {
           </table>
         </div>
       </td>
-    </tr>`;
+    </tr>` : '';
+
+    return summaryRow + detailRow;
   }).join("");
 
-  // Wire expand toggles. Delegated on the tbody so we don't have to
-  // re-bind every render; one listener handles all rows.
+  // Wire expand toggles. Only rows with an expand button (i.e. ones
+  // that have an immediately-following .fin-detail-row sibling) get
+  // a click handler; "is-empty" rows do nothing on click.
   tbody.querySelectorAll('.fin-summary').forEach(row => {
+    if (row.classList.contains('is-empty')) return;
     const detail = row.nextElementSibling;
-    if (!detail) return;
+    if (!detail || !detail.classList.contains('fin-detail-row')) return;
     const btn = row.querySelector('.fin-expand-btn');
     const toggle = (e) => {
-      // Don't toggle when the click hits a child button or link inside
-      // the summary cells (none today, but future-proof).
       if (e.target.closest('a')) return;
       const open = detail.hasAttribute('hidden');
       if (open) detail.removeAttribute('hidden');
