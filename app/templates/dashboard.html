@@ -60,7 +60,7 @@
   </div>
 </div>
 
-<div class="controls">
+<div class="controls controls-sticky">
   <div class="field">
     <label data-i18n="common.month"></label>
     <div id="dateRangeHost"></div>
@@ -83,6 +83,10 @@
       <option value="Weak" data-i18n="rating.Weak">Weak</option>
       <option value="Bad" data-i18n="rating.Bad">Bad</option>
     </select>
+  </div>
+  <div class="field" style="flex:1;min-width:180px">
+    <label data-i18n="common.search"></label>
+    <input type="text" id="selSearch" oninput="onManualFilter()" data-i18n-placeholder="filters.search_user_ph" autocomplete="off">
   </div>
   <div class="spacer"></div>
 </div>
@@ -167,8 +171,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat45"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat45"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat46"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat46"></script>
 <script>
 let allData = [];
 let _drCtrl = null;
@@ -208,8 +212,16 @@ async function loadAll() {
 function render() {
   const sort = document.getElementById("selSort").value;
   const ratingFilter = document.getElementById("selRating").value;
+  const searchEl = document.getElementById("selSearch");
+  const search = searchEl ? (searchEl.value || "").trim().toLowerCase() : "";
   let rows = [...allData];
   if (ratingFilter !== "all") rows = rows.filter(r => r.rating === ratingFilter);
+  if (search) {
+    rows = rows.filter(r =>
+      (r.user_name || "").toLowerCase().includes(search) ||
+      (r.username || "").toLowerCase().includes(search)
+    );
+  }
   // Score sort honours the "needs attention" flag set by the warm tile —
   // worst-first when the user clicked the alert tile, best-first otherwise.
   rows.sort(sort === "score"
@@ -301,10 +313,21 @@ function _wireTileClick(elId, handler) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  _wireTileClick('tile_n_card', _scrollToTable);
+  _wireTileClick('tile_n_card', () => {
+    // Sales count tile — just scroll, don't reorder. But CLEAR the
+    // attention flag so a previous "Needs Attention" click doesn't
+    // leave the list inverted.
+    _attentionFirst = false;
+    render();
+    _scrollToTable();
+  });
 
   _wireTileClick('tile_top_card', () => {
     // Top performer is row[0] after the score-sort.
+    // Clear attention flag — without this, clicking "Top Performer"
+    // after "Needs Attention" left the list still ASC, so showDetail
+    // opened the WORST rep instead of the best.
+    _attentionFirst = false;
     const sort = document.getElementById('selSort');
     if (sort) { sort.value = 'score'; }
     render();
@@ -454,10 +477,13 @@ function renderPrimaryCharts(rows) {
   const targets = _NUMERIC_KPI_KEYS.map(k =>
     rows.reduce((a, r) => a + (r.breakdown && r.breakdown[k] ? r.breakdown[k].target : 0), 0)
   );
+  // Brand purple (actual) vs warning amber (target) — far apart on the
+  // colour wheel so the eye distinguishes them instantly. The previous
+  // brand vs brand3 was two shades of purple and read as one colour.
   Charts.drawGroupedBar("chartActualTarget",
     [
       { name: t("dash.actual"), values: actuals, color: Charts.COLORS.brand },
-      { name: t("dash.target"), values: targets, color: Charts.COLORS.brand3 },
+      { name: t("dash.target"), values: targets, color: Charts.COLORS.warning },
     ],
     _NUMERIC_KPI_KEYS.map(k => kpiLabel(k)),
     { showlegend: true, xaxis: { tickangle: -25 } }

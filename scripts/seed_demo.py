@@ -61,48 +61,50 @@ TEAMS = [
     ("Team Gamma",  "kareem.tl"),
 ]
 
-# 20 sales reps, distributed across the 3 teams with mixed tenure and
-# performance profiles so dashboards / leaderboards have natural shape.
+# 20 sales reps, deliberately distributed so all 3 teams compete closely:
+# each team has the same SHAPE of performance (one excellent anchor, two
+# vgood, three good) plus or minus one medium rep to keep totals close.
+# Tenure is varied PER team too — every team has long-tenured veterans
+# AND recent hires — so historical trends look natural for everyone.
 #
-# Tuple format:
-#   (username, full_name, team_idx, join_months_ago, profile)
+# Tuple format: (username, full_name, team_idx, join_months_ago, profile)
 #
 # `join_months_ago = 12` means the rep has KPI rows for the last 12
 # months. `join_months_ago = 0` means they only have the current month.
-# Profiles drive how close their actuals get to target — see PROFILES.
 SALES_REPS = [
-    # Veterans — full year of history. Distributed so each team has
-    # one strong anchor.
-    ("sales.ahmed",   "Ahmed Salah",   0, 12, "excellent"),
-    ("sales.youssef", "Youssef Amr",   1, 12, "excellent"),
-    ("sales.tamer",   "Tamer Wael",    2, 12, "vgood"),
+    # ── Anchors: each team gets one full-year excellent. ────────────
+    ("sales.ahmed",   "Ahmed Salah",   0, 12, "excellent"),  # Alpha
+    ("sales.youssef", "Youssef Amr",   1, 12, "excellent"),  # Beta
+    ("sales.tamer",   "Tamer Wael",    2, 12, "excellent"),  # Gamma
 
-    # 9–11 months — solid mid-tier contributors.
+    # ── 11 months — first vgood per team. ───────────────────────────
     ("sales.laila",   "Laila Kamal",   0, 11, "vgood"),
-    ("sales.mariam",  "Mariam Hany",   1, 11, "good"),
-    ("sales.bassel",  "Bassel Ezz",    2, 10, "good"),
-    ("sales.mostafa", "Mostafa Tarek", 0, 9,  "good"),
-    ("sales.khaled",  "Khaled Naguib", 1, 9,  "vgood"),
+    ("sales.khaled",  "Khaled Naguib", 1, 11, "vgood"),
+    ("sales.salma",   "Salma Hassan",  2, 11, "vgood"),
 
-    # 6–8 months — last summer's hires.
-    ("sales.reem",    "Reem Gamal",    2, 8,  "good"),
-    ("sales.hana",    "Hana Adel",     0, 7,  "medium"),
-    ("sales.omar",    "Omar Saeed",    1, 6,  "good"),
-    ("sales.salma",   "Salma Hassan",  2, 6,  "vgood"),
+    # ── 9–10 months — second vgood per team. ────────────────────────
+    ("sales.heba",    "Heba Aly",      0, 10, "vgood"),
+    ("sales.dina",    "Dina Magdy",    1, 10, "vgood"),
+    ("sales.bassel",  "Bassel Ezz",    2,  9, "vgood"),
 
-    # 3–5 months — newer reps still ramping up.
-    ("sales.karim",   "Karim Yasser",  0, 5,  "good"),
-    ("sales.dina",    "Dina Magdy",    1, 4,  "good"),
-    ("sales.tarek",   "Tarek Maged",   2, 4,  "good"),
-    ("sales.heba",    "Heba Aly",      0, 3,  "vgood"),
+    # ── 7–8 months — first "good" per team. ─────────────────────────
+    ("sales.mostafa", "Mostafa Tarek", 0,  8, "good"),
+    ("sales.mariam",  "Mariam Hany",   1,  8, "good"),
+    ("sales.reem",    "Reem Gamal",    2,  7, "good"),
 
-    # 1–2 months — just joined, partial history.
-    ("sales.farah",   "Farah Sherif",  1, 2,  "good"),
-    ("sales.ziad",    "Ziad Nabil",    2, 2,  "medium"),
-    ("sales.nada",    "Nada Wael",     0, 1,  "good"),
+    # ── 5–6 months — second "good" per team. ────────────────────────
+    ("sales.karim",   "Karim Yasser",  0,  6, "good"),
+    ("sales.omar",    "Omar Saeed",    1,  6, "good"),
+    ("sales.tarek",   "Tarek Maged",   2,  5, "good"),
 
-    # Joined this month — only one row of data so far.
-    ("sales.amr",     "Amr Hisham",    1, 0,  "medium"),
+    # ── 3–4 months — third "good" (Alpha & Beta only). ──────────────
+    ("sales.nada",    "Nada Wael",     0,  4, "good"),
+    ("sales.farah",   "Farah Sherif",  1,  3, "good"),
+
+    # ── 1–2 months — one medium per team to keep close ratios. ──────
+    ("sales.hana",    "Hana Adel",     0,  2, "medium"),
+    ("sales.amr",     "Amr Hisham",    1,  2, "medium"),
+    ("sales.ziad",    "Ziad Nabil",    2,  1, "medium"),
 ]
 
 
