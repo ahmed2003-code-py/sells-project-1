@@ -418,7 +418,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat39"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat40"></script>
 <script>
 let campaigns = [];
 let currentCamp = null;          // selected campaign row
@@ -1028,6 +1028,7 @@ async function confirmPeriodDelete() {
 
 // ─── Lifecycle ─────────────────────────────────────────────────────────
 function onLangChange() { if (dashboard) renderDashboard(); }
+function onThemeChange() { if (dashboard) renderDashboard(); }
 
 loadCampaigns();
 </script>

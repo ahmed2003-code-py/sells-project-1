@@ -99,8 +99,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat39"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat39"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat40"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat40"></script>
 <script>
 let leaders = [];
 let teams = [];
@@ -642,6 +642,21 @@ function onLangChange() {
     _updateRangeWarning(_drCtrl.getRange());
   }
   render();
+  // Charts on this page pre-resolve hex colours at the call site
+  // (Charts.scoreColorHex / Charts.PALETTE[i]), so the closure replay
+  // alone keeps the old palette. Re-run the chart renderers with the
+  // freshly-mutated palette.
+  renderTeamsCharts();
+  renderTeamsPerf();
+}
+
+// Explicit theme hook — fired by charts.js right after the palette is
+// rebuilt. Same body as onLangChange but without the locale label refresh
+// (pointless on a theme flip) so the round-trip is just the chart redraw.
+function onThemeChange() {
+  render();
+  renderTeamsCharts();
+  renderTeamsPerf();
 }
 
 // Reactive contextual warning — shown when sub-month preset is selected.

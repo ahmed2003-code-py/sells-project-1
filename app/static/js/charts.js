@@ -9,57 +9,54 @@
 // point at the live object — and so callers can keep using property
 // access (CHART_COLORS.brand) without needing to re-read every render.
 const _CHART_PALETTES = {
-  // Light-mode chart palette — softened on purpose. The CSS design tokens
-  // (--brand etc.) stay at full saturation for buttons, badges, and tiles
-  // — those sit on small surfaces and benefit from contrast. Charts cover
-  // large areas of saturated colour against white, which gets harsh fast,
-  // so the chart-only versions are nudged to medium saturation / medium
-  // lightness for comfortable long viewing.
+  // Light-mode chart palette — vibrant, saturated, broadly distinct.
+  // Earlier iterations were too pastel for users to tell categories apart
+  // on dense surfaces (treemaps, donuts with 6+ slices). This pass picks
+  // hues from across the wheel and keeps each one deep enough to read
+  // confidently against a white card without going neon-bright.
   light: {
-    // Mid-saturation palette — deep enough to read as "serious enterprise"
-    // on white, soft enough to not strain the eye on large filled areas.
-    // Sits between the CSS design tokens (full saturation, used on small
-    // chrome) and a fully washed-out pastel palette.
-    brand:       '#525bd6',  // periwinkle
-    brand2:      '#7079e3',
-    brand3:      '#bfc2ff',
-    accent:      '#138a7e',  // teal — readable on white without being harsh
-    accent2:     '#2ba89c',
-    accent3:     '#7fdcd0',
-    secondary:   '#b07a6c',  // coral
-    secondary2:  '#e5a596',
-    info:        '#5b7de8',
-    warning:     '#c47a25',  // amber
-    warning2:    '#e8a957',
-    danger:      '#c64954',  // red
-    danger2:     '#e07682',
-    muted:       '#787c8b',
-    text:        '#1f2438',  // softened black for axis labels
-    textMuted:   '#4a5063',
+    brand:       '#5b3fd6',  // deep purple — primary
+    brand2:      '#7c5cff',  // bright purple — secondary brand
+    brand3:      '#b0a1ff',  // soft purple — backgrounds / 3rd accents
+    accent:      '#0e7c70',  // dark teal — high-contrast secondary
+    accent2:     '#22b39d',  // teal — visible on white
+    accent3:     '#7ddacc',  // mint — fills / area
+    secondary:   '#a25344',  // dark coral — distinct from brand
+    secondary2:  '#e87a64',  // coral — bright accent
+    info:        '#1d4ed8',  // dark blue — distinct from purple
+    warning:     '#b86200',  // dark amber — readable on white
+    warning2:    '#e89028',  // amber — bright accent
+    danger:      '#b91c34',  // dark red — readable
+    danger2:     '#e53e5b',  // red — bright accent
+    muted:       '#6b7282',
+    text:        '#1a1d2c',  // near-black for axis labels
+    textMuted:   '#3f4554',
     bg:          '#ffffff',
-    surface2:    '#f5f6fc',
-    border:      '#e5e7ef',
-    grid:        '#eef0f6',
-    gridStrong:  '#d8dbe8',
+    surface2:    '#f4f6fc',
+    border:      '#e1e4ee',
+    grid:        '#ebedf5',
+    gridStrong:  '#d2d6e3',
   },
   dark: {
-    // Brightened brand hues so they remain legible against dark surfaces.
-    brand:       '#7c83fd',
-    brand2:      '#969cff',
-    brand3:      '#5559c8',
-    accent:      '#4ed6ce',
-    accent2:     '#6ee0d8',
-    accent3:     '#00837c',
-    secondary:   '#d49887',
-    secondary2:  '#f5b8a8',
-    info:        '#8ba4ff',
-    warning:     '#ffb84d',
-    warning2:    '#ffc97a',
-    danger:      '#ff6b8a',
-    danger2:     '#ff8b9e',
-    muted:       '#8388a0',
-    text:        '#e8eaf2',
-    textMuted:   '#b3b6c4',
+    // Bright pastels against deep navy — the dark-mode opposite of the
+    // light palette. Each hue is light enough (lightness ≥60%) to stay
+    // legible on the surface-solid background without buzzing.
+    brand:       '#a78bff',  // light purple — primary
+    brand2:      '#c4b0ff',  // lighter purple
+    brand3:      '#7c5cff',  // mid purple — for fills
+    accent:      '#5fe3d6',  // light teal
+    accent2:     '#8fefe4',  // mint — bright
+    accent3:     '#3ab8ad',  // mid teal
+    secondary:   '#f5a690',  // light coral
+    secondary2:  '#ffc7b8',  // peach
+    info:        '#7faaff',  // light blue
+    warning:     '#ffc46b',  // light amber
+    warning2:    '#ffd690',  // peach-amber
+    danger:      '#ff7f95',  // light pink
+    danger2:     '#ffa3b3',  // softer pink
+    muted:       '#8389a0',
+    text:        '#eaecf3',
+    textMuted:   '#b6b9c7',
     bg:          '#1c1f2b',          // matches --surface-solid
     surface2:    '#20232f',
     border:      '#2a2d3a',
@@ -94,17 +91,20 @@ window.addEventListener('themechange', () => {
   _applyChartPalette(_currentTheme());
   _rebuildPalette();
 
-  // Two-layer redraw strategy:
+  // Three-layer redraw strategy. Pages can opt into whichever fits:
   //
-  // 1) Pages whose chart args are computed at draw-time (most charts —
-  //    they read CHART_COLORS / PALETTE inside the drawer body, so the
-  //    closure replay below catches the new palette).
+  // 1) Closure replay — every Charts.drawXxx() call registers its args
+  //    keyed by container id; we replay each. Catches charts whose
+  //    drawer-side body reads CHART_COLORS at render time.
   //
-  // 2) Pages that pre-resolve PALETTE on the page side and pass an
-  //    array of HEX strings via data.colors. Those strings are frozen
-  //    in the captured closure args. For those, calling the page's
-  //    onLangChange() re-runs its render(), which re-evaluates
-  //    Charts.PALETTE[i] with the new live values.
+  // 2) window.onThemeChange — explicit hook for pages whose render()
+  //    captures hex strings at the call site (PALETTE[i], scoreColorHex)
+  //    and so the closure replay would paint with stale colours.
+  //    Implementing it should re-run the page's chart-rendering
+  //    function(s) without making a network round-trip.
+  //
+  // 3) onLangChange fallback — older pages that already wire
+  //    everything through onLangChange() get a free ride.
   _redrawCallbacks.forEach((fn, id) => {
     const el = document.getElementById(id);
     if (!el || !el.isConnected) {
@@ -114,7 +114,9 @@ window.addEventListener('themechange', () => {
     try { fn(); } catch (e) { console.warn('chart redraw failed:', id, e); }
   });
 
-  if (typeof window.onLangChange === 'function') {
+  if (typeof window.onThemeChange === 'function') {
+    try { window.onThemeChange(_currentTheme()); } catch (e) { console.warn('onThemeChange failed:', e); }
+  } else if (typeof window.onLangChange === 'function') {
     try { window.onLangChange(typeof getLang === 'function' ? getLang() : 'ar'); } catch (_) {}
   }
 });
@@ -219,22 +221,32 @@ function cancelPending(elOrId) {
   try { if (typeof Plotly !== 'undefined' && Plotly.purge) Plotly.purge(el); } catch (_) {}
 }
 
-// Sequential palette: periwinkle → teal → coral → yellow → blue → mint.
-// Defined as a `let`-like mutable array so theme changes can rewrite the
+// Sequential palette: rotated for maximum hue separation between adjacent
+// slots, so a 6-slice donut or 12-tile treemap reads as 6/12 distinct
+// categories instead of three pairs of similar colours. Order picks one
+// hue family per slot (purple → teal → amber → blue → coral → red →
+// soft-purple → mint) before doubling back to lighter variants.
+//
+// Defined as a `let`-like mutable array so theme changes can rewrite
 // values in place — callers that captured a reference (Charts.PALETTE,
 // PALETTE[2], etc.) keep pointing at the same array. _rebuildPalette()
-// runs on every theme change to keep the entries in sync with CHART_COLORS.
+// runs on every theme change to keep entries in sync with CHART_COLORS.
 const PALETTE = [];
 function _rebuildPalette() {
   const next = [
-    CHART_COLORS.brand,
-    CHART_COLORS.accent2,
-    CHART_COLORS.secondary2,
-    CHART_COLORS.warning2,
-    CHART_COLORS.info,
-    CHART_COLORS.accent3,
-    CHART_COLORS.brand3,
-    CHART_COLORS.danger2,
+    CHART_COLORS.brand,       // purple
+    CHART_COLORS.accent,      // teal
+    CHART_COLORS.warning,     // dark amber / yellow
+    CHART_COLORS.info,        // dark blue
+    CHART_COLORS.secondary2,  // coral
+    CHART_COLORS.danger,      // red
+    CHART_COLORS.brand2,      // bright purple
+    CHART_COLORS.accent2,     // mid teal
+    CHART_COLORS.warning2,    // bright amber
+    CHART_COLORS.brand3,      // soft purple
+    CHART_COLORS.secondary,   // dark coral
+    CHART_COLORS.accent3,     // mint
+    CHART_COLORS.danger2,     // bright red
   ];
   PALETTE.length = 0;
   next.forEach(c => PALETTE.push(c));
@@ -539,7 +551,7 @@ function drawRadarChart(containerId, data, options = {}) {
     r: data.values,
     theta: data.labels,
     fill: 'toself',
-    fillcolor: 'rgba(71, 77, 197, 0.18)',
+    fillcolor: hexToRgba(CHART_COLORS.brand, 0.18),
     line: { color: CHART_COLORS.brand, width: 2.5, shape: 'spline', smoothing: 0.6 },
     marker: { size: 7, color: CHART_COLORS.bg, line: { color: CHART_COLORS.brand, width: 2 } },
     hovertemplate: '<b>%{theta}</b><br>%{r}%<extra></extra>',
@@ -614,20 +626,33 @@ function drawHeatmap(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
+  // Theme-aware diverging colorscale: cold (low achievement) cells are tinted
+  // toward danger / warning, hot (high achievement) cells lean into the brand
+  // hue. Light mode uses near-white for the bottom; dark mode uses a low-
+  // saturation navy so the darkest cells aren't louder than the busiest ones.
+  const isDark = _currentTheme() === 'dark';
+  const colorscale = isDark
+    ? [
+        [0,    hexToRgba(CHART_COLORS.danger, 0.22)],
+        [0.30, hexToRgba(CHART_COLORS.warning, 0.30)],
+        [0.55, hexToRgba(CHART_COLORS.brand, 0.30)],
+        [0.80, hexToRgba(CHART_COLORS.brand, 0.65)],
+        [1,    CHART_COLORS.brand],
+      ]
+    : [
+        [0,    hexToRgba(CHART_COLORS.danger,  0.14)],
+        [0.30, hexToRgba(CHART_COLORS.warning, 0.18)],
+        [0.55, hexToRgba(CHART_COLORS.brand,   0.20)],
+        [0.80, hexToRgba(CHART_COLORS.brand,   0.55)],
+        [1,    CHART_COLORS.brand],
+      ];
+
   const trace = {
     type: 'heatmap',
     z: data.z,
     x: data.x,
     y: data.y,
-    // Sequential scale with stronger lightness drop at the low end so cold cells
-    // visibly stand out at a glance — pastel-pink-vs-pastel-periwinkle wasn't enough.
-    colorscale: [
-      [0,    '#fbe4e6'],  // very light coral (worst)
-      [0.30, '#fdebcb'],  // soft yellow
-      [0.55, '#dfe3ff'],  // soft periwinkle
-      [0.80, '#9aa1ee'],  // mid periwinkle
-      [1,    '#474dc5'],  // primary periwinkle (best)
-    ],
+    colorscale: colorscale,
     colorbar: {
       thickness: 10,
       len: 0.8,
@@ -692,10 +717,19 @@ function drawTreemap(containerId, data, options = {}) {
     textinfo: 'text',
     textposition: 'middle center',
     texttemplate: '%{text}',
+    // Squarified packing with a target aspect close to the golden ratio —
+    // produces tiles that lean square so labels fit on every reasonable
+    // container size. `pad` separates tiles for visual breathing room
+    // without leaving the unfilled gaps the default packing would.
+    tiling: {
+      packing: 'squarify',
+      squarifyratio: 1,
+      pad: 2,
+    },
     marker: {
       colors: data.colors || PALETTE,
       line: { color: CHART_COLORS.bg, width: 2 },
-      pad: { t: 4, r: 4, b: 4, l: 4 },
+      pad: { t: 3, r: 3, b: 3, l: 3 },
     },
     textfont: {
       color: '#ffffff',
@@ -716,7 +750,7 @@ function drawTreemap(containerId, data, options = {}) {
   };
 
   const layout = chartLayout({
-    margin: { t: 10, r: 10, b: 10, l: 10 },
+    margin: { t: 6, r: 6, b: 6, l: 6 },
     showlegend: false,
     uniformtext: { mode: 'hide', minsize: 10 },
     ...options,

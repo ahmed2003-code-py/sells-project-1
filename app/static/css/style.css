@@ -4607,7 +4607,18 @@ html[dir="ltr"] { text-align: left; }
 .bento .span-7 { grid-column: span 7; }
 .bento .span-8 { grid-column: span 8; }
 
-@media (max-width: 1100px) {
+/* Tablet — keep small tiles 2-col so a 4-up row of stat tiles doesn't
+   become a 4-tall stack, which dwarfs the rest of the layout. Bigger
+   spans (5+) collapse to full width because at this viewport they're
+   genuinely chart-sized and benefit from horizontal room. */
+@media (min-width: 720px) and (max-width: 1100px) {
+  .bento .span-3, .bento .span-4 { grid-column: span 6; }
+  .bento .span-5, .bento .span-6, .bento .span-7, .bento .span-8 {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 720px) {
   .bento .span-3, .bento .span-4, .bento .span-5,
   .bento .span-6, .bento .span-7, .bento .span-8 {
     grid-column: span 12;
@@ -4686,9 +4697,17 @@ html[dir="ltr"] { text-align: left; }
   .modal-footer { flex-wrap: wrap; }
   .modal-footer .btn { flex: 1 1 auto; }
 
-  .plotly-container { min-height: 240px; }
-  .plotly-container.short { min-height: 200px; }
-  .plotly-container.tall { min-height: 320px; }
+  /* Mobile chart sizing — taller defaults so legends + axis ticks don't
+     squeeze the plot area into a sliver. The treemap especially needs
+     extra height because each rep gets a tile and a 240px square only
+     fits 4-5 readable cells. The bento grid already collapses to one
+     column < 1100px so charts get the full viewport width. */
+  .chart-card { padding: 14px 14px 12px; margin-bottom: 12px; }
+  .chart-card h3 { font-size: 12px; margin-bottom: 12px; }
+  .chart-card-hint { font-size: 10px; }
+  .plotly-container { min-height: 280px; }
+  .plotly-container.short { min-height: 220px; }
+  .plotly-container.tall { min-height: 360px; }
 
   /* Headline (avg-KPI score) — on mobile the score card carries the full
      story and the gauge card just adds an awkward, mostly-empty card.

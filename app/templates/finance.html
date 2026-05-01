@@ -54,19 +54,26 @@
   <div id="chartTrend" class="plotly-container tall"></div>
 </div>
 
-<!-- Charts row 2: revenue split donut + commission split donut + revenue treemap -->
+<!-- Charts row 2a: revenue treemap — gets full width because it carries
+     the most categorical detail (every rep is a tile) and was unreadably
+     cramped at span-4. Subtitle hint clarifies what tiles represent. -->
+<div class="chart-card">
+  <h3>
+    <span data-i18n="fin.chart_revenue_treemap"></span>
+    <span class="chart-card-hint" data-i18n="fin.treemap_hint"></span>
+  </h3>
+  <div id="chartTreemap" class="plotly-container tall"></div>
+</div>
+
+<!-- Charts row 2b: deal vs reservation breakdowns side-by-side. -->
 <div class="bento">
-  <div class="chart-card span-4">
+  <div class="chart-card span-6">
     <h3 data-i18n="fin.chart_revenue_split"></h3>
     <div id="chartRevenueSplit" class="plotly-container"></div>
   </div>
-  <div class="chart-card span-4">
+  <div class="chart-card span-6">
     <h3 data-i18n="fin.chart_commission_split"></h3>
     <div id="chartCommission" class="plotly-container"></div>
-  </div>
-  <div class="chart-card span-4">
-    <h3 data-i18n="fin.chart_revenue_treemap"></h3>
-    <div id="chartTreemap" class="plotly-container"></div>
   </div>
 </div>
 
@@ -104,8 +111,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat39"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat39"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat40"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat40"></script>
 <script>
 let reportData = null;
 let trendData = null;
@@ -277,16 +284,41 @@ function renderCharts(rows) {
     colors: [Charts.COLORS.brand2, Charts.COLORS.secondary2],
   }, { centerText: fmtMoney(dealComm + resComm) });
 
-  // Treemap of revenue composition by rep (top 12 + Others)
-  const top12 = sortedByRev.slice(0, 12);
-  const restSum = sortedByRev.slice(12).reduce((a, r) => a + (r.total_revenue || 0), 0);
-  const treeLabels = top12.map(r => r.user_name);
-  const treeVals   = top12.map(r => r.total_revenue || 0);
-  if (restSum > 0) { treeLabels.push(t("fin.others")); treeVals.push(restSum); }
+  // Treemap — every contributing rep gets a tile. The previous "top 12 +
+  // Others" bucket produced a single huge "Others" tile that dwarfed the
+  // named reps and was visually unreadable. Showing all reps with revenue
+  // ≥ 0.5% of the total keeps tiles meaningful (sub-half-percent slivers
+  // would render as blank chips with no readable text anyway). Anything
+  // we drop gets folded into a clearly-labelled aggregate so the totals
+  // still reconcile.
+  const totalRev = sortedByRev.reduce((a, r) => a + (r.total_revenue || 0), 0) || 1;
+  const minTileShare = 0.005; // 0.5% threshold
+  const named = [];
+  let micro = 0;
+  let microCount = 0;
+  for (const r of sortedByRev) {
+    const v = r.total_revenue || 0;
+    if (v <= 0) continue;
+    if (v / totalRev >= minTileShare || named.length < 8) {
+      named.push(r);
+    } else {
+      micro += v;
+      microCount += 1;
+    }
+  }
+  const treeLabels = named.map(r => r.user_name);
+  const treeVals   = named.map(r => r.total_revenue || 0);
+  const treeColors = named.map((_, i) => Charts.PALETTE[i % Charts.PALETTE.length]);
+  if (micro > 0) {
+    treeLabels.push(`${t("fin.others")} (${microCount})`);
+    treeVals.push(micro);
+    treeColors.push(Charts.COLORS.muted);
+  }
   Charts.drawTreemap("chartTreemap", {
     labels: treeLabels,
     values: treeVals,
     parents: treeLabels.map(() => ""),
+    colors: treeColors,
   });
 
   // Stacked deals + reservations (top 8)
@@ -379,6 +411,10 @@ function onLangChange() {
   }
   render();
 }
+
+// Theme flip — render() repaints every chart against the new palette,
+// so we reuse it. No API round-trip needed.
+function onThemeChange() { render(); }
 
 // Reactive contextual warning — shows when the selected range is sub-month.
 // Hidden when the range covers full calendar months (single or multi).

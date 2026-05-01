@@ -356,18 +356,18 @@ function fmtMoney(n) {
 }
 
 // Compact money — use on dense KPI tiles where 50,000,000 wouldn't fit.
-// Billions → B / مليار, millions → M / م, thousands → K / ك.
-// Decimals trimmed to one when the magnitude is large enough that the unit
-// already conveys the order of magnitude (e.g. "1.2B" not "1.20B").
+// Billions → B, millions → M, thousands → K (English letters in both
+// locales — easier to scan and matches global finance convention).
+// Decimals trimmed to one when the magnitude is large enough that the
+// unit already conveys order of magnitude (e.g. "1.2B" not "1.20B").
 function fmtCompactMoney(n) {
   if (n == null || isNaN(n)) return "—";
   const v = Number(n);
   const sign = v < 0 ? "-" : "";
   const a = Math.abs(v);
-  const lang = getLang();
-  if (a >= 1e9) return sign + (a / 1e9).toFixed(a >= 10e9 ? 1 : 2) + (lang === "ar" ? "B" : "B");
-  if (a >= 1e6) return sign + (a / 1e6).toFixed(a >= 10e6 ? 1 : 2) + (lang === "ar" ? "M" : "M");
-  if (a >= 1e3) return sign + (a / 1e3).toFixed(0) + (lang === "ar" ? "K" : "K");
+  if (a >= 1e9) return sign + (a / 1e9).toFixed(a >= 10e9 ? 1 : 2) + "B";
+  if (a >= 1e6) return sign + (a / 1e6).toFixed(a >= 10e6 ? 1 : 2) + "M";
+  if (a >= 1e3) return sign + (a / 1e3).toFixed(0) + "K";
   return fmtMoney(v);
 }
 
