@@ -603,10 +603,15 @@ function renderScenarios() {
     const s = dashboard.scenarios[key];
     const isRec = key === recommended;
     return `
-      <div class="mkt-scenario-card${isRec ? ' is-recommended' : ''}">
+      <div class="mkt-scenario-card${isRec ? ' is-recommended' : ''}"
+           style="cursor:pointer;transition:border-color .2s"
+           onclick="selectScenario('${key}')"
+           title="اضغط لاختيار هذا السيناريو">
         <div class="mkt-scenario-head">
           <div class="mkt-scenario-title">${t("mk.scenario_" + key)}</div>
-          ${isRec ? `<span class="badge badge-excellent">${t("mk.recommended_label")}</span>` : ""}
+          ${isRec
+            ? `<span class="badge badge-excellent">${t("mk.recommended_label")}</span>`
+            : `<span style="font-size:11px;color:var(--text-muted)">اضغط للاختيار</span>`}
         </div>
         <dl class="mkt-scenario-stats">
           <div><dt>${t("mk.target_cpd")}</dt><dd>${egp(s.target_cost_per_deal)}</dd></div>
@@ -619,6 +624,31 @@ function renderScenarios() {
   document.getElementById("ovRecommended").innerHTML = `
     <span class="material-symbols-outlined" aria-hidden="true">recommend</span>
     <span><strong>${t("mk.recommended_label")}:</strong> ${t("mk.scenario_" + recommended)}</span>`;
+}
+
+async function selectScenario(key) {
+  if (!currentCamp || key === dashboard.recommended) return;
+  try {
+    await api(`/api/marketing/campaigns/${currentCamp.id}`, {
+      method: "PUT",
+      body: {
+        campaign_name:       currentCamp.campaign_name,
+        avg_unit_price:      currentCamp.avg_unit_price,
+        campaign_budget:     currentCamp.campaign_budget,
+        commission_input:    currentCamp.commission_input,
+        commission_type:     currentCamp.commission_type,
+        expected_close_rate: parseFloat(currentCamp.expected_close_rate) * 100,
+        tax_rate:            parseFloat(currentCamp.tax_rate) * 100,
+        start_date:          currentCamp.start_date || null,
+        end_date:            currentCamp.end_date   || null,
+        review_date:         currentCamp.review_date || null,
+        recommended_scenario: key,
+      }
+    });
+    currentCamp.recommended_scenario = key;
+    toast("تم اختيار السيناريو: " + key, "success");
+    await selectCampaign();   // refresh dashboard
+  } catch (e) { toastError(e); }
 }
 
 // 3) Master Funnel
