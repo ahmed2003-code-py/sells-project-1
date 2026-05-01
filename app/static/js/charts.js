@@ -326,6 +326,17 @@ function drawBarChart(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
+  // Narrow viewports get smaller fonts and a steeper x-axis tick angle so
+  // labels don't ride over each other. Default tick angle is the page-
+  // supplied options.xangle if any, else 0 / -25 depending on width.
+  const containerW = (el.clientWidth || el.offsetWidth || 600);
+  const isNarrow = containerW < 600;
+  const isVeryNarrow = containerW < 420;
+  const fontSize = isVeryNarrow ? 9 : (isNarrow ? 10 : 11);
+  const tickAngle = (options.xangle != null)
+    ? options.xangle
+    : (isNarrow ? -35 : 0);
+
   const trace = {
     type: 'bar',
     x: data.x,
@@ -335,14 +346,19 @@ function drawBarChart(containerId, data, options = {}) {
       line: { width: 0 },
     },
     text: data.labels || data.y.map(v => typeof v === 'number' ? v.toFixed(1) : v),
-    textposition: 'outside',
-    textfont: { color: CHART_COLORS.text, size: 11, family: _chartFontFamily() },
+    // 'auto' lets Plotly choose inside/outside per bar based on space —
+    // prevents the outside label from being clipped at the top of the
+    // chart on narrow viewports.
+    textposition: isVeryNarrow ? 'inside' : 'auto',
+    textfont: { color: CHART_COLORS.text, size: fontSize, family: _chartFontFamily() },
     cliponaxis: false,
     hovertemplate: (options.hovertemplate || '<b>%{x}</b><br>%{y}<extra></extra>'),
   };
 
   const layout = chartLayout({
-    xaxis: { tickangle: options.xangle || 0 },
+    xaxis: { tickangle: tickAngle, tickfont: { size: fontSize } },
+    yaxis: { tickfont: { size: fontSize } },
+    margin: { t: 12, r: isNarrow ? 14 : 24, b: isNarrow ? 64 : 44, l: isNarrow ? 44 : 56 },
     showlegend: false,
     bargap: 0.35,
     ...options,
@@ -371,6 +387,16 @@ function drawHorizontalBar(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
+  // Container width drives margin sizing — at typical mobile widths the old
+  // fixed margins (left 180px, right 80px) ate so much of the canvas that
+  // the bars themselves had ~115px to render in. Read the actual rendered
+  // width and scale margins down proportionally.
+  const containerW = (el.clientWidth || el.offsetWidth || 600);
+  const isNarrow = containerW < 600;
+  const isVeryNarrow = containerW < 420;
+
+  const fontSize = isVeryNarrow ? 10 : (isNarrow ? 11 : 11);
+
   const trace = {
     type: 'bar',
     orientation: 'h',
@@ -381,25 +407,41 @@ function drawHorizontalBar(containerId, data, options = {}) {
       line: { width: 0 },
     },
     text: data.labels || data.x.map(v => typeof v === 'number' ? v.toFixed(1) + '%' : v),
-    textposition: 'outside',
-    textfont: { color: CHART_COLORS.text, size: 11, family: _chartFontFamily() },
+    // 'auto' lets Plotly pick inside vs outside per bar — prevents the
+    // outside label from overlapping the next bar / the axis on narrow
+    // viewports. For very tight viewports we force 'inside' so labels
+    // never collide with the y-axis tick numbers.
+    textposition: isVeryNarrow ? 'inside' : 'auto',
+    insidetextanchor: 'end',
+    textfont: { color: CHART_COLORS.text, size: fontSize, family: _chartFontFamily() },
     cliponaxis: false,
     hovertemplate: '<b>%{y}</b><br>%{x}<extra></extra>',
   };
 
-  // Pre-measure the longest y-label when requested so long names (e.g. full
-  // Arabic names of sales reps) don't overflow into the bars. Cap at 300px.
-  let leftMargin = 180;
-  if (options.measureLabels === true) {
-    const measured = _measureLabelWidth(data.y, 11, _chartFontFamily());
-    if (measured > 0) {
-      leftMargin = Math.min(300, Math.max(leftMargin, Math.ceil(measured) + 24));
-    }
+  // Pre-measure the longest y-label so long names don't overflow into the
+  // bars, but cap it tighter on narrow viewports so the bar area stays
+  // readable. On mobile a left margin of 110-130 leaves enough width for
+  // the bars to actually mean something.
+  const labelFontPx = fontSize;
+  const measured = _measureLabelWidth(data.y, labelFontPx, _chartFontFamily());
+  let leftMargin;
+  if (isVeryNarrow) {
+    leftMargin = Math.min(120, Math.ceil(measured) + 12);
+  } else if (isNarrow) {
+    leftMargin = Math.min(160, Math.max(110, Math.ceil(measured) + 18));
+  } else if (options.measureLabels === true) {
+    leftMargin = Math.min(300, Math.max(180, Math.ceil(measured) + 24));
+  } else {
+    leftMargin = 180;
   }
+
+  // Right margin shrinks on mobile because labels are now 'auto'/'inside'
+  // — we no longer need a wide outside-label gutter.
+  const rightMargin = isNarrow ? 16 : 80;
 
   const layout = chartLayout({
     showlegend: false,
-    margin: { l: leftMargin, r: 80, t: 24, b: 40 },
+    margin: { l: leftMargin, r: rightMargin, t: 16, b: 36 },
     bargap: 0.35,
     ...options,
   });
@@ -712,24 +754,33 @@ function drawTreemap(containerId, data, options = {}) {
     labels: labels,
     parents: data.parents || labels.map(() => ''),
     values: values,
+    // 'total' tells Plotly each tile already represents its own absolute
+    // amount — required for flat (parentless) treemaps to size tiles by
+    // their literal values rather than by remainder-after-children math.
     branchvalues: 'total',
     text: text,
     textinfo: 'text',
     textposition: 'middle center',
     texttemplate: '%{text}',
-    // Squarified packing with a target aspect close to the golden ratio —
-    // produces tiles that lean square so labels fit on every reasonable
-    // container size. `pad` separates tiles for visual breathing room
-    // without leaving the unfilled gaps the default packing would.
+    // Squarified packing, ratio = 1 favours square tiles. NB: `tiling.pad`
+    // is NOT a Plotly treemap property (only sunburst has it) — padding
+    // lives on `marker.pad` below. Putting it here was a no-op AND was
+    // the source of the visible empty rows; without it the squarify
+    // algorithm fills the rectangle with no leftover gap.
     tiling: {
       packing: 'squarify',
       squarifyratio: 1,
-      pad: 2,
     },
+    // Hide the breadcrumb pathbar — there's no hierarchy to navigate, so
+    // the bar just steals vertical space and looks broken when empty.
+    pathbar: { visible: false },
     marker: {
       colors: data.colors || PALETTE,
+      // Thin separator line between tiles instead of padding — keeps the
+      // tiles touching (no visible dark gaps) while still making the
+      // category boundaries obvious.
       line: { color: CHART_COLORS.bg, width: 2 },
-      pad: { t: 3, r: 3, b: 3, l: 3 },
+      pad: { t: 0, r: 0, b: 0, l: 0 },
     },
     textfont: {
       color: '#ffffff',
@@ -750,9 +801,9 @@ function drawTreemap(containerId, data, options = {}) {
   };
 
   const layout = chartLayout({
-    margin: { t: 6, r: 6, b: 6, l: 6 },
+    margin: { t: 0, r: 0, b: 0, l: 0 },
     showlegend: false,
-    uniformtext: { mode: 'hide', minsize: 10 },
+    uniformtext: { mode: 'hide', minsize: 9 },
     ...options,
   });
 

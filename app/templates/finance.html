@@ -111,8 +111,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat40"></script>
-<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat40"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat41"></script>
+<script src="{{ url_for('static', filename='js/date_range.js') }}?v=flat41"></script>
 <script>
 let reportData = null;
 let trendData = null;
@@ -257,14 +257,18 @@ function renderCharts(rows) {
 
   const sortedByRev = [...rows].sort((a,b) => b.total_revenue - a.total_revenue);
 
-  // Revenue by rep — top 10
+  // Revenue by rep — top 10. Compact labels (14M instead of 14,000,000)
+  // so the bar still has visible width on a phone-sized canvas after the
+  // longest name's row eats its left margin. Single brand colour for all
+  // bars — colour-cycling here would imply categorical meaning that
+  // doesn't exist (every bar is the same metric: revenue per rep).
   const top10 = sortedByRev.slice(0, 10);
   Charts.drawHorizontalBar("chartRevenue", {
     x: top10.map(r => r.total_revenue).reverse(),
     y: top10.map(r => r.user_name).reverse(),
-    colors: top10.map((_, i) => Charts.PALETTE[i % Charts.PALETTE.length]).reverse(),
-    labels: top10.map(r => fmtMoney(r.total_revenue)).reverse(),
-  }, { margin: { l: 130, r: 110, t: 24, b: 40 } });
+    colors: top10.map(() => Charts.COLORS.brand).reverse(),
+    labels: top10.map(r => fmtCompactMoney(r.total_revenue)).reverse(),
+  }, { measureLabels: true });
 
   // Revenue split: deals vs reservations (totals)
   const totalDealRev = rows.reduce((a, r) => a + (r.deal_revenue || 0), 0);
