@@ -2939,6 +2939,22 @@ fieldset.field legend {
   margin-top: 4px;
 }
 
+/* Admin · Mailer-not-configured persistent banner. */
+.mailer-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(214, 153, 0, 0.08);
+  border: 1px solid rgba(214, 153, 0, 0.32);
+  color: var(--warning, #d69900);
+}
+.mailer-warning .material-symbols-outlined { font-size: 22px; flex-shrink: 0; }
+.mailer-warning-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.mailer-warning-body { font-size: 12px; opacity: 0.85; line-height: 1.5; }
+
 /* Admin · Pending sign-up requests list */
 .pending-card { padding: 16px; }
 .pending-summary {

@@ -9,9 +9,10 @@ Currently:
 import logging
 from datetime import date
 
-from flask import Blueprint, Response, json
+from flask import Blueprint, Response, json, jsonify
 
-from app.auth import login_required
+from app.auth import login_required, role_required
+from app.mailer import mailer_is_configured
 
 log = logging.getLogger(__name__)
 util_bp = Blueprint("util", __name__, url_prefix="/api/util")
@@ -39,3 +40,13 @@ def today():
     resp = Response(json.dumps(payload), mimetype="application/json")
     resp.headers["Cache-Control"] = "max-age=60"
     return resp
+
+
+@util_bp.route("/mailer-status", methods=["GET"])
+@role_required("admin", "manager")
+def mailer_status():
+    """Tells the admin UI whether outbound email is configured. Used to
+    surface a persistent banner on /admin so the operator notices that
+    password-reset and approval emails will silently no-op until SMTP /
+    Resend env vars are set."""
+    return jsonify({"configured": mailer_is_configured()})
