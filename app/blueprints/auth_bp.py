@@ -75,12 +75,27 @@ def login():
     try:
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
-                SELECT id, username, full_name, password_hash, role, active, email,
-                       phone, avatar_url, failed_logins, locked_until, approval_status
-                FROM users WHERE LOWER(username) = %s
-            """, (username,))
-            user = cur.fetchone()
+            # approval_status is a new column — guard against deployments where
+            # the migration hasn't completed so the existing login flow keeps
+            # working even if the DB schema is mid-upgrade.
+            try:
+                cur.execute("""
+                    SELECT id, username, full_name, password_hash, role, active, email,
+                           phone, avatar_url, failed_logins, locked_until, approval_status
+                    FROM users WHERE LOWER(username) = %s
+                """, (username,))
+                user = cur.fetchone()
+            except psycopg2.errors.UndefinedColumn:
+                conn.rollback()
+                cur.execute("""
+                    SELECT id, username, full_name, password_hash, role, active, email,
+                           phone, avatar_url, failed_logins, locked_until
+                    FROM users WHERE LOWER(username) = %s
+                """, (username,))
+                user = cur.fetchone()
+                if user is not None:
+                    user = dict(user)
+                    user["approval_status"] = "approved"
 
             # If credentials match a pending signup, surface a clear error so
             # the user knows their request is queued — they otherwise get the

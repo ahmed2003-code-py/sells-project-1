@@ -175,9 +175,10 @@ def init_all_tables():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_team_role_active ON users(team_id, role, active);")
-            # Partial index for the admin "pending requests" listing — the row count
-            # is always small (few open signups), so a partial index keeps it cheap.
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_approval_pending ON users(approval_status) WHERE approval_status = 'pending';")
+            # NOTE: the partial index on approval_status is created AFTER the
+            # ALTER TABLE block below — putting it here would reference the
+            # column before it's added on a fresh upgrade and abort the whole
+            # init transaction (so even the column-add migrations don't run).
 
             # Case-insensitive UNIQUE constraint on username — the column-level
             # UNIQUE is byte-exact, so without this you could end up with both
@@ -231,6 +232,24 @@ def init_all_tables():
                 ON users (LOWER(email))
                 WHERE email IS NOT NULL AND email <> ''
             """)
+
+            # Partial index for the admin "pending requests" listing — created
+            # after the ALTER TABLE block so it can never reference a column
+            # that hasn't been added yet. Wrapped in a savepoint because a
+            # mid-upgrade DB might still be missing the column on the very
+            # first run (e.g. the previous deploy aborted before the ALTER
+            # could commit), and we'd rather skip the index than abort init.
+            try:
+                cur.execute("SAVEPOINT pending_idx")
+                cur.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_users_approval_pending "
+                    "ON users(approval_status) WHERE approval_status = 'pending'"
+                )
+                cur.execute("RELEASE SAVEPOINT pending_idx")
+            except psycopg2.Error as e:
+                cur.execute("ROLLBACK TO SAVEPOINT pending_idx")
+                cur.execute("RELEASE SAVEPOINT pending_idx")
+                log.warning("Skipping idx_users_approval_pending — column missing? (%s)", e)
 
             # ═══ PASSWORD RESET TOKENS ══════════════════════════════════════
             cur.execute("""
