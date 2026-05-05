@@ -276,6 +276,14 @@ let _unitsTruncated = false;
 // Cached facets so language toggles don't refetch.
 let _facets = null;
 
+// Incremental render: only this many cards/rows go into the DOM at a time.
+// More are appended when the scroll-sentinel below the grid enters view, so
+// the user gets an "infinite scroll" feel without paying the 300/500-node
+// up-front cost on every filter change.
+const _PAGE_SIZE = 50;
+let _renderedCount = _PAGE_SIZE;
+let _scrollObserver = null;
+
 // Server-side filters — keys must match the query-param names accepted by /api/units.
 const SERVER_FILTERS = {
   city:     "cityFilter",
@@ -467,6 +475,8 @@ function applyFilters() {
   _filtered = rows;
   document.getElementById("countBadge").textContent = `(${fmtNum(rows.length)})`;
   renderChips(f);
+  // Reset incremental render window — every filter change starts at the top.
+  _renderedCount = _PAGE_SIZE;
   renderActive();
 }
 
@@ -556,7 +566,7 @@ function renderGrid(rows) {
     </div>`;
     return;
   }
-  const display = rows.slice(0, 300);
+  const display = rows.slice(0, _renderedCount);
   host.innerHTML = display.map((u, idx) => {
     const sold = u.is_sold;
     const statusBadge = !IS_SALES
@@ -594,6 +604,7 @@ function renderGrid(rows) {
   }).join("");
   window._filteredUnits = display;
   _wireCardClicks(host);
+  _wireInfiniteScroll(host, rows.length, "grid");
 }
 
 function renderRows(rows) {
@@ -602,7 +613,7 @@ function renderRows(rows) {
     body.innerHTML = `<tr><td colspan="9" class="table-empty">${t("pf.no_match")}</td></tr>`;
     return;
   }
-  const display = rows.slice(0, 500);
+  const display = rows.slice(0, _renderedCount);
   body.innerHTML = display.map((u, idx) => {
     const uid = u.id || u.detail_id || ("idx-" + idx);
     return `<tr class="clickable" data-unit-id="${escapeHTML(String(uid))}">
@@ -621,6 +632,38 @@ function renderRows(rows) {
   }).join("");
   window._filteredUnits = display;
   _wireCardClicks(body);
+  // For the table view we attach the sentinel to the wrapping scroll-container
+  // (the body's offsetParent has overflow:auto), so it triggers as the user
+  // scrolls within the table rather than the document.
+  _wireInfiniteScroll(body, rows.length, "table");
+}
+
+// Drop a sentinel div after the rendered list and observe it. When it
+// scrolls into view we bump _renderedCount and re-render the active surface
+// so the user gets an "infinite scroll" feel without re-running filter logic.
+function _wireInfiniteScroll(host, totalCount, viewKind) {
+  if (_scrollObserver) {
+    _scrollObserver.disconnect();
+    _scrollObserver = null;
+  }
+  if (_renderedCount >= totalCount) return;
+  if (typeof IntersectionObserver === "undefined") return;
+  const sentinel = document.createElement(viewKind === "table" ? "tr" : "div");
+  sentinel.className = "pf-scroll-sentinel";
+  if (viewKind === "table") {
+    sentinel.innerHTML = `<td colspan="9" style="padding:18px;text-align:center;color:var(--text-muted);font-size:12px">…</td>`;
+  } else {
+    sentinel.style.cssText = "grid-column:1/-1;padding:18px;text-align:center;color:var(--text-muted);font-size:12px";
+    sentinel.textContent = "…";
+  }
+  host.appendChild(sentinel);
+  _scrollObserver = new IntersectionObserver((entries) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    // Bump the window and re-render. _filtered is the current filtered list.
+    _renderedCount = Math.min(_renderedCount + _PAGE_SIZE, _filtered.length);
+    renderActive();
+  }, { rootMargin: "300px 0px" });
+  _scrollObserver.observe(sentinel);
 }
 
 function _wireCardClicks(host) {

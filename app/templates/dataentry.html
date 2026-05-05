@@ -441,6 +441,54 @@ function renderCard(user, entry) {
     dePill('eval',  !!isDone),
   ];
 
+  // Inline mini-score block — only rendered for already-evaluated reps.
+  // Re-uses the rating bands from common.js so colors stay in lockstep with kpi_logic.py.
+  const scoreBlock = isDone
+    ? `<div class="entry-score-mini">
+        <div class="num ${(entry.rating ? ratingClass(entry.rating) : ratingClass(localRating(score))).replace('badge-','')}">${score.toFixed(1)}%</div>
+        <div class="label">${t("rating." + (entry.rating || localRating(score)))}</div>
+       </div>`
+    : "";
+
+  // Filter-matching attributes — applyFilters() reads these instead of rebuilding the DOM.
+  const status = isDone ? "done" : (hasNumeric ? "pending" : "missing");
+  const teamAttr = user.team_id == null ? "none" : String(user.team_id);
+  const searchHay = ((user.full_name || "") + " " + (user.username || "")).toLowerCase();
+  // dataentry_by lets the "mine" filter (DE-08) match my own submissions.
+  const ownerAttr = (entry && entry.dataentry_by != null) ? String(entry.dataentry_by) : "";
+
+  // The form body is rendered lazily on first expand (see _renderCardBody)
+  // so a 50-rep team doesn't pay 700+ form-input DOM cost up front.
+  return `<div class="card de-card" data-user-id="${user.id}" data-status="${status}" data-team="${escapeHTML(teamAttr)}" data-search="${escapeHTML(searchHay)}" data-owner="${escapeHTML(ownerAttr)}">
+    <div class="de-card-head" role="button" tabindex="0" aria-expanded="false" aria-controls="body-${user.id}" onclick="toggleCard(${user.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCard(${user.id});}">
+      <div class="row-actor">
+        <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
+        <div>
+          <div class="de-card-name">${escapeHTML(user.full_name)}</div>
+          <div class="de-card-username">@${escapeHTML(user.username)}</div>
+        </div>
+      </div>
+      <div class="de-card-status">
+        ${statusBadges.join("")}
+        ${scoreBlock}
+        <span class="de-card-toggle" aria-hidden="true">
+          <span class="material-symbols-outlined">expand_more</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="de-card-body" id="body-${user.id}" data-rendered="0"></div>
+  </div>`;
+}
+
+// Build the per-user form HTML on demand. Pulls live from `users` and
+// `entries` so a save → refresh → re-expand cycle picks up the new values
+// without us having to thread state through.
+function _renderCardBody(userId) {
+  const user = users.find(u => u.id === userId);
+  if (!user) return "";
+  const entry = entries[userId] || null;
+
   const v = (key, def = "") => {
     if (!entry || entry[key] == null) return def;
     return entry[key];
@@ -476,80 +524,50 @@ function renderCard(user, entry) {
     </div>`;
   }).join("");
 
-  // Inline mini-score block — only rendered for already-evaluated reps.
-  // Re-uses the rating bands from common.js so colors stay in lockstep with kpi_logic.py.
-  const scoreBlock = isDone
-    ? `<div class="entry-score-mini">
-        <div class="num ${(entry.rating ? ratingClass(entry.rating) : ratingClass(localRating(score))).replace('badge-','')}">${score.toFixed(1)}%</div>
-        <div class="label">${t("rating." + (entry.rating || localRating(score)))}</div>
-       </div>`
-    : "";
+  return `
+    <form id="form-${user.id}" onsubmit="event.preventDefault();saveEval(${user.id})">
+      <div class="form-section-title de-section-title">${t("sales.numeric_perf")}</div>
+      <div class="field-row four de-field-grid">${numericInputs}</div>
 
-  // Filter-matching attributes — applyFilters() reads these instead of rebuilding the DOM.
-  const status = isDone ? "done" : (hasNumeric ? "pending" : "missing");
-  const teamAttr = user.team_id == null ? "none" : String(user.team_id);
-  const searchHay = ((user.full_name || "") + " " + (user.username || "")).toLowerCase();
-  // dataentry_by lets the "mine" filter (DE-08) match my own submissions.
-  const ownerAttr = (entry && entry.dataentry_by != null) ? String(entry.dataentry_by) : "";
+      <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
+      <div class="field-row five de-field-grid">${passfailInputs}</div>
 
-  return `<div class="card de-card" data-user-id="${user.id}" data-status="${status}" data-team="${escapeHTML(teamAttr)}" data-search="${escapeHTML(searchHay)}" data-owner="${escapeHTML(ownerAttr)}">
-    <div class="de-card-head" role="button" tabindex="0" aria-expanded="false" aria-controls="body-${user.id}" onclick="toggleCard(${user.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCard(${user.id});}">
-      <div class="row-actor">
-        <div class="avatar">${escapeHTML((user.full_name || "?")[0])}</div>
-        <div>
-          <div class="de-card-name">${escapeHTML(user.full_name)}</div>
-          <div class="de-card-username">@${escapeHTML(user.username)}</div>
-        </div>
+      <div class="field notes-field">
+        <label for="notes-${user.id}">${t("de.notes")}</label>
+        <textarea id="notes-${user.id}" rows="2" maxlength="400"
+                  placeholder="${t("de.notes_ph")}"
+                  data-char-counter="counter-${user.id}">${escapeHTML(entry && entry.notes ? entry.notes : '')}</textarea>
+        <small id="counter-${user.id}" class="char-count">${(entry && entry.notes ? entry.notes : '').length}/400</small>
       </div>
-      <div class="de-card-status">
-        ${statusBadges.join("")}
-        ${scoreBlock}
-        <span class="de-card-toggle" aria-hidden="true">
-          <span class="material-symbols-outlined">expand_more</span>
-        </span>
+
+      <div class="de-warn" id="warn-${user.id}" role="alert" hidden>
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+        <span>${t("de.confirm_no_numeric")}</span>
+        <button type="submit" class="de-warn-confirm">${t("de.save_anyway")}</button>
       </div>
-    </div>
-
-    <div class="de-card-body" id="body-${user.id}">
-      <form id="form-${user.id}" onsubmit="event.preventDefault();saveEval(${user.id})">
-        <div class="form-section-title de-section-title">${t("sales.numeric_perf")}</div>
-        <div class="field-row four de-field-grid">${numericInputs}</div>
-
-        <div class="form-section-title">${t("tl_eval.personal_eval")}</div>
-        <div class="field-row five de-field-grid">${passfailInputs}</div>
-
-        <div class="field notes-field">
-          <label for="notes-${user.id}">${t("de.notes")}</label>
-          <textarea id="notes-${user.id}" rows="2" maxlength="400"
-                    placeholder="${t("de.notes_ph")}"
-                    data-char-counter="counter-${user.id}">${escapeHTML(entry && entry.notes ? entry.notes : '')}</textarea>
-          <small id="counter-${user.id}" class="char-count">${(entry && entry.notes ? entry.notes : '').length}/400</small>
-        </div>
-
-        <div class="de-warn" id="warn-${user.id}" role="alert" hidden>
-          <span class="material-symbols-outlined" aria-hidden="true">info</span>
-          <span>${t("de.confirm_no_numeric")}</span>
-          <button type="submit" class="de-warn-confirm">${t("de.save_anyway")}</button>
-        </div>
-        <div class="de-card-actions">
-          <span class="de-preview" id="preview-${user.id}" aria-live="polite"></span>
-          <button type="submit" class="btn btn-primary">${t("de.save_eval")}</button>
-          ${entry ? `<button type="button" class="btn" onclick="showDetail(${user.id})">${t("common.details")}</button>` : ''}
-        </div>
-      </form>
-    </div>
-  </div>`;
+      <div class="de-card-actions">
+        <span class="de-preview" id="preview-${user.id}" aria-live="polite"></span>
+        <button type="submit" class="btn btn-primary">${t("de.save_eval")}</button>
+        ${entry ? `<button type="button" class="btn" onclick="showDetail(${user.id})">${t("common.details")}</button>` : ''}
+      </div>
+    </form>`;
 }
 
-// Accordion toggle — keeps focus management for keyboard users.
+// Accordion toggle — keeps focus management for keyboard users. Renders the
+// form body the first time the card is expanded (cheap up-front DOM cost).
 function toggleCard(userId) {
   const card = document.querySelector(`.de-card[data-user-id="${userId}"]`);
   if (!card) return;
   const head = card.querySelector(".de-card-head");
+  const body = card.querySelector(".de-card-body");
   const expand = !card.classList.contains("is-expanded");
   card.classList.toggle("is-expanded", expand);
   if (head) head.setAttribute("aria-expanded", expand ? "true" : "false");
   if (expand) {
+    if (body && body.dataset.rendered !== "1") {
+      body.innerHTML = _renderCardBody(userId);
+      body.dataset.rendered = "1";
+    }
     // Refresh derived UI now that the form is in the layout flow.
     if (typeof refreshPreview === "function") refreshPreview(String(userId));
   }

@@ -228,6 +228,12 @@ let editingId = null;
 
 const ROLES = ["admin","manager","team_leader","marketing","dataentry","sales"];
 
+// Incremental render so a 200-user org doesn't pay a full table render up
+// front. The "Show more" sentinel below the table bumps this in PAGE chunks.
+const _USERS_PAGE = 50;
+let _usersRendered = _USERS_PAGE;
+let _usersScrollObs = null;
+
 // Status precedence for the new Online/Offline/Disabled/Pending column.
 // pending (signup awaiting approval) and disabled (admin-blocked) are sticky
 // regardless of last_seen — the user can't actually be using the app.
@@ -505,6 +511,9 @@ function render() {
     (u.team_name || "").toLowerCase().includes(search));
 
   renderChips();
+  // Reset incremental-render window: any filter/search/page action starts at the top.
+  _usersRendered = _USERS_PAGE;
+  _filteredUsers = rows;
 
   const tbody = document.getElementById("tbody");
   if (!rows.length) {
@@ -518,7 +527,8 @@ function render() {
     return;
   }
 
-  tbody.innerHTML = rows.map(u => `<tr>
+  const display = rows.slice(0, _usersRendered);
+  tbody.innerHTML = display.map(u => `<tr>
     <td>
       <div class="row-actor">
         <div class="avatar avatar-sm${u.avatar_url ? ' avatar-img' : ''}">${
@@ -564,6 +574,31 @@ function render() {
     </td>
   </tr>`).join("");
   applyLang(true);
+  _wireUsersInfiniteScroll(tbody, rows.length);
+}
+
+let _filteredUsers = [];
+
+// Add a sentinel <tr> below the rendered slice. When it scrolls into view,
+// bump _usersRendered and re-render so the user gets infinite scroll without
+// hitting the server again. Skipped when everything is already on screen.
+function _wireUsersInfiniteScroll(tbody, totalCount) {
+  if (_usersScrollObs) {
+    _usersScrollObs.disconnect();
+    _usersScrollObs = null;
+  }
+  if (_usersRendered >= totalCount) return;
+  if (typeof IntersectionObserver === "undefined") return;
+  const sentinel = document.createElement("tr");
+  sentinel.className = "admin-scroll-sentinel";
+  sentinel.innerHTML = `<td colspan="6" style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px">…</td>`;
+  tbody.appendChild(sentinel);
+  _usersScrollObs = new IntersectionObserver((entries) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    _usersRendered = Math.min(_usersRendered + _USERS_PAGE, _filteredUsers.length);
+    render();
+  }, { rootMargin: "300px 0px" });
+  _usersScrollObs.observe(sentinel);
 }
 
 function escapeHTML(s) {
