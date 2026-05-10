@@ -3819,6 +3819,12 @@ body:has(.auth-shell) { overflow-x: hidden; }
   height: 48px;
   font-size: 14px;
 }
+/* When a visibility toggle is present, reserve space for it so the typed
+   text never slides under the eye icon (was 14px — too tight; in RTL the
+   placeholder visibly overlapped the toggle). */
+.auth-input-wrap:has(.pw-toggle) input {
+  padding-inline-end: 48px;
+}
 .auth-input-wrap:focus-within .auth-input-icon {
   color: var(--brand);
 }
@@ -3827,6 +3833,9 @@ body:has(.auth-shell) { overflow-x: hidden; }
   top: 50%;
   inset-inline-end: 4px;
   transform: translateY(-50%);
+}
+@media (hover: none), (pointer: coarse) {
+  .auth-input-wrap:has(.pw-toggle) input { padding-inline-end: 56px; }
 }
 
 .auth-submit {
