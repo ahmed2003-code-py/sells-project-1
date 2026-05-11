@@ -200,6 +200,10 @@ form.addEventListener("submit", async (e) => {
     phone:     document.getElementById("phone").value.trim(),
     role:      document.getElementById("role").value,
     password:  pw.value,
+    // Seed the new user's display prefs from the screen they just left,
+    // so the pending-review email lands in matching colours.
+    theme: (typeof getTheme === "function" ? getTheme() : (localStorage.getItem("ain_theme") || "light")),
+    lang:  (typeof getLang  === "function" ? getLang()  : (localStorage.getItem("ain_lang")  || "ar")),
   };
   const pwConfirmVal = pwConfirm.value;
 

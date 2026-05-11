@@ -14,6 +14,31 @@ async function _fetchCsrf() {
     if (!r.ok) return null;
     const d = await r.json();
     _CSRF = d.csrf || null;
+    // Cross-device sync of display prefs: when /me returns the user's
+    // saved theme/lang and they differ from this device's localStorage
+    // (typical on a fresh browser), adopt the server-side identity so
+    // the user picks up where they left off without flipping the
+    // toggle manually. Only happens when there's no `?theme=` /
+    // `?lang=` URL override (the head-script handles those first).
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (d.preferred_theme && !q.get("theme")) {
+        const local = localStorage.getItem("ain_theme");
+        if (local !== d.preferred_theme && (d.preferred_theme === "light" || d.preferred_theme === "dark")) {
+          localStorage.setItem("ain_theme", d.preferred_theme);
+          // push:false — value came from the server, no need to echo back.
+          if (typeof setTheme === "function") setTheme(d.preferred_theme, { push: false });
+          else document.documentElement.setAttribute("data-theme", d.preferred_theme);
+        }
+      }
+      if (d.preferred_lang && !q.get("lang")) {
+        const local = localStorage.getItem("ain_lang");
+        if (local !== d.preferred_lang && (d.preferred_lang === "ar" || d.preferred_lang === "en")) {
+          localStorage.setItem("ain_lang", d.preferred_lang);
+          if (typeof applyLang === "function") applyLang();
+        }
+      }
+    } catch (_) { /* preferences sync is best-effort */ }
     return _CSRF;
   } catch { return null; }
 }
@@ -252,7 +277,7 @@ function getTheme() {
   return document.documentElement.getAttribute("data-theme") || "light";
 }
 
-function setTheme(theme) {
+function setTheme(theme, opts) {
   const t = theme === "dark" ? "dark" : "light";
   // Pulse a transition class for ~320ms so backgrounds, text, borders
   // and SVG fills cross-fade between palettes instead of snapping. The
@@ -267,8 +292,40 @@ function setTheme(theme) {
 
   root.setAttribute("data-theme", t);
   try { localStorage.setItem("ain_theme", t); } catch (_) {}
+  // Persist for transactional emails — every email the system sends to
+  // this user (forgot-password, signup approval, etc.) renders in the
+  // skin they last picked. Best-effort: only fires when authenticated,
+  // and a network blip just leaves the previous server-side value
+  // intact (the next toggle retries). Opt out (`{push:false}`) when
+  // we're applying a value that already came from the server, to avoid
+  // an immediate echo-back POST.
+  if (!opts || opts.push !== false) _pushPreference({ theme: t });
   // Broadcast so chart-rendering modules can swap their palette + redraw.
   window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: t } }));
+}
+
+// ─── Push display prefs to the server (best-effort) ─────────────────
+// Only meaningful when the user is logged in. The endpoint short-circuits
+// for anonymous calls (401) and we swallow that — anonymous toggles
+// stay local-only.
+let _prefsPushTimer = null;
+function _pushPreference(patch) {
+  // Coalesce rapid toggles (e.g. theme + lang in quick succession) into
+  // a single PATCH-style POST. We keep the latest values on the window
+  // and flush them after a short idle.
+  if (!window.__pendingPrefs) window.__pendingPrefs = {};
+  Object.assign(window.__pendingPrefs, patch || {});
+  if (_prefsPushTimer) clearTimeout(_prefsPushTimer);
+  _prefsPushTimer = setTimeout(async () => {
+    const body = window.__pendingPrefs;
+    window.__pendingPrefs = {};
+    _prefsPushTimer = null;
+    try {
+      await api("/api/auth/preferences", { method: "POST", body });
+    } catch (_) {
+      // Anonymous (401) or transient — ignore. Local state already updated.
+    }
+  }, 250);
 }
 
 function initThemeToggle() {

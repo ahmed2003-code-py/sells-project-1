@@ -196,6 +196,17 @@ def register():
     if role not in _SIGNUP_ALLOWED_ROLES:
         role = "sales"
 
+    # Capture the visual context the user is signing up from. We seed the
+    # new row with these so the very first email (the pending-review one)
+    # lands in the same skin the user just left in the signup screen, and
+    # later transactional mail keeps the same identity until they change it.
+    pref_theme = (data.get("theme") or "").strip().lower()
+    if pref_theme not in _VALID_THEMES:
+        pref_theme = "light"
+    pref_lang = (data.get("lang") or "").strip().lower()
+    if pref_lang not in _VALID_LANGS:
+        pref_lang = "ar"
+
     if not full_name:
         return error_response("required_fields_missing", 400)
     if (err := validate_username(username)):
@@ -225,10 +236,11 @@ def register():
             try:
                 cur.execute("""
                     INSERT INTO users (username, full_name, password_hash, role, email, phone,
-                                       active, approval_status)
-                    VALUES (%s, %s, %s, %s, %s, %s, false, 'pending')
+                                       active, approval_status, preferred_theme, preferred_lang)
+                    VALUES (%s, %s, %s, %s, %s, %s, false, 'pending', %s, %s)
                     RETURNING id
-                """, (username, full_name[:150], hash_password(password), role, email, phone))
+                """, (username, full_name[:150], hash_password(password), role, email, phone,
+                      pref_theme, pref_lang))
                 new_id = cur.fetchone()[0]
             except psycopg2.IntegrityError as ie:
                 # Two concurrent signups for the same username/email can race
@@ -245,7 +257,7 @@ def register():
         # Send the user a confirmation that their request is in the queue.
         # Best-effort: a missing SMTP config shouldn't block account creation.
         try:
-            subject, text, html = signup_pending_email(full_name)
+            subject, text, html = signup_pending_email(full_name, theme=pref_theme)
             send_mail(email, subject, text, html)
         except Exception as e:
             log.warning("signup_pending_email failed for %s: %s", email, e)
@@ -299,8 +311,14 @@ def me():
     try:
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # preferred_theme/preferred_lang let the in-app shell render in the
+            # last skin the user picked, even on a fresh device — and they're
+            # the source of truth for transactional emails so Pending /
+            # Approved / Reset all land in the same colour scheme the user just
+            # left in the app.
             cur.execute("""
-                SELECT email, phone, avatar_url, created_at, last_login
+                SELECT email, phone, avatar_url, created_at, last_login,
+                       preferred_theme, preferred_lang
                 FROM users WHERE id = %s
             """, (u["id"],))
             row = cur.fetchone()
@@ -308,6 +326,8 @@ def me():
             u["email"] = row.get("email") or u.get("email")
             u["phone"] = row.get("phone") or u.get("phone")
             u["avatar_url"] = row.get("avatar_url") or u.get("avatar_url")
+            u["preferred_theme"] = row.get("preferred_theme") or "light"
+            u["preferred_lang"] = row.get("preferred_lang") or "ar"
             for k in ("created_at", "last_login"):
                 v = row.get(k)
                 u[k] = v.isoformat() if v else None
@@ -318,6 +338,59 @@ def me():
             conn.close()
     u["csrf"] = ensure_csrf_token()
     return jsonify(u)
+
+
+# ─── Display preferences (theme + language) ────────────────────────────────
+
+_VALID_THEMES = {"light", "dark"}
+_VALID_LANGS = {"ar", "en"}
+
+
+@auth_bp.route("/preferences", methods=["POST"])
+@login_required
+def update_preferences():
+    """Persist the user's theme/lang choice. Called from the in-app toggle so
+    the next email lands in the same skin the user just picked, and a fresh
+    device opens straight into the right palette."""
+    data = request.get_json(silent=True) or {}
+    theme = (data.get("theme") or "").strip().lower()
+    lang = (data.get("lang") or "").strip().lower()
+
+    fields = []
+    params = []
+    if theme:
+        if theme not in _VALID_THEMES:
+            return error_response("invalid_input", 400)
+        fields.append("preferred_theme = %s")
+        params.append(theme)
+    if lang:
+        if lang not in _VALID_LANGS:
+            return error_response("invalid_input", 400)
+        fields.append("preferred_lang = %s")
+        params.append(lang)
+
+    if not fields:
+        return error_response("required_fields_missing", 400)
+
+    fields.append("updated_at = NOW()")
+    params.append(session["user_id"])
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE users SET {', '.join(fields)} WHERE id = %s",
+                params,
+            )
+        conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error("update_preferences error: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 @auth_bp.route("/csrf", methods=["GET"])
@@ -552,7 +625,8 @@ def forgot_password():
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, full_name, active FROM users WHERE LOWER(email) = %s
+                SELECT id, full_name, active, preferred_theme, preferred_lang
+                FROM users WHERE LOWER(email) = %s
             """, (email,))
             user = cur.fetchone()
 
@@ -573,11 +647,21 @@ def forgot_password():
                 """, (user["id"], token_hash, expires, _client_ip()[:64]))
                 conn.commit()
 
-                reset_url = f"{_reset_base_url()}/reset-password?token={raw_token}"
+                # Carry the user's display prefs through the reset URL so the
+                # page they land on opens in the same skin as the email — even
+                # if they click the link from a fresh device with no
+                # localStorage history.
+                user_theme = (user.get("preferred_theme") or "light").lower()
+                user_lang = (user.get("preferred_lang") or "ar").lower()
+                reset_url = (
+                    f"{_reset_base_url()}/reset-password?token={raw_token}"
+                    f"&theme={user_theme}&lang={user_lang}"
+                )
                 subject, text, html = password_reset_email(
                     user["full_name"] or "",
                     reset_url,
                     Config.PASSWORD_RESET_TTL_MINUTES,
+                    theme=user_theme,
                 )
                 send_mail(email, subject, text, html)
     except Exception as e:

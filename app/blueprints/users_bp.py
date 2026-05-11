@@ -388,7 +388,7 @@ def approve_user(user_id):
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, full_name, email, role, approval_status
+                SELECT id, full_name, email, role, approval_status, preferred_theme
                 FROM users WHERE id = %s
             """, (user_id,))
             row = cur.fetchone()
@@ -422,7 +422,8 @@ def approve_user(user_id):
         email_sent = False
         if row.get("email"):
             try:
-                subject, text, html = signup_approved_email(row["full_name"] or "")
+                user_theme = (row.get("preferred_theme") or "light").lower()
+                subject, text, html = signup_approved_email(row["full_name"] or "", theme=user_theme)
                 email_sent = bool(send_mail(row["email"], subject, text, html))
             except Exception as e:
                 log.warning("approve email failed for %s: %s", row["email"], e)
@@ -447,7 +448,7 @@ def reject_user(user_id):
         conn = get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, full_name, email, role, approval_status
+                SELECT id, full_name, email, role, approval_status, preferred_theme
                 FROM users WHERE id = %s
             """, (user_id,))
             row = cur.fetchone()
@@ -464,7 +465,8 @@ def reject_user(user_id):
         email_sent = False
         if row.get("email"):
             try:
-                subject, text, html = signup_rejected_email(row["full_name"] or "")
+                user_theme = (row.get("preferred_theme") or "light").lower()
+                subject, text, html = signup_rejected_email(row["full_name"] or "", theme=user_theme)
                 email_sent = bool(send_mail(row["email"], subject, text, html))
             except Exception as e:
                 log.warning("reject email failed for %s: %s", row["email"], e)

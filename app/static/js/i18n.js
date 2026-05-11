@@ -1824,7 +1824,13 @@ const I18N = {
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 function getLang() { return localStorage.getItem("ain_lang") || "ar"; }
-function setLang(lang) { localStorage.setItem("ain_lang", lang); applyLang(); }
+function setLang(lang) {
+  localStorage.setItem("ain_lang", lang);
+  applyLang();
+  // Persist for transactional emails — keeps the user's language
+  // identity consistent across the app and outbound mail.
+  if (typeof _pushPreference === "function") _pushPreference({ lang });
+}
 
 function t(key, fallback) {
   const lang = getLang();

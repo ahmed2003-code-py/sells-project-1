@@ -130,8 +130,10 @@ def _send_smtp(to, subject, text_body, html_body) -> bool:
 #
 # Design notes:
 #  - English only.
-#  - Light surface, brand-gradient header. Renders well in both light and dark
-#    Gmail/Apple Mail thanks to explicit colors (we don't rely on auto-invert).
+#  - Two skins (light + dark) so a transactional email lands in the visual
+#    register the user just left in the app. We do NOT rely on
+#    `prefers-color-scheme` for theming any more — that drives the client's
+#    OS pref, but we want to follow the user's *explicit* in-app choice.
 #  - Logo is inline SVG. Gmail web, Apple Mail, and most modern clients render
 #    it; Outlook desktop will show nothing in its place but the rest of the
 #    layout stays intact.
@@ -150,7 +152,62 @@ _LOGO_SVG = (
     '</svg>'
 )
 
-_BRAND_HEADER = f"""
+
+def _normalize_theme(theme: Optional[str]) -> str:
+    """Coerce arbitrary theme strings to one of {'light','dark'}."""
+    return "dark" if (theme or "").strip().lower() == "dark" else "light"
+
+
+def _palette(theme: str) -> dict:
+    """Color tokens used across all email primitives.
+
+    Mirrors the in-app design system:
+      light → ivory page on white card with periwinkle gradient header
+      dark  → near-black page on indigo-tinted card; same brand gradient
+              header, lifted text colors so they read against the surface.
+    """
+    if theme == "dark":
+        return {
+            "page_bg":      "#0c0e1f",
+            "card_bg":      "#161a30",
+            "card_shadow":  "0 6px 28px rgba(0,0,0,0.45)",
+            "title":        "#f1f1f8",
+            "text":         "#c8cbe0",
+            "text_strong":  "#ffffff",
+            "text_mid":     "#9095b5",
+            "footer_text":  "#7a7e9c",
+            "footer_border":"#262a44",
+            "info_bg":      "#1f2340",
+            "info_text":    "#c8cbe0",
+            "fine_text":    "#7a7e9c",
+            "status_text":  "#e8eaf8",
+            "outer_text":   "#5b5f7a",
+            "link":         "#a0a5ff",
+        }
+    return {
+        "page_bg":      "#eef0f7",
+        "card_bg":      "#ffffff",
+        "card_shadow":  "0 6px 28px rgba(71,77,197,0.12)",
+        "title":        "#1a1b3a",
+        "text":         "#3a3c5e",
+        "text_strong":  "#1a1b3a",
+        "text_mid":     "#7c7f9a",
+        "footer_text":  "#7c7f9a",
+        "footer_border":"#e8eaf3",
+        "info_bg":      "#f5f6fb",
+        "info_text":    "#3a3c5e",
+        "fine_text":    "#3a3c5e",
+        "status_text":  "#1a1b3a",
+        "outer_text":   "#9a9db5",
+        "link":         "#474dc5",
+    }
+
+
+def _brand_header() -> str:
+    # The header gradient is the same in both themes — it's the brand's
+    # signature touch and reads well on either surface. Logo + name colors
+    # stay white on the gradient.
+    return f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
            style="background:linear-gradient(135deg,#474dc5 0%,#6067df 100%);background-color:#474dc5">
       <tr>
@@ -173,11 +230,13 @@ _BRAND_HEADER = f"""
     </table>
 """
 
-_FOOTER = """
+
+def _footer(p: dict) -> str:
+    return f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td class="em-footer-cell" style="padding:22px 36px 28px;border-top:1px solid #e8eaf3">
-          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#7c7f9a;text-align:center">
+        <td class="em-footer-cell" style="padding:22px 36px 28px;border-top:1px solid {p['footer_border']}">
+          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:{p['footer_text']};text-align:center">
             &copy; Ain Real Estate &middot; KPI &amp; Sales Intelligence System<br>
             This is an automated message — please do not reply to this email.
           </p>
@@ -187,7 +246,7 @@ _FOOTER = """
 """
 
 
-def _wrap_html(inner: str, preheader: str = "") -> str:
+def _wrap_html(inner: str, theme: str = "light", preheader: str = "") -> str:
     """Wrap inner body HTML in the full email shell.
 
     Mobile note: side gutters and inner padding shrink on small screens via
@@ -195,13 +254,15 @@ def _wrap_html(inner: str, preheader: str = "") -> str:
     all honour this. Outlook desktop ignores media queries but degrades to
     the desktop layout, which still fits.
     """
+    p = _palette(theme)
+    color_scheme = "dark" if theme == "dark" else "light"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <meta name="supported-color-schemes" content="light">
+  <meta name="color-scheme" content="{color_scheme}">
+  <meta name="supported-color-schemes" content="{color_scheme}">
   <title>Ain Real Estate</title>
   <style>
     /* Mobile: reclaim horizontal space so the card doesn't feel narrow.
@@ -221,28 +282,20 @@ def _wrap_html(inner: str, preheader: str = "") -> str:
       .em-status-card {{ padding: 12px 14px !important; }}
       .em-info-card   {{ padding: 14px 16px !important; }}
     }}
-    /* Apple/Gmail dark-mode handling — keep our card surface light so the
-       brand identity stays consistent. Without this, some clients invert. */
-    @media (prefers-color-scheme: dark) {{
-      .em-card     {{ background: #ffffff !important; }}
-      .em-title    {{ color: #1a1b3a !important; }}
-      .em-text     {{ color: #3a3c5e !important; }}
-      .em-text-mid {{ color: #7c7f9a !important; }}
-    }}
   </style>
 </head>
-<body style="margin:0;padding:0;background:#eef0f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<body style="margin:0;padding:0;background:{p['page_bg']};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;max-height:0;max-width:0;font-size:1px;line-height:1px;color:transparent;overflow:hidden">{preheader}</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="em-outer" style="background:#eef0f7;padding:32px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="em-outer" style="background:{p['page_bg']};padding:32px 12px">
     <tr>
       <td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="em-card"
-               style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 6px 28px rgba(71,77,197,0.12)">
-          <tr><td>{_BRAND_HEADER}</td></tr>
+               style="max-width:600px;width:100%;background:{p['card_bg']};border-radius:18px;overflow:hidden;box-shadow:{p['card_shadow']}">
+          <tr><td>{_brand_header()}</td></tr>
           <tr><td class="em-body-cell" style="padding:36px 36px 8px">{inner}</td></tr>
-          <tr><td>{_FOOTER}</td></tr>
+          <tr><td>{_footer(p)}</td></tr>
         </table>
-        <p style="margin:18px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;color:#9a9db5;text-align:center">
+        <p style="margin:18px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;color:{p['outer_text']};text-align:center">
           Ain Real Estate &middot; al-ainrealestate.com
         </p>
       </td>
@@ -252,7 +305,7 @@ def _wrap_html(inner: str, preheader: str = "") -> str:
 </html>"""
 
 
-def _status_card(icon: str, accent: str, label: str, message: str) -> str:
+def _status_card(icon: str, accent: str, label: str, message: str, p: dict) -> str:
     """Coloured callout strip used at the top of each lifecycle email."""
     return f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px">
@@ -263,7 +316,7 @@ def _status_card(icon: str, accent: str, label: str, message: str) -> str:
               <td style="vertical-align:middle;padding-right:12px;font-size:20px;line-height:1">{icon}</td>
               <td style="vertical-align:middle">
                 <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:{accent};line-height:1">{label}</div>
-                <div style="font-size:14px;color:#1a1b3a;margin-top:4px;line-height:1.5">{message}</div>
+                <div style="font-size:14px;color:{p['status_text']};margin-top:4px;line-height:1.5">{message}</div>
               </td>
             </tr>
           </table>
@@ -276,7 +329,9 @@ def _status_card(icon: str, accent: str, label: str, message: str) -> str:
 # ─── Signup approval lifecycle templates ────────────────────────────────
 
 
-def signup_pending_email(full_name: str) -> tuple:
+def signup_pending_email(full_name: str, theme: str = "light") -> tuple:
+    theme = _normalize_theme(theme)
+    p = _palette(theme)
     name = full_name or "there"
     subject = "Ain Real Estate — Signup received"
     preheader = "Your registration is in the queue for admin approval."
@@ -291,24 +346,24 @@ You'll receive another email once your account is approved (or if it's declined)
 """
 
     inner = f"""
-    {_status_card("&#9203;", "#c47200", "Pending review", "Your request is awaiting admin approval.")}
+    {_status_card("&#9203;", "#c47200", "Pending review", "Your request is awaiting admin approval.", p)}
 
-    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:#1a1b3a;letter-spacing:-0.3px;line-height:1.3">
+    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:{p['title']};letter-spacing:-0.3px;line-height:1.3">
       Welcome aboard, {name}.
     </h1>
-    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a3c5e">
-      Thanks for signing up to <strong style="color:#1a1b3a">Ain Real Estate</strong>.
+    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:{p['text']}">
+      Thanks for signing up to <strong style="color:{p['text_strong']}">Ain Real Estate</strong>.
       Your registration has been received and is now in the queue for admin review.
     </p>
-    <p class="em-text" style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#3a3c5e">
+    <p class="em-text" style="margin:0 0 24px;font-size:15px;line-height:1.7;color:{p['text']}">
       You'll receive another email as soon as your account is approved — or if your request
       is declined. No action is needed from you in the meantime.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px">
-      <tr><td class="em-info-card" style="background:#f5f6fb;border-radius:12px;padding:18px 20px">
-        <div style="font-size:12px;font-weight:600;color:#7c7f9a;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">What happens next</div>
-        <div class="em-text" style="font-size:14px;color:#3a3c5e;line-height:1.7">
+      <tr><td class="em-info-card" style="background:{p['info_bg']};border-radius:12px;padding:18px 20px">
+        <div style="font-size:12px;font-weight:600;color:{p['text_mid']};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">What happens next</div>
+        <div class="em-text" style="font-size:14px;color:{p['info_text']};line-height:1.7">
           1. An admin reviews your request.<br>
           2. You receive an approval (or decline) email.<br>
           3. If approved, sign in with the credentials you chose at signup.
@@ -316,14 +371,16 @@ You'll receive another email once your account is approved (or if it's declined)
       </td></tr>
     </table>
 
-    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:#7c7f9a;line-height:1.6">
+    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:{p['text_mid']};line-height:1.6">
       — The Ain Real Estate team
     </p>
     """
-    return subject, text, _wrap_html(inner, preheader)
+    return subject, text, _wrap_html(inner, theme, preheader)
 
 
-def signup_approved_email(full_name: str) -> tuple:
+def signup_approved_email(full_name: str, theme: str = "light") -> tuple:
+    theme = _normalize_theme(theme)
+    p = _palette(theme)
     name = full_name or "there"
     subject = "Ain Real Estate — Your account has been approved"
     preheader = "Good news — you can sign in now."
@@ -338,13 +395,13 @@ You can now sign in using the username and password you chose at registration.
 """
 
     inner = f"""
-    {_status_card("&#10003;", "#006762", "Approved", "Your account is active and ready to use.")}
+    {_status_card("&#10003;", "#006762", "Approved", "Your account is active and ready to use.", p)}
 
-    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:#1a1b3a;letter-spacing:-0.3px;line-height:1.3">
+    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:{p['title']};letter-spacing:-0.3px;line-height:1.3">
       You're in, {name}.
     </h1>
-    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a3c5e">
-      Good news — your <strong style="color:#1a1b3a">Ain Real Estate</strong> account has been approved
+    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:{p['text']}">
+      Good news — your <strong style="color:{p['text_strong']}">Ain Real Estate</strong> account has been approved
       by an admin. You can sign in right now using the username and password you chose at signup.
     </p>
 
@@ -357,19 +414,21 @@ You can now sign in using the username and password you chose at registration.
       </td></tr>
     </table>
 
-    <p class="em-text-mid" style="margin:0;font-size:13px;color:#7c7f9a;line-height:1.6">
-      Forgot your password? Use the <strong style="color:#3a3c5e">Forgot password</strong> link on the
+    <p class="em-text-mid" style="margin:0;font-size:13px;color:{p['text_mid']};line-height:1.6">
+      Forgot your password? Use the <strong style="color:{p['text']}">Forgot password</strong> link on the
       sign-in page and we'll send you a reset email.
     </p>
 
-    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:#7c7f9a;line-height:1.6">
+    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:{p['text_mid']};line-height:1.6">
       — The Ain Real Estate team
     </p>
     """
-    return subject, text, _wrap_html(inner, preheader)
+    return subject, text, _wrap_html(inner, theme, preheader)
 
 
-def signup_rejected_email(full_name: str) -> tuple:
+def signup_rejected_email(full_name: str, theme: str = "light") -> tuple:
+    theme = _normalize_theme(theme)
+    p = _palette(theme)
     name = full_name or "there"
     subject = "Ain Real Estate — Update on your signup request"
     preheader = "Your signup request was not approved at this time."
@@ -384,29 +443,31 @@ If you believe this was a mistake, please contact your administrator.
 """
 
     inner = f"""
-    {_status_card("&#9888;", "#ba1a1a", "Not approved", "Your signup request was declined at this time.")}
+    {_status_card("&#9888;", "#ba1a1a", "Not approved", "Your signup request was declined at this time.", p)}
 
-    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:#1a1b3a;letter-spacing:-0.3px;line-height:1.3">
+    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:{p['title']};letter-spacing:-0.3px;line-height:1.3">
       Hi {name},
     </h1>
-    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a3c5e">
-      We're sorry to share that your <strong style="color:#1a1b3a">Ain Real Estate</strong> signup
+    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:{p['text']}">
+      We're sorry to share that your <strong style="color:{p['text_strong']}">Ain Real Estate</strong> signup
       request was not approved at this time.
     </p>
-    <p class="em-text" style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#3a3c5e">
+    <p class="em-text" style="margin:0 0 24px;font-size:15px;line-height:1.7;color:{p['text']}">
       If you believe this was a mistake, or you'd like to follow up on the decision, please contact
       your administrator directly.
     </p>
 
-    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:#7c7f9a;line-height:1.6">
+    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:{p['text_mid']};line-height:1.6">
       — The Ain Real Estate team
     </p>
     """
-    return subject, text, _wrap_html(inner, preheader)
+    return subject, text, _wrap_html(inner, theme, preheader)
 
 
-def password_reset_email(full_name: str, reset_url: str, ttl_minutes: int) -> tuple:
+def password_reset_email(full_name: str, reset_url: str, ttl_minutes: int, theme: str = "light") -> tuple:
     """Returns (subject, text, html) — English-only password reset email."""
+    theme = _normalize_theme(theme)
+    p = _palette(theme)
     name = full_name or "there"
     subject = "Ain Real Estate — Reset your password"
     preheader = f"Use the link inside to choose a new password. Valid for {ttl_minutes} minutes."
@@ -425,13 +486,13 @@ If you didn't request this, you can safely ignore this email — your current pa
 """
 
     inner = f"""
-    {_status_card("&#128274;", "#474dc5", "Password reset", f"This link is valid for {ttl_minutes} minutes.")}
+    {_status_card("&#128274;", "#474dc5", "Password reset", f"This link is valid for {ttl_minutes} minutes.", p)}
 
-    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:#1a1b3a;letter-spacing:-0.3px;line-height:1.3">
+    <h1 class="em-title" style="margin:0 0 14px;font-size:24px;font-weight:700;color:{p['title']};letter-spacing:-0.3px;line-height:1.3">
       Reset your password
     </h1>
-    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#3a3c5e">
-      Hi <strong style="color:#1a1b3a">{name}</strong>, we received a request to reset the password
+    <p class="em-text" style="margin:0 0 14px;font-size:15px;line-height:1.7;color:{p['text']}">
+      Hi <strong style="color:{p['text_strong']}">{name}</strong>, we received a request to reset the password
       on your Ain Real Estate account. Click the button below to choose a new one.
     </p>
 
@@ -444,23 +505,23 @@ If you didn't request this, you can safely ignore this email — your current pa
       </td></tr>
     </table>
 
-    <p class="em-text-mid" style="margin:0 0 16px;font-size:13px;color:#7c7f9a;line-height:1.6">
-      This link expires in <strong style="color:#3a3c5e">{ttl_minutes} minutes</strong>. If you didn't
+    <p class="em-text-mid" style="margin:0 0 16px;font-size:13px;color:{p['text_mid']};line-height:1.6">
+      This link expires in <strong style="color:{p['text']}">{ttl_minutes} minutes</strong>. If you didn't
       request a password reset, you can safely ignore this email — your current password will stay unchanged.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0">
-      <tr><td class="em-info-card" style="background:#f5f6fb;border-radius:10px;padding:14px 16px">
-        <div style="font-size:11px;font-weight:600;color:#7c7f9a;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Button not working?</div>
-        <div style="font-size:12px;color:#3a3c5e;line-height:1.6;word-break:break-all">
+      <tr><td class="em-info-card" style="background:{p['info_bg']};border-radius:10px;padding:14px 16px">
+        <div style="font-size:11px;font-weight:600;color:{p['text_mid']};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Button not working?</div>
+        <div style="font-size:12px;color:{p['fine_text']};line-height:1.6;word-break:break-all">
           Copy and paste this URL into your browser:<br>
-          <a href="{reset_url}" style="color:#474dc5;text-decoration:none">{reset_url}</a>
+          <a href="{reset_url}" style="color:{p['link']};text-decoration:none">{reset_url}</a>
         </div>
       </td></tr>
     </table>
 
-    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:#7c7f9a;line-height:1.6">
+    <p class="em-text-mid" style="margin:20px 0 0;font-size:14px;color:{p['text_mid']};line-height:1.6">
       — The Ain Real Estate team
     </p>
     """
-    return subject, text, _wrap_html(inner, preheader)
+    return subject, text, _wrap_html(inner, theme, preheader)
