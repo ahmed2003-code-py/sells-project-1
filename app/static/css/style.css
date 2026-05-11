@@ -2880,7 +2880,6 @@ fieldset.field legend {
 }
 .pw-toggle {
   position: absolute;
-  inset-inline-end: 4px;
   top: 50%;
   transform: translateY(-50%);
   width: 36px;
@@ -2896,6 +2895,14 @@ fieldset.field legend {
   padding: 0;
   transition: background 0.15s, color 0.15s;
 }
+/* Pin to the trailing edge of the input with explicit physical sides.
+   Sibling `.auth-input-icon` had to switch to `[dir]`-keyed positioning
+   because Material Symbols spans carry `direction: ltr` (see comment
+   above .auth-input-icon). The button itself doesn't have that issue,
+   but we mirror the pattern here so the lock-and-eye pair always reads
+   as a clean opposites-attract layout in both AR and EN. */
+html[dir="ltr"] .pw-toggle { right: 4px; left: auto; }
+html[dir="rtl"] .pw-toggle { left: 4px; right: auto; }
 .pw-toggle:hover { background: var(--surface-recessed); color: var(--text); }
 .pw-toggle .material-symbols-outlined {
   font-size: 20px;
@@ -3541,6 +3548,12 @@ body:has(.auth-shell) { overflow-x: hidden; }
 }
 @media (min-width: 961px) {
   body:has(.auth-shell) { overflow: hidden; }
+  /* Lock the shell to the viewport height so the form panel's
+     overflow-y:auto actually creates an internal scrollbar. With min-height
+     alone the grid grew to content height and the body's overflow:hidden
+     simply clipped the bottom — tall forms (signup with all errors visible)
+     became unreachable below the fold. */
+  .auth-shell { height: 100vh; min-height: 0; }
 }
 /* Mobile shell: stack vertically. Brand becomes a compact hero strip on
    top, form panel scoops up over it via a rounded top edge. Hides the
@@ -3557,7 +3570,7 @@ body:has(.auth-shell) { overflow-x: hidden; }
 /* ── Brand panel (left) ─────────────────────────────────────────── */
 .auth-brand {
   position: relative;
-  overflow: hidden;
+  overflow: hidden auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3799,20 +3812,32 @@ body:has(.auth-shell) { overflow-x: hidden; }
 }
 
 /* Input pill with leading icon. Built to feel premium without losing
-   the design system's input baseline (focus ring, validation states). */
+   the design system's input baseline (focus ring, validation states).
+
+   ── A note on RTL ────────────────────────────────────────────────
+   We use explicit `[dir]`-keyed physical positioning rather than
+   `inset-inline-*` for the icons. Google's Material Symbols CSS sets
+   `direction: ltr` on `.material-symbols-outlined` (so the ligature
+   names render correctly). Logical inset properties resolve against
+   the element's OWN writing direction, not its parent's — so an
+   `inset-inline-start` on a Material icon stayed pinned to the left
+   even on RTL pages, leaving the lock and the eye stacked together
+   on the left edge of the password input. The `[dir]` rules below
+   bypass that and pin each icon to the correct physical edge. */
 .auth-input-wrap {
   position: relative;
 }
 .auth-input-icon {
   position: absolute;
   top: 50%;
-  inset-inline-start: 14px;
   transform: translateY(-50%);
   font-size: 20px;
   color: var(--text-dim);
   pointer-events: none;
   transition: color 0.15s;
 }
+html[dir="ltr"] .auth-input-icon { left: 14px; right: auto; }
+html[dir="rtl"] .auth-input-icon { right: 14px; left: auto; }
 .auth-input-wrap input {
   padding-inline-start: 44px;
   padding-inline-end: 14px;
@@ -3831,9 +3856,10 @@ body:has(.auth-shell) { overflow-x: hidden; }
 .pw-toggle.pw-toggle-flush {
   position: absolute;
   top: 50%;
-  inset-inline-end: 4px;
   transform: translateY(-50%);
 }
+html[dir="ltr"] .pw-toggle.pw-toggle-flush { right: 4px; left: auto; }
+html[dir="rtl"] .pw-toggle.pw-toggle-flush { left: 4px; right: auto; }
 @media (hover: none), (pointer: coarse) {
   .auth-input-wrap:has(.pw-toggle) input { padding-inline-end: 56px; }
 }
@@ -4526,12 +4552,17 @@ body:has(.auth-shell) { overflow-x: hidden; }
 }
 .pf-search-icon {
   position: absolute;
-  inset-inline-start: 12px;
   font-size: 18px;
   color: var(--text-dim);
   pointer-events: none;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
+/* Pin to the leading edge with explicit physical sides — Material Symbols
+   spans carry `direction: ltr`, which makes `inset-inline-start` resolve
+   to `left` even on RTL pages (search icon would stay stuck on the wrong
+   edge in Arabic). Same pattern as `.auth-input-icon`. */
+html[dir="ltr"] .pf-search-icon { left: 12px; right: auto; }
+html[dir="rtl"] .pf-search-icon { right: 12px; left: auto; }
 .pf-search-clear {
   position: absolute;
   inset-inline-end: 8px;
