@@ -3570,7 +3570,12 @@ body:has(.auth-shell) { overflow-x: hidden; }
 /* ── Brand panel (left) ─────────────────────────────────────────── */
 .auth-brand {
   position: relative;
-  overflow: hidden auto;
+  /* Static panel — no scroll. The brand content (logo, headline, ~3
+     feature bullets, trust pill) is tuned to fit any reasonable desktop
+     height, and a stray scrollbar in the middle of the split view
+     looks like a layout bug. If the content ever grows past the
+     viewport we'd rather clip than show the bar. */
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
