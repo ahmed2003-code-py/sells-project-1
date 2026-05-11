@@ -905,6 +905,244 @@ def recalc_sales_kpis(campaign_id: int, conn) -> int:
     return len(per_user)
 
 
+# ═══ Lead Timeline enrichment (P3) ══════════════════════════════════════
+#
+# enrich_timeline_events is a pure function the timeline endpoint uses to
+# compute per-event `risk` and `is_transfer` flags from the same ordered
+# event list the lead's events came in as. The DB doesn't store these —
+# they're a function of the surrounding history, so we recompute on read.
+#
+# Risk tokens map (frontend resolves to localized labels):
+#   "red"    — NO_ANSWER after MEETING was seen earlier (urgent)
+#   "orange" — NO_ANSWER after FOLLOWING was seen earlier (follow-up)
+#   "yellow" — NO_ANSWER from first contact / repeated, no positive earlier
+#   None     — non-NO_ANSWER event, no risk to surface
+
+RISK_RED    = "red"
+RISK_ORANGE = "orange"
+RISK_YELLOW = "yellow"
+
+# Maps trigger token → frontend i18n key for the recommendation copy. The
+# server returns the trigger; the client looks the localized line up so
+# the API stays language-agnostic.
+RECOMMENDATION_KEYS = {
+    TRIGGER_NO_ANSWER_AFTER_MEETING:   "crm.intervention.recommendation.meeting",
+    TRIGGER_NO_ANSWER_AFTER_FOLLOWING: "crm.intervention.recommendation.following",
+}
+
+
+def _events_have_same_rep(a, b):
+    """True iff event `a` and event `b` are attributed to the same rep.
+    Matches the assignment-builder rep_key rules (P2)."""
+    if a is None or b is None:
+        return False
+    a_uid, b_uid = a.get("sales_user_id"), b.get("sales_user_id")
+    if a_uid is not None and b_uid is not None:
+        return a_uid == b_uid
+    if a_uid is None and b_uid is None:
+        an = normalize_sales_name(a.get("raw_sales_rep_name") or "")
+        bn = normalize_sales_name(b.get("raw_sales_rep_name") or "")
+        # Both fully blank → don't claim "same rep" — caller treats as None.
+        if not an or not bn:
+            return False
+        return an == bn
+    # Mixed (one matched, one not) → different reps.
+    return False
+
+
+def enrich_timeline_events(events):
+    """Compute `risk` + `is_transfer` for each event in an ASC-ordered list.
+
+    Each input event needs at minimum: normalized_stage, sales_user_id,
+    raw_sales_rep_name. The function returns a NEW list of shallow copies
+    with `risk` and `is_transfer` added — never mutates the input.
+
+    Walking once is enough: we keep two cheap booleans (seen_following /
+    seen_meeting) and update them AFTER computing the current event's
+    risk, so a NO_ANSWER doesn't trigger off its own positive context.
+    The `is_transfer` flag compares against the previous rep-bearing
+    event (events with no rep at all are skipped, mirroring the
+    assignment builder).
+    """
+    out = []
+    seen_following = False
+    seen_meeting   = False
+    prev_with_rep  = None  # last event that actually had a rep attribution
+
+    for ev in events:
+        stage = ev.get("normalized_stage")
+
+        if stage == "NO_ANSWER":
+            if seen_meeting:
+                risk = RISK_RED
+            elif seen_following:
+                risk = RISK_ORANGE
+            else:
+                risk = RISK_YELLOW
+        else:
+            risk = None
+
+        # is_transfer: rep flipped from the previous rep-bearing event.
+        # First rep-bearing event is never a transfer (no previous rep).
+        has_rep = (ev.get("sales_user_id") is not None
+                   or bool((ev.get("raw_sales_rep_name") or "").strip()))
+        if has_rep and prev_with_rep is not None:
+            is_transfer = not _events_have_same_rep(prev_with_rep, ev)
+        else:
+            is_transfer = False
+
+        new_ev = dict(ev)
+        new_ev["risk"] = risk
+        new_ev["is_transfer"] = is_transfer
+        out.append(new_ev)
+
+        # Update lookahead trackers AFTER risk computation so a positive
+        # stage doesn't self-trigger if it ever became NO_ANSWER inline.
+        if stage == "MEETING":
+            seen_meeting = True
+        elif stage == "FOLLOWING":
+            seen_following = True
+        if has_rep:
+            prev_with_rep = ev
+
+    return out
+
+
+def build_lead_timeline(lead_id: int, conn) -> dict:
+    """Assemble the per-lead timeline payload the page renders.
+
+    Pulls: lead row, campaign name, ordered events with assignment_type
+    joined from lead_assignments (via the window join), and any active
+    intervention flag. Computes risk + is_transfer in Python via
+    enrich_timeline_events.
+
+    Returns None if the lead doesn't exist; the endpoint maps that to 404.
+    """
+    import psycopg2.extras
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT l.id AS lead_id, l.client_name, l.mobile,
+                   l.campaign_id, c.campaign_name
+            FROM leads l
+            JOIN marketing_campaigns c ON c.id = l.campaign_id
+            WHERE l.id = %s
+            """,
+            (lead_id,),
+        )
+        lead = cur.fetchone()
+        if not lead:
+            return None
+
+        # Events + assignment_type via the half-open window join. NULL
+        # assignment_type means the event landed outside any window —
+        # in practice this is the no-rep ghost rows the parser kept.
+        cur.execute(
+            """
+            SELECT e.id AS event_id, e.follow_date, e.raw_stage, e.normalized_stage,
+                   e.comment, e.sales_user_id, e.raw_sales_rep_name,
+                   u.full_name AS sales_rep_name, u.avatar_url,
+                   a.assignment_type
+            FROM lead_events e
+            LEFT JOIN users u ON u.id = e.sales_user_id
+            LEFT JOIN lead_assignments a
+                   ON a.lead_id = e.lead_id
+                  AND e.follow_date >= a.started_at
+                  AND (a.ended_at IS NULL OR e.follow_date < a.ended_at)
+            WHERE e.lead_id = %s AND e.is_voided = FALSE
+            ORDER BY e.follow_date ASC NULLS LAST, e.id ASC
+            """,
+            (lead_id,),
+        )
+        events = [dict(r) for r in cur.fetchall()]
+
+        cur.execute(
+            """
+            SELECT m.id, m.trigger_type, m.priority, m.status,
+                   m.previous_positive_stage, m.last_positive_stage_date,
+                   m.last_no_answer_date, m.last_comment,
+                   m.reviewed_by, m.reviewed_at,
+                   ru.full_name AS reviewed_by_name
+            FROM manager_intervention_flags m
+            LEFT JOIN users ru ON ru.id = m.reviewed_by
+            WHERE m.lead_id = %s
+            """,
+            (lead_id,),
+        )
+        flag = cur.fetchone()
+
+    enriched = enrich_timeline_events(events)
+
+    # latest_stage + current_sales_rep come from the last event with a
+    # resolvable stage / rep. Events with NULL stage are skipped for the
+    # "latest stage" but kept in the timeline so the user sees the raw row.
+    latest_stage = None
+    current_rep_id = None
+    current_rep_name = None
+    for ev in reversed(events):
+        if latest_stage is None and ev.get("normalized_stage"):
+            latest_stage = ev["normalized_stage"]
+        if current_rep_id is None and ev.get("sales_user_id") is not None:
+            current_rep_id = ev["sales_user_id"]
+            current_rep_name = ev.get("sales_rep_name")
+        if latest_stage and current_rep_id is not None:
+            break
+
+    intervention = None
+    if flag:
+        intervention = {
+            "id": flag["id"],
+            "trigger": flag["trigger_type"],
+            "priority": flag["priority"],
+            "status": flag["status"],
+            "previous_positive_stage": flag["previous_positive_stage"],
+            "last_positive_stage_date": (
+                flag["last_positive_stage_date"].isoformat()
+                if flag["last_positive_stage_date"] else None
+            ),
+            "last_no_answer_date": (
+                flag["last_no_answer_date"].isoformat()
+                if flag["last_no_answer_date"] else None
+            ),
+            "last_comment": flag["last_comment"],
+            "recommendation_key": RECOMMENDATION_KEYS.get(flag["trigger_type"]),
+            "reviewed_by": flag["reviewed_by"],
+            "reviewed_by_name": flag["reviewed_by_name"],
+            "reviewed_at": (
+                flag["reviewed_at"].isoformat() if flag["reviewed_at"] else None
+            ),
+        }
+
+    timeline_out = []
+    for ev in enriched:
+        timeline_out.append({
+            "event_id": ev["event_id"],
+            "date": ev["follow_date"].isoformat() if ev.get("follow_date") else None,
+            "sales_rep": ev.get("sales_rep_name") or ev.get("raw_sales_rep_name"),
+            "sales_user_id": ev.get("sales_user_id"),
+            "avatar_url": ev.get("avatar_url"),
+            "assignment_type": ev.get("assignment_type"),
+            "raw_stage": ev.get("raw_stage"),
+            "stage": ev.get("normalized_stage"),
+            "comment": ev.get("comment"),
+            "is_transfer": ev["is_transfer"],
+            "risk": ev["risk"],
+        })
+
+    return {
+        "lead_id": lead["lead_id"],
+        "client_name": lead["client_name"],
+        "mobile": lead["mobile"],
+        "campaign_id": lead["campaign_id"],
+        "campaign_name": lead["campaign_name"],
+        "current_sales_rep": current_rep_name,
+        "current_sales_user_id": current_rep_id,
+        "latest_stage": latest_stage,
+        "intervention": intervention,
+        "timeline": timeline_out,
+    }
+
+
 # ═══ Aggregator ═════════════════════════════════════════════════════════
 
 def recalc_after_upload(campaign_id: int, conn) -> dict:

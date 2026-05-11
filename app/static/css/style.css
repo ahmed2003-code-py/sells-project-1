@@ -376,6 +376,27 @@ html[dir="rtl"] .sidebar-link:hover { transform: translateX(-2px); }
 }
 .sidebar-link.active .sidebar-link-icon { color: #fff; }
 
+/* Sidebar count badge — used by the Manager Intervention link. JS hides
+   the badge when the count is zero and toggles `.is-high` based on
+   priority breakdown. Sits on the trailing edge so RTL flips for free. */
+.sidebar-badge {
+  margin-inline-start: auto;
+  background: var(--warning);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  min-width: 22px;
+  text-align: center;
+}
+.sidebar-badge.is-high { background: var(--danger); }
+.sidebar-link.active .sidebar-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 /* Logout button — sidebar-link reset + danger color */
 .sidebar-link.is-logout {
   background: transparent;

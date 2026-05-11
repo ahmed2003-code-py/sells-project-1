@@ -153,8 +153,107 @@
   </div>
 </section>
 
+<!-- ── Leads tab (P3) ───────────────────────────────────────────────── -->
+<section class="crm-tab-panel" data-panel="leads" role="tabpanel" hidden>
+  <!-- Filter bar -->
+  <div class="glass-card" style="padding:14px 18px;margin-bottom:18px">
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="flex:1;min-width:200px;margin:0">
+        <label data-i18n="crm.leads.search"></label>
+        <input type="search" id="leadsSearch" placeholder=""
+               data-i18n-placeholder="crm.leads.search">
+      </div>
+      <div class="field" style="min-width:160px;margin:0">
+        <label data-i18n="crm.leads.filter.stage"></label>
+        <select id="leadsStageFilter">
+          <option value="all" data-i18n="common.all"></option>
+          <option value="NO_ANSWER"    data-i18n="crm.stages.NO_ANSWER"></option>
+          <option value="FOLLOWING"    data-i18n="crm.stages.FOLLOWING"></option>
+          <option value="MEETING"      data-i18n="crm.stages.MEETING"></option>
+          <option value="CANCELLATION" data-i18n="crm.stages.CANCELLATION"></option>
+          <option value="INTERESTED"   data-i18n="crm.stages.INTERESTED"></option>
+          <option value="REQUEST"      data-i18n="crm.stages.REQUEST"></option>
+        </select>
+      </div>
+      <div class="field" style="min-width:160px;margin:0">
+        <label data-i18n="crm.leads.filter.rep"></label>
+        <select id="leadsRepFilter">
+          <option value="all" data-i18n="common.all"></option>
+        </select>
+      </div>
+      <div class="field" style="min-width:160px;margin:0">
+        <label data-i18n="crm.leads.filter.intervention"></label>
+        <select id="leadsInterventionFilter">
+          <option value="all"   data-i18n="common.all"></option>
+          <option value="true"  data-i18n="common.yes"></option>
+          <option value="false" data-i18n="common.no"></option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="glass-card table-wrap" style="padding:0;overflow-x:auto">
+    <table id="leadsTable">
+      <thead>
+        <tr>
+          <th data-i18n="crm.leads.col.client"></th>
+          <th data-i18n="crm.leads.col.mobile"></th>
+          <th data-i18n="crm.leads.col.stage"></th>
+          <th data-i18n="crm.leads.col.rep"></th>
+          <th style="text-align:end" data-i18n="crm.leads.col.events"></th>
+          <th data-i18n="crm.leads.col.last_event"></th>
+          <th data-i18n="crm.intervention.title"></th>
+          <th style="text-align:end" data-i18n="crm.leads.col.actions"></th>
+        </tr>
+      </thead>
+      <tbody id="leadsRows">
+        <tr><td colspan="8" class="text-muted" style="padding:18px;text-align:center"
+                data-i18n="common.loading"></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px;flex-wrap:wrap">
+    <span class="text-muted" id="leadsTotalLabel" style="font-size:13px"></span>
+    <button id="leadsLoadMore" class="btn btn-ghost" hidden onclick="loadLeads(true)">
+      <span data-i18n="crm.leads.load_more"></span>
+    </button>
+  </div>
+</section>
+
+<!-- ── Manager Intervention tab (P3) ─────────────────────────────────── -->
+<section class="crm-tab-panel" data-panel="intervention" role="tabpanel" hidden>
+  <div class="glass-card" style="padding:14px 18px;margin-bottom:18px">
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="min-width:160px;margin:0">
+        <label data-i18n="crm.intervention.filter.status"></label>
+        <select id="invTabStatus">
+          <option value="OPEN" data-i18n="crm.intervention.status.open"></option>
+          <option value="REVIEWED" data-i18n="crm.intervention.status.reviewed"></option>
+          <option value="CLOSED" data-i18n="crm.intervention.status.closed"></option>
+          <option value="all" data-i18n="common.all"></option>
+        </select>
+      </div>
+      <div class="field" style="min-width:160px;margin:0">
+        <label data-i18n="crm.intervention.filter.priority"></label>
+        <select id="invTabPriority">
+          <option value="all" data-i18n="common.all"></option>
+          <option value="HIGH" data-i18n="crm.intervention.priority.high"></option>
+          <option value="MEDIUM" data-i18n="crm.intervention.priority.medium"></option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div id="invTabList" class="iv-grid"></div>
+  <div id="invTabEmpty" class="glass-card" style="padding:48px;text-align:center" hidden>
+    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:48px;color:var(--text-dim)">inbox</span>
+    <h3 style="margin-top:12px" data-i18n="crm.intervention.empty"></h3>
+  </div>
+</section>
+
 <!-- ── Placeholder panels for tabs that ship in later phases ────────── -->
-{% for panel in ['leads', 'intervention', 'daily', 'marketing'] %}
+{% for panel in ['daily', 'marketing'] %}
 <section class="crm-tab-panel" data-panel="{{ panel }}" role="tabpanel" hidden>
   <div class="glass-card" style="padding:48px;text-align:center">
     <span class="material-symbols-outlined" aria-hidden="true"
@@ -225,10 +324,12 @@ let pollTimer = null;
 let pollTries = 0;
 
 // ─── Tabs ─────────────────────────────────────────────────────────────
-// Lazy-load the Sales panel the first time it's opened. The overview tab
-// is always pre-loaded since it's the landing view; everything else stays
-// idle until clicked so we don't make 5 API calls on first paint.
+// Lazy-load each non-Overview panel the first time it's opened. The
+// Overview is the landing view so it loads eagerly; everything else stays
+// idle until clicked, so a fresh page paint only fires one API call.
 let salesLoaded = false;
+let leadsLoaded = false;
+let invTabLoaded = false;
 document.querySelectorAll(".crm-tab").forEach(btn => {
   btn.addEventListener("click", () => {
     const target = btn.getAttribute("data-tab");
@@ -247,6 +348,13 @@ document.querySelectorAll(".crm-tab").forEach(btn => {
       // Already loaded — re-draw charts so they pick up any post-language
       // toggle text changes or layout reflow after the panel un-hid.
       renderSalesKpis();
+    } else if (target === "leads" && !leadsLoaded) {
+      leadsLoaded = true;
+      loadLeadsRepFilter();
+      loadLeads(false);
+    } else if (target === "intervention" && !invTabLoaded) {
+      invTabLoaded = true;
+      loadInterventionTab();
     }
   });
 });
@@ -691,9 +799,227 @@ function outcomeChipsHtml(outcomes) {
   return parts.length ? parts.join(" ") : `<span class="text-dim">—</span>`;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// Leads tab (P3)
+// ════════════════════════════════════════════════════════════════════
+
+let leadsAll = [];           // accumulated rows across "Load more" pages
+let leadsCursor = null;
+let leadsTotal = 0;
+let leadsSearchDebounce = null;
+
+function leadsCurrentFilters() {
+  return {
+    stage: document.getElementById("leadsStageFilter").value,
+    sales_user_id: document.getElementById("leadsRepFilter").value,
+    has_intervention: document.getElementById("leadsInterventionFilter").value,
+    search: document.getElementById("leadsSearch").value.trim(),
+  };
+}
+
+async function loadLeadsRepFilter() {
+  // Build the Sales Rep dropdown from sales-kpis (the same rep list the
+  // Sales tab uses). Calling salesData first if available avoids a 2nd
+  // network round-trip.
+  let reps = (salesData && salesData.reps) || null;
+  if (!reps) {
+    try {
+      const data = await api(`/api/crm/campaigns/${CAMPAIGN_ID}/sales-kpis`);
+      reps = data.reps || [];
+    } catch (e) { reps = []; }
+  }
+  const sel = document.getElementById("leadsRepFilter");
+  // Clear all but the "all" option.
+  while (sel.options.length > 1) sel.remove(1);
+  reps.forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = String(r.sales_user_id);
+    opt.textContent = r.sales_name;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadLeads(append) {
+  const f = leadsCurrentFilters();
+  const params = new URLSearchParams();
+  if (f.stage && f.stage !== "all") params.set("stage", f.stage);
+  if (f.sales_user_id && f.sales_user_id !== "all") params.set("sales_user_id", f.sales_user_id);
+  if (f.has_intervention && f.has_intervention !== "all") params.set("has_intervention", f.has_intervention);
+  if (f.search) params.set("search", f.search);
+  if (append && leadsCursor) params.set("cursor", leadsCursor);
+
+  try {
+    const r = await api(`/api/crm/campaigns/${CAMPAIGN_ID}/leads?${params.toString()}`);
+    if (!append) leadsAll = [];
+    leadsAll = leadsAll.concat(r.leads || []);
+    leadsCursor = r.next_cursor;
+    leadsTotal = r.total_count || 0;
+    renderLeadsTable();
+  } catch (e) {
+    toastError(e);
+  }
+}
+
+function renderLeadsTable() {
+  const tbody = document.getElementById("leadsRows");
+  tbody.innerHTML = "";
+  if (!leadsAll.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="padding:18px;text-align:center" data-i18n="crm.leads.empty"></td></tr>`;
+    applyLang(true);
+  } else {
+    leadsAll.forEach(l => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(l.client_name || "—")}</td>
+        <td><span class="text-muted">${escapeHtml(l.mobile || "")}</span></td>
+        <td>${l.latest_stage
+              ? `<span class="outcome-chip outcome-${l.latest_stage.toLowerCase()}">${escapeHtml(t("crm.stages." + l.latest_stage))}</span>`
+              : `<span class="text-dim">—</span>`}</td>
+        <td>${escapeHtml(l.current_sales_rep || "—")}</td>
+        <td style="text-align:end">${fmtNum(l.event_count || 0)}</td>
+        <td>${escapeHtml(fmtDateShort(l.last_event_at))}</td>
+        <td>${l.has_intervention
+              ? `<span class="lead-int-pill is-${(l.intervention_priority || "").toLowerCase()}">${escapeHtml(t("crm.intervention.priority." + (l.intervention_priority || "").toLowerCase()))}</span>`
+              : `<span class="text-dim">—</span>`}</td>
+        <td style="text-align:end">
+          <a class="btn btn-sm" href="/marketing/campaigns/${CAMPAIGN_ID}/leads/${l.lead_id}">
+            <span data-i18n="crm.leads.action.view"></span>
+          </a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    applyLang(true);
+  }
+
+  document.getElementById("leadsTotalLabel").textContent =
+    `${fmtNum(leadsAll.length)} / ${fmtNum(leadsTotal)}`;
+  document.getElementById("leadsLoadMore").hidden = !leadsCursor;
+}
+
+function fmtDateShort(iso) {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat(getLang() === "ar" ? "ar-EG" : "en-GB",
+      { day: "2-digit", month: "short", year: "numeric" }).format(new Date(iso));
+  } catch (_) { return iso; }
+}
+
+// Filter change listeners — debounce search, reset cursor on any change.
+function _leadsFilterChanged() {
+  leadsCursor = null;
+  loadLeads(false);
+}
+document.getElementById("leadsStageFilter").addEventListener("change", _leadsFilterChanged);
+document.getElementById("leadsRepFilter").addEventListener("change", _leadsFilterChanged);
+document.getElementById("leadsInterventionFilter").addEventListener("change", _leadsFilterChanged);
+document.getElementById("leadsSearch").addEventListener("input", () => {
+  if (leadsSearchDebounce) clearTimeout(leadsSearchDebounce);
+  leadsSearchDebounce = setTimeout(_leadsFilterChanged, 280);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Manager Intervention tab (P3) — per-campaign view; cards are built by
+// the shared buildInterventionCard() defined in marketing_intervention.html,
+// but that template isn't loaded here. We inline the same builder, scoped
+// to this page, so the campaign tab stays self-contained.
+// ════════════════════════════════════════════════════════════════════
+
+async function loadInterventionTab() {
+  const params = new URLSearchParams();
+  const status = document.getElementById("invTabStatus").value;
+  const priority = document.getElementById("invTabPriority").value;
+  if (status) params.set("status", status);
+  if (priority) params.set("priority", priority);
+  try {
+    const rows = await api(`/api/crm/campaigns/${CAMPAIGN_ID}/intervention?${params.toString()}`);
+    renderInterventionTab(rows || []);
+  } catch (e) {
+    toastError(e);
+  }
+}
+
+function renderInterventionTab(rows) {
+  const list = document.getElementById("invTabList");
+  const empty = document.getElementById("invTabEmpty");
+  list.innerHTML = "";
+  if (!rows.length) {
+    list.style.display = "none";
+    empty.hidden = false;
+    return;
+  }
+  list.style.display = "grid";
+  empty.hidden = true;
+  rows.forEach(r => list.appendChild(buildCampaignInterventionCard(r)));
+}
+
+function buildCampaignInterventionCard(r) {
+  const li = document.createElement("article");
+  li.className = "iv-card iv-pri-" + (r.priority || "").toLowerCase();
+  const priorityClass = r.priority === "HIGH" ? "is-high" : "is-medium";
+  const recKey = r.trigger_type === "NO_ANSWER_AFTER_MEETING"
+    ? "crm.intervention.recommendation.meeting"
+    : "crm.intervention.recommendation.following";
+  const triggerKey = "crm.intervention.trigger." + (r.trigger_type || "").toLowerCase();
+  const statusClass = "status-" + (r.status || "OPEN").toLowerCase();
+
+  li.innerHTML = `
+    <div class="iv-card-head">
+      <span class="iv-priority ${priorityClass}">${escapeHtml(t("crm.intervention.priority." + (r.priority || "").toLowerCase()))}</span>
+      <span class="iv-status ${statusClass}">${escapeHtml(t("crm.intervention.status." + (r.status || "OPEN").toLowerCase()))}</span>
+    </div>
+    <h3 class="iv-client">${escapeHtml(r.client_name || r.mobile || "—")}</h3>
+    <p class="iv-mobile">${escapeHtml(r.mobile || "")}</p>
+    <div class="iv-trigger">${escapeHtml(t(triggerKey))}</div>
+    <p class="iv-rec">${escapeHtml(t(recKey))}</p>
+    <dl class="iv-meta">
+      <dt>${escapeHtml(t("crm.timeline.current_rep"))}</dt>
+      <dd>${escapeHtml(r.current_sales_rep_name || "—")}</dd>
+      <dt>${escapeHtml(t("crm.intervention.last_positive_date"))}</dt>
+      <dd>${escapeHtml(fmtDateShort(r.last_positive_stage_date))}</dd>
+      <dt>${escapeHtml(t("crm.intervention.last_no_answer_date"))}</dt>
+      <dd>${escapeHtml(fmtDateShort(r.last_no_answer_date))}</dd>
+      ${r.last_comment ? `<dt>${escapeHtml(t("crm.intervention.last_comment"))}</dt>
+      <dd class="iv-comment">${escapeHtml(r.last_comment)}</dd>` : ""}
+    </dl>
+    <div class="iv-actions">
+      <a class="btn btn-sm btn-ghost" href="/marketing/campaigns/${CAMPAIGN_ID}/leads/${r.lead_id}">
+        ${escapeHtml(t("crm.intervention.action.open_timeline"))}
+      </a>
+      ${r.status !== "REVIEWED" ? `<button class="btn btn-sm" data-action="REVIEWED" data-id="${r.id}">
+        ${escapeHtml(t("crm.intervention.action.mark_reviewed"))}</button>` : ""}
+      ${r.status !== "CLOSED" ? `<button class="btn btn-sm btn-primary" data-action="CLOSED" data-id="${r.id}">
+        ${escapeHtml(t("crm.intervention.action.close"))}</button>` : ""}
+      ${r.status !== "OPEN" ? `<button class="btn btn-sm btn-ghost" data-action="OPEN" data-id="${r.id}">
+        ${escapeHtml(t("crm.intervention.action.reopen"))}</button>` : ""}
+    </div>
+  `;
+  li.querySelectorAll("button[data-action]").forEach(b => {
+    b.addEventListener("click", async (e) => {
+      const action = e.currentTarget.getAttribute("data-action");
+      const id = parseInt(e.currentTarget.getAttribute("data-id"), 10);
+      try {
+        await api(`/api/crm/intervention/${id}`, { method: "PATCH", body: { status: action } });
+        toast(t("common.saved"), "success");
+        await loadInterventionTab();
+        // Refresh overview KPI tile and sidebar badge.
+        loadOverview();
+        if (typeof refreshInterventionBadge === "function") refreshInterventionBadge();
+      } catch (err) { toastError(err); }
+    });
+  });
+  return li;
+}
+
+document.getElementById("invTabStatus").addEventListener("change", loadInterventionTab);
+document.getElementById("invTabPriority").addEventListener("change", loadInterventionTab);
+
+
 function onLangChange() {
   if (overview) renderOverview();
   if (salesData) renderSalesKpis();
+  if (leadsLoaded) renderLeadsTable();
+  if (invTabLoaded) loadInterventionTab();
 }
 function onThemeChange() {
   if (overview) renderStageDonut(overview.stage_counts || {});
@@ -870,5 +1196,58 @@ loadOverview();
   .outcome-chip.outcome-cancellation { background: rgba(186,26,26,0.08); border-color: rgba(186,26,26,0.20); color: var(--danger); }
   .outcome-chip.outcome-interested   { background: rgba(64,220,209,0.14); border-color: rgba(64,220,209,0.28); color: var(--accent-2); }
   .outcome-chip.outcome-request      { background: rgba(124,131,253,0.10); border-color: rgba(124,131,253,0.22); color: var(--brand); }
+
+  /* Leads-tab — small intervention pill on the table row. */
+  .lead-int-pill {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    padding: 2px 9px; border-radius: 9999px; text-transform: uppercase;
+  }
+  .lead-int-pill.is-high   { background: rgba(186,26,26,0.10); color: var(--danger); }
+  .lead-int-pill.is-medium { background: rgba(196,114,0,0.12); color: var(--warning); }
+
+  /* Intervention card grid — shared with the cross-campaign inbox page;
+     kept page-local so the in-campaign tab is self-contained. */
+  .iv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+  }
+  .iv-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-xs);
+    border-inline-start: 3px solid var(--text-dim);
+  }
+  .iv-card.iv-pri-high   { border-inline-start-color: var(--danger); }
+  .iv-card.iv-pri-medium { border-inline-start-color: var(--warning); }
+  .iv-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .iv-priority {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    padding: 2px 10px; border-radius: 9999px; text-transform: uppercase;
+  }
+  .iv-priority.is-high   { background: rgba(186,26,26,0.10); color: var(--danger); }
+  .iv-priority.is-medium { background: rgba(196,114,0,0.12); color: var(--warning); }
+  .iv-status {
+    margin-inline-start: auto;
+    font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 9999px;
+    background: var(--surface-recessed); color: var(--text-muted);
+  }
+  .iv-status.status-open     { background: rgba(186,26,26,0.10); color: var(--danger); }
+  .iv-status.status-reviewed { background: rgba(196,114,0,0.12); color: var(--warning); }
+  .iv-status.status-closed   { background: rgba(0,103,98,0.10); color: var(--accent-2); }
+  .iv-client { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+  .iv-mobile { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; }
+  .iv-trigger { font-size: 12px; font-weight: 600; color: var(--brand); margin-bottom: 6px; }
+  .iv-rec { font-size: 13px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.55; }
+  .iv-meta {
+    display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px;
+    margin: 0 0 14px; font-size: 12px;
+  }
+  .iv-meta dt { color: var(--text-muted); font-weight: 600; }
+  .iv-meta dd { margin: 0; color: var(--text); }
+  .iv-comment { white-space: normal; line-height: 1.55; }
+  .iv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
 {% endblock %}

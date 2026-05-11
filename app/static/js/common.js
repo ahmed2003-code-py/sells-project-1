@@ -538,6 +538,36 @@ function initPasswordToggles() {
   });
 }
 
+// ─── Sidebar Manager-Intervention badge (P3) ───────────────────────
+// The sidebar link renders an empty `#navInterventionBadge` span. We
+// populate it from /api/crm/intervention/open-count after auth resolves.
+// The endpoint is role-gated to marketing/manager/admin — anonymous and
+// out-of-scope users get a 401/403 and we silently leave the badge
+// hidden, which is the correct visible state.
+async function refreshInterventionBadge() {
+  const el = document.getElementById("navInterventionBadge");
+  if (!el) return;  // page doesn't have the sidebar (auth pages)
+  try {
+    const data = await api("/api/crm/intervention/open-count");
+    const count = (data && data.open_count) || 0;
+    if (count <= 0) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    el.hidden = false;
+    el.textContent = count > 99 ? "99+" : String(count);
+    // Red when there's at least one HIGH, amber otherwise.
+    el.classList.toggle("is-high", (data && data.high_priority) > 0);
+  } catch (_) {
+    // 401/403/network — keep the badge hidden.
+    el.hidden = true;
+  }
+}
+// Expose for templates that toggle status to refresh the badge after a
+// PATCH (e.g. marketing_lead_timeline.html, marketing_intervention.html).
+window.refreshInterventionBadge = refreshInterventionBadge;
+
 // ─── Reveal-on-scroll for .reveal elements ─────────────────────────
 function initReveal() {
   if (!("IntersectionObserver" in window)) return;
@@ -587,6 +617,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initPasswordToggles();
   initPassfailToggles();
   initStickyShrink();
+  refreshInterventionBadge();
   document.addEventListener("keydown", _onSidebarKeydown);
   document.addEventListener("keydown", _onModalKeydown);
   document.querySelectorAll(".modal-backdrop").forEach(m => {

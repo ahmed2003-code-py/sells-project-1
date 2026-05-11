@@ -34,8 +34,12 @@ from app.crm_logic import (  # noqa: E402
     normalize_stage,
     _classify_lead_intervention,
     _assignments_from_events,
+    enrich_timeline_events,
     ASSIGNMENT_TYPE_FRESH,
     ASSIGNMENT_TYPE_ROTATION,
+    RISK_RED,
+    RISK_ORANGE,
+    RISK_YELLOW,
     TRIGGER_NO_ANSWER_AFTER_FOLLOWING,
     TRIGGER_NO_ANSWER_AFTER_MEETING,
     PRIORITY_HIGH,
@@ -510,6 +514,146 @@ def test_assignments_from_events():
            detail=str(out))
 
 
+# ─── Timeline enrichment (risk + is_transfer) ───────────────────────────
+#
+# Pure-function tests for enrich_timeline_events. Input events need at
+# minimum follow_date, normalized_stage, sales_user_id, raw_sales_rep_name.
+# The function returns a NEW list of shallow copies with `risk` and
+# `is_transfer` added — original list isn't mutated.
+
+def _tev(day, stage, user_id=None, raw_name=None):
+    """Build a minimal event dict matching the cursor row shape."""
+    return {
+        "event_id": day * 10,
+        "follow_date": datetime(2026, 4, day),
+        "normalized_stage": stage,
+        "sales_user_id": user_id,
+        "raw_sales_rep_name": raw_name,
+    }
+
+
+def test_enrich_timeline_events():
+    print("─── enrich_timeline_events ───")
+
+    # Empty list → empty list, no mutation
+    _check("empty → []", enrich_timeline_events([]) == [])
+
+    # Single NO_ANSWER, no positives earlier → yellow
+    out = enrich_timeline_events([_tev(1, "NO_ANSWER", user_id=7)])
+    _check("first-contact NO_ANSWER → yellow",
+           out[0]["risk"] == RISK_YELLOW and out[0]["is_transfer"] is False,
+           detail=str(out[0]))
+
+    # Two NO_ANSWERs in a row, no positives → still yellow
+    out = enrich_timeline_events([
+        _tev(1, "NO_ANSWER", user_id=7),
+        _tev(2, "NO_ANSWER", user_id=7),
+    ])
+    _check("repeated NO_ANSWER (no positive earlier) → yellow on both",
+           out[0]["risk"] == RISK_YELLOW and out[1]["risk"] == RISK_YELLOW,
+           detail=str([(e["follow_date"].day, e["risk"]) for e in out]))
+
+    # FOLLOWING → NO_ANSWER → orange
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "NO_ANSWER", user_id=7),
+    ])
+    _check("FOLLOWING then NO_ANSWER → orange",
+           out[1]["risk"] == RISK_ORANGE,
+           detail=str(out[1]))
+    _check("the FOLLOWING event itself has no risk",
+           out[0]["risk"] is None)
+
+    # MEETING → NO_ANSWER → red
+    out = enrich_timeline_events([
+        _tev(1, "MEETING", user_id=7),
+        _tev(2, "NO_ANSWER", user_id=7),
+    ])
+    _check("MEETING then NO_ANSWER → red",
+           out[1]["risk"] == RISK_RED, detail=str(out[1]))
+
+    # FOLLOWING + MEETING + NO_ANSWER → red (meeting outranks)
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "MEETING",   user_id=7),
+        _tev(3, "NO_ANSWER", user_id=7),
+    ])
+    _check("FOLLOWING + MEETING + NO_ANSWER → red on the NO_ANSWER",
+           out[2]["risk"] == RISK_RED, detail=out[2]["risk"])
+
+    # MEETING after NO_ANSWER doesn't promote earlier NO_ANSWER risk —
+    # it's a one-pass forward walk, and the meeting hadn't happened yet
+    # when that NO_ANSWER occurred.
+    out = enrich_timeline_events([
+        _tev(1, "NO_ANSWER", user_id=7),
+        _tev(2, "MEETING",   user_id=7),
+        _tev(3, "NO_ANSWER", user_id=7),
+    ])
+    _check("first NO_ANSWER stays yellow (meeting hadn't happened yet)",
+           out[0]["risk"] == RISK_YELLOW, detail=out[0]["risk"])
+    _check("later NO_ANSWER (after meeting) becomes red",
+           out[2]["risk"] == RISK_RED, detail=out[2]["risk"])
+
+    # Non-NO_ANSWER stages → risk is None even after positives
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING",    user_id=7),
+        _tev(2, "MEETING",      user_id=7),
+        _tev(3, "CANCELLATION", user_id=7),
+    ])
+    _check("MEETING event itself has no risk", out[1]["risk"] is None)
+    _check("CANCELLATION event has no risk",   out[2]["risk"] is None)
+
+    # is_transfer when rep flips (same matched-vs-matched comparison)
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "NO_ANSWER", user_id=9),
+    ])
+    _check("rep flip → is_transfer=True on the second event",
+           out[1]["is_transfer"] is True, detail=str(out[1]))
+    _check("first event of timeline is never a transfer",
+           out[0]["is_transfer"] is False)
+
+    # is_transfer false when same matched rep continues
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "MEETING",   user_id=7),
+    ])
+    _check("same rep continuing → no transfer",
+           out[1]["is_transfer"] is False)
+
+    # Unmatched name normalization for transfer detection
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", raw_name="Rana Hany"),
+        _tev(2, "NO_ANSWER", raw_name="rana  hany"),  # normalizes equal
+        _tev(3, "FOLLOWING", raw_name="Yara K"),
+    ])
+    _check("normalized-equal unmatched names → no transfer between 1 and 2",
+           out[1]["is_transfer"] is False)
+    _check("different unmatched name → transfer at event 3",
+           out[2]["is_transfer"] is True)
+
+    # Mixed matched/unmatched → always considered a transfer
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "NO_ANSWER", raw_name="Rana Hany"),
+    ])
+    _check("matched → unmatched → transfer",
+           out[1]["is_transfer"] is True)
+
+    # Ghost row (no rep info at all) is NOT a transfer and doesn't break
+    # the streak — the next rep-bearing event compares against the
+    # previous rep-bearing event, skipping the ghost.
+    out = enrich_timeline_events([
+        _tev(1, "FOLLOWING", user_id=7),
+        _tev(2, "NO_ANSWER", user_id=None, raw_name=None),  # ghost
+        _tev(3, "MEETING",   user_id=7),  # same rep as event 1
+    ])
+    _check("ghost row → is_transfer=False, doesn't break the streak",
+           out[1]["is_transfer"] is False
+           and out[2]["is_transfer"] is False,
+           detail=str([(e["follow_date"].day, e["is_transfer"]) for e in out]))
+
+
 # ─── Required-column enforcement ───────────────────────────────────────
 
 def test_missing_required_column_raises():
@@ -545,6 +689,7 @@ def main():
     test_missing_required_column_raises()
     test_intervention_classifier()
     test_assignments_from_events()
+    test_enrich_timeline_events()
 
     print()
     if _failures:

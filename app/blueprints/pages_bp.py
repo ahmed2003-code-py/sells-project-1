@@ -84,6 +84,30 @@ def marketing_page():
     return render_template("marketing.html", user=current_user())
 
 
+@pages_bp.route("/marketing/intervention")
+@role_required("marketing", "manager", "admin")
+def marketing_intervention_inbox():
+    """Cross-campaign manager-intervention inbox. The page renders an
+    empty shell; the JS bootstraps from /api/crm/intervention so the same
+    server template covers all states (zero flags, filtered, etc.)."""
+    return render_template("marketing_intervention.html", user=current_user())
+
+
+@pages_bp.route("/marketing/campaigns/<int:campaign_id>/leads/<int:lead_id>")
+@role_required("marketing", "manager", "admin")
+def marketing_lead_timeline(campaign_id, lead_id):
+    """Per-lead timeline page. We don't verify the lead↔campaign join
+    here — the JS hits /api/crm/leads/<id>/timeline which returns the
+    campaign_id alongside the lead, and the page uses that to wire the
+    back-link. Saves us a Postgres round-trip on the route entry."""
+    return render_template(
+        "marketing_lead_timeline.html",
+        user=current_user(),
+        campaign_id=campaign_id,
+        lead_id=lead_id,
+    )
+
+
 @pages_bp.route("/marketing/campaigns/<int:campaign_id>")
 @role_required("marketing", "manager", "admin")
 def marketing_campaign_detail(campaign_id):

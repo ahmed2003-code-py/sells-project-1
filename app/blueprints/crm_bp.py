@@ -1,17 +1,13 @@
 """
 CRM Report ingestion endpoints.
 
-Phase 1a — three routes, all under /api/crm:
-
-  POST /campaigns/<id>/upload      — kick off an ingest from an .xlsx
-  GET  /uploads/<id>/status        — poll progress of one upload
-  GET  /campaigns/<id>/uploads     — recent uploads for a campaign
-
-The heavy lifting (parse + insert) runs on a daemon thread spawned in
-app/crm_processor.py so the HTTP request returns immediately and the
-client polls /status. We don't surface lead/event data here yet — that
-lands once KPI recalc + the timeline endpoint ship in P1b/P3.
+P1a — upload + status polling. P1b — campaign overview + per-campaign
+intervention listing. P2 — sales KPI rollup. P3 (this file's latest
+additions) — leads listing, lead timeline, cross-campaign intervention
+inbox, status PATCH, and the open-count badge feed.
 """
+import base64
+import json
 import logging
 
 import psycopg2.extras
@@ -23,6 +19,7 @@ from app.auth import (
     login_required,
     role_required,
 )
+from app.crm_logic import build_lead_timeline
 from app.crm_processor import start_processing_thread
 from app.database import get_conn
 
@@ -466,6 +463,508 @@ def campaign_sales_kpis(campaign_id: int):
         })
     except Exception as e:
         log.error("campaign_sales_kpis %s: %s", campaign_id, e)
+        return error_response("server", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ─── GET leads listing for a campaign (P3) ──────────────────────────────
+
+_LEADS_MAX_LIMIT = 200
+_LEADS_DEFAULT_LIMIT = 50
+
+
+def _decode_leads_cursor(raw):
+    """Cursor is base64(json({ts:iso, id:int})). Returns (datetime|None, id|None)
+    or (None, None) if missing/invalid. Bad cursor degrades to "no cursor" —
+    surfacing a 400 here makes deep-link sharing brittle without buying us
+    much."""
+    if not raw:
+        return None, None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(raw.encode("ascii") + b"=="))
+        from datetime import datetime as _dt
+        ts = _dt.fromisoformat(payload["ts"]) if payload.get("ts") else None
+        return ts, int(payload["id"])
+    except Exception:
+        return None, None
+
+
+def _encode_leads_cursor(ts, lid):
+    payload = {"ts": ts.isoformat() if ts else None, "id": lid}
+    return base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ).rstrip(b"=").decode("ascii")
+
+
+@crm_bp.route("/campaigns/<int:campaign_id>/leads", methods=["GET"])
+@login_required
+@role_required("admin", "manager", "marketing")
+def campaign_leads(campaign_id: int):
+    """Paginated leads listing for the campaign tab.
+
+    Each row is one lead with its derived state (latest stage, current
+    rep, event count, last event date, intervention flag). The latest
+    event is found via a LATERAL subquery — cheaper than a window over
+    the full lead_events table because the (lead_id, follow_date) index
+    drives the lookup to a single row per lead.
+
+    Cursor pagination keyed on (last_event_at DESC NULLS LAST, lead_id DESC)
+    so the order is stable when two leads share a timestamp.
+    """
+    stage_filter = (request.args.get("stage") or "").strip().upper() or None
+    rep_arg = request.args.get("sales_user_id")
+    sales_user_id = None
+    if rep_arg not in (None, "", "all"):
+        try:
+            sales_user_id = int(rep_arg)
+        except ValueError:
+            return error_response("invalid_input", 400)
+
+    intervention_arg = (request.args.get("has_intervention") or "").strip().lower()
+    if intervention_arg in ("true", "1", "yes"):
+        intervention_filter = True
+    elif intervention_arg in ("false", "0", "no"):
+        intervention_filter = False
+    else:
+        intervention_filter = None
+
+    search = (request.args.get("search") or "").strip()
+    try:
+        limit = int(request.args.get("limit") or _LEADS_DEFAULT_LIMIT)
+    except ValueError:
+        return error_response("invalid_input", 400)
+    limit = max(1, min(limit, _LEADS_MAX_LIMIT))
+
+    cursor_ts, cursor_id = _decode_leads_cursor(request.args.get("cursor"))
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM marketing_campaigns WHERE id = %s",
+                (campaign_id,),
+            )
+            if not cur.fetchone():
+                return error_response("not_found", 404)
+
+        # Build the WHERE clauses dynamically. Use parameter placeholders
+        # only — concatenating user input would be a SQL-injection foot-gun.
+        clauses = ["l.campaign_id = %s"]
+        params = [campaign_id]
+        if stage_filter:
+            clauses.append("latest.normalized_stage = %s")
+            params.append(stage_filter)
+        if sales_user_id is not None:
+            clauses.append("latest.sales_user_id = %s")
+            params.append(sales_user_id)
+        if intervention_filter is True:
+            clauses.append("mi.id IS NOT NULL AND mi.status = 'OPEN'")
+        elif intervention_filter is False:
+            clauses.append("(mi.id IS NULL OR mi.status <> 'OPEN')")
+        if search:
+            clauses.append("(l.client_name ILIKE %s OR l.mobile ILIKE %s)")
+            like = f"%{search}%"
+            params.extend([like, like])
+        if cursor_ts is not None and cursor_id is not None:
+            # (last_event_at, lead_id) < (cursor) — strictly less than the
+            # cursor for "next page". NULL last_event_at sorts last and is
+            # the trailing edge of the dataset.
+            clauses.append(
+                "(latest.follow_date < %s "
+                "OR (latest.follow_date IS NOT DISTINCT FROM %s AND l.id < %s))"
+            )
+            params.extend([cursor_ts, cursor_ts, cursor_id])
+
+        where_sql = " AND ".join(clauses)
+
+        # +1 trick: ask for one extra row so we can detect whether more
+        # results exist without a second COUNT query.
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT l.id AS lead_id, l.client_name, l.mobile,
+                       latest.normalized_stage AS latest_stage,
+                       latest.sales_user_id    AS current_sales_user_id,
+                       latest.follow_date      AS last_event_at,
+                       counts.event_count,
+                       u.full_name             AS current_sales_rep,
+                       mi.priority             AS intervention_priority,
+                       (mi.id IS NOT NULL AND mi.status = 'OPEN') AS has_intervention
+                FROM leads l
+                LEFT JOIN LATERAL (
+                    SELECT normalized_stage, sales_user_id, follow_date
+                    FROM lead_events
+                    WHERE lead_id = l.id AND is_voided = FALSE
+                    ORDER BY follow_date DESC NULLS LAST, id DESC
+                    LIMIT 1
+                ) latest ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS event_count
+                    FROM lead_events
+                    WHERE lead_id = l.id AND is_voided = FALSE
+                ) counts ON TRUE
+                LEFT JOIN users u ON u.id = latest.sales_user_id
+                LEFT JOIN manager_intervention_flags mi ON mi.lead_id = l.id
+                WHERE {where_sql}
+                ORDER BY latest.follow_date DESC NULLS LAST, l.id DESC
+                LIMIT %s
+                """,
+                params + [limit + 1],
+            )
+            rows = cur.fetchall()
+
+            # Total count under the same filters, but without the cursor
+            # clause — pagination shouldn't change the total. Re-build
+            # the WHERE here so the count reflects ONLY the filters.
+            count_clauses = clauses[:]
+            count_params = params[:]
+            if cursor_ts is not None:
+                # Drop the cursor's 3 trailing params and its clause.
+                count_clauses = clauses[:-1]
+                count_params = params[:-3]
+            count_where = " AND ".join(count_clauses)
+            cur.execute(
+                f"""
+                SELECT COUNT(*) AS n FROM leads l
+                LEFT JOIN LATERAL (
+                    SELECT normalized_stage, sales_user_id, follow_date
+                    FROM lead_events
+                    WHERE lead_id = l.id AND is_voided = FALSE
+                    ORDER BY follow_date DESC NULLS LAST, id DESC
+                    LIMIT 1
+                ) latest ON TRUE
+                LEFT JOIN manager_intervention_flags mi ON mi.lead_id = l.id
+                WHERE {count_where}
+                """,
+                count_params,
+            )
+            total_count = cur.fetchone()["n"]
+
+        has_more = len(rows) > limit
+        page_rows = rows[:limit]
+        next_cursor = None
+        if has_more and page_rows:
+            tail = page_rows[-1]
+            next_cursor = _encode_leads_cursor(tail["last_event_at"], tail["lead_id"])
+
+        leads_out = []
+        for r in page_rows:
+            leads_out.append({
+                "lead_id": r["lead_id"],
+                "client_name": r["client_name"],
+                "mobile": r["mobile"],
+                "latest_stage": r["latest_stage"],
+                "current_sales_rep": r["current_sales_rep"],
+                "current_sales_user_id": r["current_sales_user_id"],
+                "event_count": r["event_count"] or 0,
+                "last_event_at": (
+                    r["last_event_at"].isoformat() if r["last_event_at"] else None
+                ),
+                "has_intervention": bool(r["has_intervention"]),
+                "intervention_priority": (
+                    r["intervention_priority"] if r["has_intervention"] else None
+                ),
+            })
+
+        return jsonify({
+            "leads": leads_out,
+            "next_cursor": next_cursor,
+            "total_count": total_count,
+        })
+    except Exception as e:
+        log.error("campaign_leads %s: %s", campaign_id, e)
+        return error_response("server", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ─── GET lead timeline (P3) ─────────────────────────────────────────────
+
+@crm_bp.route("/leads/<int:lead_id>/timeline", methods=["GET"])
+@login_required
+@role_required("admin", "manager", "marketing")
+def lead_timeline(lead_id: int):
+    """Full timeline for one lead. Heavy lifting (rep-key transfer
+    detection, risk classification) lives in crm_logic.build_lead_timeline
+    so the same logic is exercised by the smoke tests."""
+    conn = None
+    try:
+        conn = get_conn()
+        payload = build_lead_timeline(lead_id, conn)
+        if payload is None:
+            return error_response("not_found", 404)
+        return jsonify(payload)
+    except Exception as e:
+        log.error("lead_timeline %s: %s", lead_id, e)
+        return error_response("server", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ─── GET cross-campaign intervention inbox (P3) ─────────────────────────
+
+@crm_bp.route("/intervention", methods=["GET"])
+@login_required
+@role_required("admin", "manager", "marketing")
+def intervention_inbox():
+    """Same row shape as /campaigns/<id>/intervention but across every
+    campaign. Adds campaign_name to each row so the inbox can identify
+    which campaign the flag belongs to. Order matches the per-campaign
+    list: HIGH first, then most-recently-broken-down."""
+    status_arg = (request.args.get("status") or "OPEN").upper()
+    priority_arg = (request.args.get("priority") or "all").upper()
+    campaign_arg = request.args.get("campaign_id")
+
+    if status_arg != "ALL" and status_arg not in _VALID_INTERVENTION_STATUSES:
+        return error_response("invalid_input", 400)
+    if priority_arg != "ALL" and priority_arg not in _VALID_INTERVENTION_PRIORITIES:
+        return error_response("invalid_input", 400)
+
+    campaign_filter = None
+    if campaign_arg not in (None, "", "all"):
+        try:
+            campaign_filter = int(campaign_arg)
+        except ValueError:
+            return error_response("invalid_input", 400)
+
+    clauses = []
+    params = []
+    if status_arg != "ALL":
+        clauses.append("m.status = %s")
+        params.append(status_arg)
+    if priority_arg != "ALL":
+        clauses.append("m.priority = %s")
+        params.append(priority_arg)
+    if campaign_filter is not None:
+        clauses.append("m.campaign_id = %s")
+        params.append(campaign_filter)
+    where_sql = " AND ".join(clauses) if clauses else "TRUE"
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT m.id, m.lead_id, m.campaign_id, m.sales_user_id,
+                       m.trigger_type, m.current_stage, m.previous_positive_stage,
+                       m.priority, m.last_positive_stage_date, m.last_no_answer_date,
+                       m.last_comment, m.status, m.created_at, m.updated_at,
+                       m.reviewed_by, m.reviewed_at,
+                       l.client_name, l.mobile,
+                       c.campaign_name,
+                       usr.full_name AS current_sales_rep_name,
+                       ru.full_name  AS reviewed_by_name
+                FROM manager_intervention_flags m
+                JOIN leads l                 ON l.id = m.lead_id
+                JOIN marketing_campaigns c   ON c.id = m.campaign_id
+                LEFT JOIN users usr ON usr.id = m.sales_user_id
+                LEFT JOIN users ru  ON ru.id  = m.reviewed_by
+                WHERE {where_sql}
+                ORDER BY
+                  CASE m.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                  m.last_no_answer_date DESC NULLS LAST,
+                  m.id DESC
+                LIMIT 200
+                """,
+                params,
+            )
+            rows = cur.fetchall()
+
+            # Side stats — count by status/priority across the visible
+            # scope (ignoring the current filter, so the bar values don't
+            # collapse when the user narrows down).
+            cur.execute(
+                """
+                SELECT priority, COUNT(*) AS n
+                FROM manager_intervention_flags
+                WHERE status = 'OPEN'
+                GROUP BY priority
+                """
+            )
+            open_breakdown = {"HIGH": 0, "MEDIUM": 0}
+            for r in cur.fetchall():
+                if r["priority"] in open_breakdown:
+                    open_breakdown[r["priority"]] = r["n"]
+
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) FILTER (WHERE status = 'OPEN')     AS open_total,
+                  COUNT(*) FILTER (WHERE status = 'REVIEWED'
+                                   AND reviewed_at >= NOW() - INTERVAL '7 days') AS reviewed_7d,
+                  COUNT(*) FILTER (WHERE status = 'CLOSED'
+                                   AND reviewed_at >= NOW() - INTERVAL '7 days') AS closed_7d
+                FROM manager_intervention_flags
+                """
+            )
+            counts = cur.fetchone()
+
+        return jsonify({
+            "rows": [_intervention_row_to_json(r) for r in rows],
+            "stats": {
+                "open_total": counts["open_total"] or 0,
+                "open_high": open_breakdown["HIGH"],
+                "open_medium": open_breakdown["MEDIUM"],
+                "reviewed_7d": counts["reviewed_7d"] or 0,
+                "closed_7d": counts["closed_7d"] or 0,
+            },
+        })
+    except Exception as e:
+        log.error("intervention_inbox: %s", e)
+        return error_response("server", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def _intervention_row_to_json(r):
+    """Shared row shape between /campaigns/<id>/intervention and /intervention."""
+    return {
+        "id": r["id"],
+        "lead_id": r["lead_id"],
+        "campaign_id": r["campaign_id"],
+        "campaign_name": r.get("campaign_name"),
+        "client_name": r["client_name"],
+        "mobile": r["mobile"],
+        "current_sales_rep_id": r["sales_user_id"],
+        "current_sales_rep_name": r["current_sales_rep_name"],
+        "trigger_type": r["trigger_type"],
+        "current_stage": r["current_stage"],
+        "previous_positive_stage": r["previous_positive_stage"],
+        "priority": r["priority"],
+        "last_positive_stage_date": (
+            r["last_positive_stage_date"].isoformat()
+            if r["last_positive_stage_date"] else None
+        ),
+        "last_no_answer_date": (
+            r["last_no_answer_date"].isoformat()
+            if r["last_no_answer_date"] else None
+        ),
+        "last_comment": r["last_comment"],
+        "status": r["status"],
+        "reviewed_by": r.get("reviewed_by"),
+        "reviewed_by_name": r.get("reviewed_by_name"),
+        "reviewed_at": (
+            r["reviewed_at"].isoformat() if r.get("reviewed_at") else None
+        ),
+        "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None,
+    }
+
+
+# ─── PATCH intervention flag status (P3) ────────────────────────────────
+
+@crm_bp.route("/intervention/<int:flag_id>", methods=["PATCH"])
+@login_required
+@role_required("admin", "manager")  # marketing can READ but not action.
+@csrf_protect
+def update_intervention(flag_id: int):
+    """Move the flag through OPEN → REVIEWED → CLOSED (or back to OPEN).
+    Records who actioned it + when. The recalc on next upload will only
+    touch this row's description fields — preservation rule from P1b."""
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("status") or "").strip().upper()
+    if new_status not in _VALID_INTERVENTION_STATUSES:
+        return error_response("invalid_input", 400)
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # If the new status is OPEN, clear the reviewer fields — the
+            # row is "back in queue" and shouldn't keep a stale signature
+            # of who last touched it.
+            if new_status == "OPEN":
+                cur.execute(
+                    """
+                    UPDATE manager_intervention_flags
+                    SET status = %s, reviewed_by = NULL, reviewed_at = NULL,
+                        updated_at = NOW()
+                    WHERE id = %s
+                    RETURNING id, lead_id, campaign_id, status
+                    """,
+                    (new_status, flag_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE manager_intervention_flags
+                    SET status = %s, reviewed_by = %s, reviewed_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id = %s
+                    RETURNING id, lead_id, campaign_id, status
+                    """,
+                    (new_status, session["user_id"], flag_id),
+                )
+            row = cur.fetchone()
+            if not row:
+                return error_response("not_found", 404)
+
+            # Keep campaign_kpis.manager_intervention_count in sync —
+            # we just bumped a row in or out of the OPEN bucket.
+            cur.execute(
+                """
+                UPDATE campaign_kpis SET
+                  manager_intervention_count = (
+                    SELECT COUNT(*) FROM manager_intervention_flags
+                    WHERE campaign_id = %s AND status = 'OPEN'
+                  ),
+                  updated_at = NOW()
+                WHERE campaign_id = %s
+                """,
+                (row["campaign_id"], row["campaign_id"]),
+            )
+        conn.commit()
+        return jsonify({"ok": True, "id": row["id"], "status": row["status"]})
+    except Exception as e:
+        log.error("update_intervention %s: %s", flag_id, e)
+        return error_response("server", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ─── GET open-count for the sidebar badge (P3) ──────────────────────────
+
+@crm_bp.route("/intervention/open-count", methods=["GET"])
+@login_required
+@role_required("admin", "manager", "marketing")
+def intervention_open_count():
+    """Tiny endpoint behind the sidebar badge. Pulled on every page load
+    via common.js, so the SQL stays a single GROUP BY against the indexed
+    (priority, status) — no joins. Returns {open_count, high_priority}.
+    """
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT priority, COUNT(*) FROM manager_intervention_flags
+                WHERE status = 'OPEN'
+                GROUP BY priority
+                """
+            )
+            high = 0
+            medium = 0
+            for priority, n in cur.fetchall():
+                if priority == "HIGH":
+                    high = n
+                elif priority == "MEDIUM":
+                    medium = n
+        return jsonify({
+            "open_count": high + medium,
+            "high_priority": high,
+            "medium_priority": medium,
+        })
+    except Exception as e:
+        log.error("intervention_open_count: %s", e)
         return error_response("server", 500)
     finally:
         if conn is not None:
