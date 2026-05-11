@@ -347,6 +347,10 @@ def change_password():
             row = cur.fetchone()
             if not row or not verify_password(old_pw, row["password_hash"]):
                 return error_response("wrong_current_password", 401)
+            # Reusing the existing password as the "new" one is a no-op rotation
+            # that gives the user false confidence the credential changed.
+            if verify_password(new_pw, row["password_hash"]):
+                return error_response("password_unchanged", 400)
             cur.execute("""
                 UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s
             """, (hash_password(new_pw), session["user_id"]))
@@ -603,7 +607,7 @@ def reset_password():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT t.id AS token_id, t.user_id, t.expires_at, t.used_at,
-                       u.username, u.active
+                       u.username, u.active, u.password_hash
                 FROM password_reset_tokens t
                 JOIN users u ON u.id = t.user_id
                 WHERE t.token_hash = %s
@@ -616,6 +620,14 @@ def reset_password():
 
             if (err := validate_password(new_pw, username=row["username"])):
                 return error_response(err, 400)
+
+            # A reset where the user types in their CURRENT password is almost
+            # always a "I forgot which one I used" mistake — silently accepting
+            # it would burn the reset token without actually rotating the
+            # credential. Force a different value so the reset achieves what
+            # the user asked for.
+            if verify_password(new_pw, row["password_hash"]):
+                return error_response("password_unchanged", 400)
 
             cur.execute(
                 "UPDATE users SET password_hash = %s, failed_logins = 0, "

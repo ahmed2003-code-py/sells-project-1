@@ -113,6 +113,7 @@ const I18N = {
     "errors.campaign_name_required": "اسم الحملة مطلوب",
     "errors.no_team_assigned": "لا يوجد فريق مرتبط",
     "errors.password_username_same": "كلمة المرور لا يمكن أن تطابق اسم المستخدم",
+    "errors.password_unchanged": "كلمة المرور الجديدة لازم تكون مختلفة عن القديمة",
 
     /* ─── rating ─── */
     "rating.Excellent": "ممتاز",
@@ -1020,6 +1021,7 @@ const I18N = {
     "errors.campaign_name_required": "Campaign name is required",
     "errors.no_team_assigned": "No team assigned",
     "errors.password_username_same": "Password must not match the username",
+    "errors.password_unchanged": "New password must be different from the current one",
 
     /* ─── rating ─── */
     "rating.Excellent": "Excellent",
