@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 # cover what CRMs in this market actually export. Anything not in here
 # is ignored on the assumption it's a column we don't read.
 _HEADER_ALIASES = {
-    "client_name": {"client name", "client", "name", "customer", "customer name"},
+    "client_name": {"client name", "client", "name", "customer", "customer name", "full name", "fullname"},
     "mobile":      {"mobile", "phone", "mobile number", "phone number", "tel", "telephone"},
     "stage":       {"stage", "status"},
     "follow_date": {"follow date", "date", "follow up date", "followup date", "follow-up date", "follow up"},
@@ -120,6 +120,46 @@ def _resolve_headers(header_row) -> dict:
     return found
 
 
+def _find_sheet_and_header(wb):
+    """Return (worksheet, header_row_tuple, rows_iterator_after_header).
+
+    Strategy:
+    1. Prefer a sheet whose name contains 'feedback' (case-insensitive).
+    2. Fall back to each sheet in order, trying to locate the first row
+       that looks like a header (contains at least one alias from
+       _HEADER_ALIASES).  This handles files where empty rows or a merged
+       title row precede the real column header.
+    """
+    all_aliases = {alias for aliases in _HEADER_ALIASES.values() for alias in aliases}
+
+    def _row_looks_like_header(row):
+        for cell in row:
+            if cell is None:
+                continue
+            label = str(cell).strip().lower()
+            if label in all_aliases:
+                return True
+        return False
+
+    # Sort sheets so "feedback"-named ones come first.
+    sheets = sorted(
+        wb.worksheets,
+        key=lambda s: 0 if "feedback" in s.title.lower() else 1,
+    )
+
+    for ws in sheets:
+        all_rows = list(ws.iter_rows(values_only=True))
+        for row_idx, row in enumerate(all_rows):
+            if _row_looks_like_header(row):
+                return ws, row, iter(all_rows[row_idx + 1:]), row_idx + 2
+        # no header found in this sheet — try next
+
+    raise ValueError(
+        "No valid header row found in any sheet. "
+        "Expected columns: Client name, Mobile, Stage, Follow Date, Sales Rep."
+    )
+
+
 def parse_crm_excel(file_stream, campaign_id: int, conn) -> dict:
     """Parse an .xlsx CRM export into normalized event dicts.
 
@@ -153,16 +193,13 @@ def parse_crm_excel(file_stream, campaign_id: int, conn) -> dict:
     """
     # data_only=True so formula cells (rare in CRM exports, but possible)
     # come through as the cached value instead of "=SUM(...)".
-    wb = load_workbook(file_stream, read_only=True, data_only=True)
-    ws = wb.worksheets[0] if wb.worksheets else None
-    if ws is None:
+    # read_only=False so _find_sheet_and_header can materialise all rows as a
+    # list (read_only streaming iterators can't be rewound).
+    wb = load_workbook(file_stream, read_only=False, data_only=True)
+    if not wb.worksheets:
         raise ValueError("Workbook has no worksheets.")
 
-    rows_iter = ws.iter_rows(values_only=True)
-    try:
-        header_row = next(rows_iter)
-    except StopIteration:
-        raise ValueError("Sheet is empty (no header row).")
+    ws, header_row, rows_iter, first_data_row_number = _find_sheet_and_header(wb)
 
     headers = _resolve_headers(list(header_row))
 
@@ -181,8 +218,7 @@ def parse_crm_excel(file_stream, campaign_id: int, conn) -> dict:
     last_client_name: Optional[str] = None
     last_mobile_normalized: Optional[str] = None
 
-    # First data row is row 2 in the sheet (1-based).
-    for row_index, row in enumerate(rows_iter, start=2):
+    for row_index, row in enumerate(rows_iter, start=first_data_row_number):
         if row is None:
             continue
         total_rows += 1
