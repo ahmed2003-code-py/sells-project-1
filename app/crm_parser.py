@@ -121,27 +121,29 @@ def _resolve_headers(header_row) -> dict:
 
 
 def _find_sheet_and_header(wb):
-    """Return (worksheet, header_row_tuple, rows_iterator_after_header).
+    """Return (worksheet, header_row_tuple, rows_iterator_after_header, first_data_row_num).
 
     Strategy:
     1. Prefer a sheet whose name contains 'feedback' (case-insensitive).
-    2. Fall back to each sheet in order, trying to locate the first row
-       that looks like a header (contains at least one alias from
-       _HEADER_ALIASES).  This handles files where empty rows or a merged
-       title row precede the real column header.
+    2. Try each sheet in order, scanning every row to find the first one
+       that contains ALL required canonical columns.  This handles files
+       where empty rows or a merged title row precede the real header.
     """
-    all_aliases = {alias for aliases in _HEADER_ALIASES.values() for alias in aliases}
+    required_canons = set(_REQUIRED_COLUMNS)
 
-    def _row_looks_like_header(row):
+    def _canons_in_row(row):
+        found = set()
         for cell in row:
             if cell is None:
                 continue
             label = str(cell).strip().lower()
-            if label in all_aliases:
-                return True
-        return False
+            for canon, aliases in _HEADER_ALIASES.items():
+                if label in aliases:
+                    found.add(canon)
+                    break
+        return found
 
-    # Sort sheets so "feedback"-named ones come first.
+    # Sort sheets: "feedback"-named sheets first, others in workbook order.
     sheets = sorted(
         wb.worksheets,
         key=lambda s: 0 if "feedback" in s.title.lower() else 1,
@@ -150,9 +152,9 @@ def _find_sheet_and_header(wb):
     for ws in sheets:
         all_rows = list(ws.iter_rows(values_only=True))
         for row_idx, row in enumerate(all_rows):
-            if _row_looks_like_header(row):
+            if required_canons.issubset(_canons_in_row(row)):
+                # This row has ALL required columns — it's the header.
                 return ws, row, iter(all_rows[row_idx + 1:]), row_idx + 2
-        # no header found in this sheet — try next
 
     raise ValueError(
         "No valid header row found in any sheet. "
