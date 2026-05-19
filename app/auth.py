@@ -32,7 +32,7 @@ ROLES = ["admin", "manager", "team_leader", "dataentry", "sales", "marketing"]
 _CAN_CREATE_ROLES = {
     "admin":      ["admin", "manager", "team_leader", "dataentry", "sales", "marketing"],
     "manager":    ["team_leader", "dataentry", "sales", "marketing"],
-    "dataentry":  ["sales", "marketing"],
+    "dataentry":  ["team_leader", "dataentry", "sales", "marketing"],
 }
 
 
