@@ -46,10 +46,16 @@ def sales_page():
     return redirect("/propfinder")
 
 
+@pages_bp.route("/evaluation")
+@role_required("dataentry", "manager", "admin")
+def evaluation_page():
+    return render_template("evaluation.html", user=current_user())
+
+
 @pages_bp.route("/data-entry")
 @role_required("dataentry", "manager", "admin")
 def dataentry_page():
-    return render_template("dataentry.html", user=current_user())
+    return redirect("/evaluation")
 
 
 @pages_bp.route("/dashboard")
@@ -163,7 +169,7 @@ def team_leader_page():
 @pages_bp.route("/tl-evaluation")
 @role_required("manager", "admin")
 def tl_evaluation_page():
-    return render_template("tl_evaluation.html", user=current_user())
+    return redirect("/evaluation")
 
 
 @pages_bp.route("/propfinder")

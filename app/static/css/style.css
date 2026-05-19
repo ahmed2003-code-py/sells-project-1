@@ -4276,6 +4276,31 @@ html[dir="rtl"] .pw-toggle.pw-toggle-flush { left: 4px; right: auto; }
 }
 
 /* ──────────────────────────────────────────────────────────────────
+   EVALUATION PAGE TABS
+   ────────────────────────────────────────────────────────────────── */
+.eval-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+}
+.eval-tab {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease);
+  font-family: inherit;
+}
+.eval-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+.eval-tab:hover:not(.is-active) { color: var(--text); }
+
+/* ──────────────────────────────────────────────────────────────────
    CHART CARDS
    ────────────────────────────────────────────────────────────────── */
 .chart-card {

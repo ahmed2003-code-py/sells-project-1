@@ -13,7 +13,7 @@
        wins; otherwise we follow the OS preference (prefers-color-scheme). -->
   <script>(function(){try{var q=new URLSearchParams(window.location.search);var qt=(q.get('theme')||'').toLowerCase();if(qt==='dark'||qt==='light'){localStorage.setItem('ain_theme',qt);}}catch(_){}var t=localStorage.getItem('ain_theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);})()</script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=flat61">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=flat62">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -59,17 +59,13 @@
         {% endif %}
 
         {% if user.role in ['admin', 'manager', 'dataentry'] %}
-          <a href="/data-entry" class="sidebar-link {% if request.path == '/data-entry' %}active{% endif %}">
-            <span class="sidebar-link-icon"><span class="material-symbols-outlined">edit_note</span></span>
-            <span data-i18n="nav.dataentry"></span>
+          <a href="/evaluation" class="sidebar-link {% if request.path == '/evaluation' %}active{% endif %}">
+            <span class="sidebar-link-icon"><span class="material-symbols-outlined">assignment</span></span>
+            <span data-i18n="nav.evaluation"></span>
           </a>
         {% endif %}
 
         {% if user.role in ['admin', 'manager'] %}
-          <a href="/tl-evaluation" class="sidebar-link {% if request.path == '/tl-evaluation' %}active{% endif %}">
-            <span class="sidebar-link-icon"><span class="material-symbols-outlined">supervisor_account</span></span>
-            <span data-i18n="nav.tl_eval"></span>
-          </a>
           <a href="/finance" class="sidebar-link {% if request.path == '/finance' %}active{% endif %}">
             <span class="sidebar-link-icon"><span class="material-symbols-outlined">payments</span></span>
             <span data-i18n="nav.finance"></span>
@@ -159,8 +155,8 @@
     </main>
   </div>
 
-  <script src="{{ url_for('static', filename='js/i18n.js') }}?v=flat61"></script>
-  <script src="{{ url_for('static', filename='js/common.js') }}?v=flat61"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}?v=flat62"></script>
+  <script src="{{ url_for('static', filename='js/common.js') }}?v=flat62"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
