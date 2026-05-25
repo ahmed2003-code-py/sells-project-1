@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ campaign.name }} · CRM{% endblock %}
 
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <!-- Hero ribbon — same primitive used across the system. -->
 <section class="hero-ribbon">
@@ -46,22 +50,22 @@
 <section class="crm-tab-panel" data-panel="overview" role="tabpanel">
   <!-- 4 KPI tiles. Layout uses .stats-grid + .kpi-tile per design system. -->
   <div class="stats-grid" style="margin-bottom:20px">
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-brand">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></span>
       <span class="kpi-tile-label" data-i18n="crm.overview.total_leads"></span>
       <span class="kpi-tile-value" id="kpiTotalLeads">—</span>
     </div>
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-warm">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">warning</span></span>
       <span class="kpi-tile-label" data-i18n="crm.overview.open_intervention"></span>
       <span class="kpi-tile-value" id="kpiOpenIntervention">—</span>
     </div>
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-coral">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">priority_high</span></span>
       <span class="kpi-tile-label" data-i18n="crm.overview.high_priority"></span>
       <span class="kpi-tile-value" id="kpiHighPriority">—</span>
     </div>
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-accent">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span></span>
       <span class="kpi-tile-label" data-i18n="crm.overview.last_upload"></span>
       <span class="kpi-tile-value" id="kpiLastUpload" style="font-size:18px">—</span>
@@ -451,7 +455,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat58"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat62"></script>
 <script>
 const CAMPAIGN_ID = {{ campaign.id }};
 const STAGE_TOKENS = ["NO_ANSWER", "FOLLOWING", "MEETING", "CANCELLATION", "INTERESTED", "REQUEST"];

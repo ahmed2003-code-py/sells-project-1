@@ -283,22 +283,10 @@
     <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
     <span data-i18n="crm.marketing.section_title"></span>
   </h2>
-  <div class="glass-card table-wrap" style="padding:0;overflow-x:auto">
-    <table id="crmCampaignTable">
-      <thead>
-        <tr>
-          <th data-i18n="crm.marketing.col.campaign"></th>
-          <th data-i18n="crm.marketing.col.leads" style="text-align:end"></th>
-          <th data-i18n="crm.marketing.col.intervention" style="text-align:end"></th>
-          <th data-i18n="crm.marketing.col.last_upload"></th>
-          <th data-i18n="crm.marketing.col.actions" style="text-align:end"></th>
-        </tr>
-      </thead>
-      <tbody id="crmCampaignRows">
-        <tr><td colspan="5" class="text-muted" style="padding:18px;text-align:center"
-                data-i18n="common.loading"></td></tr>
-      </tbody>
-    </table>
+  <div id="crmCampaignList">
+    <div class="glass-card" style="padding:18px;text-align:center">
+      <span class="loading"></span>
+    </div>
   </div>
 </section>
 
@@ -363,6 +351,35 @@
   }
   .upload-summary-grid dt { color: var(--text-muted); font-size: 13px; }
   .upload-summary-grid dd { margin: 0; font-weight: 600; }
+
+  /* ── CRM Report cards ──────────────────────────────────────────── */
+  #crmCampaignList { display: flex; flex-direction: column; gap: 12px; }
+  .crm-report-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 18px; flex-wrap: wrap;
+  }
+  .crm-report-card-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 200px; }
+  .crm-report-icon {
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: rgba(var(--brand-rgb, 71,77,197), 0.1);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .crm-report-icon .material-symbols-outlined { font-size: 22px; color: var(--brand); }
+  .crm-report-name { font-weight: 600; font-size: 15px; color: var(--text); margin-bottom: 3px; }
+  .crm-report-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+  .crm-report-date { font-weight: 500; }
+  .crm-report-card-stats {
+    display: flex; gap: 24px; align-items: center;
+  }
+  .crm-report-stat { text-align: center; min-width: 60px; }
+  .crm-report-stat-val { display: block; font-weight: 700; font-size: 18px; color: var(--text); font-family: var(--font-display); }
+  .crm-report-stat-lbl { display: block; font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .crm-report-card-actions { display: flex; gap: 8px; align-items: center; }
+  @media (max-width: 640px) {
+    .crm-report-card { padding: 12px 14px; }
+    .crm-report-card-stats { gap: 16px; }
+    .crm-report-card-actions { width: 100%; justify-content: flex-end; }
+  }
 </style>
 
 <!-- Campaign create/edit modal -->
@@ -1250,57 +1267,80 @@ let crmPollTries = 0;
 async function loadCrmSummary() {
   try {
     crmCampaignList = await api("/api/crm/campaigns-summary");
-    renderCrmTable();
+    renderCrmCards();
   } catch (e) {
-    // Soft-fail. Surface the error in-row rather than disrupting the rest
-    // of /marketing — the page can still do its primary job without CRM.
-    const tbody = document.getElementById("crmCampaignRows");
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-muted" style="padding:18px;text-align:center">${escapeHtml(tError(e))}</td></tr>`;
+    // Soft-fail — surface error without disrupting the rest of /marketing.
+    const wrap = document.getElementById("crmCampaignList");
+    if (wrap) {
+      wrap.innerHTML = `<div class="glass-card" style="padding:18px;text-align:center;color:var(--danger)">${escapeHtml(tError(e))}</div>`;
     }
   }
 }
 
-function renderCrmTable() {
-  const tbody = document.getElementById("crmCampaignRows");
-  if (!tbody) return;
-  tbody.innerHTML = "";
+function renderCrmCards() {
+  const wrap = document.getElementById("crmCampaignList");
+  if (!wrap) return;
   if (!crmCampaignList.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-muted" style="padding:18px;text-align:center" data-i18n="mk.empty_state"></td></tr>`;
+    wrap.innerHTML = `<div class="glass-card" style="padding:32px;text-align:center">
+      <span class="material-symbols-outlined" style="font-size:40px;color:var(--text-dim)">cloud_off</span>
+      <p class="text-muted" style="margin-top:8px" data-i18n="mk.empty_state"></p>
+    </div>`;
     applyLang(true);
     return;
   }
-  crmCampaignList.forEach(c => {
-    const tr = document.createElement("tr");
-    const lastUp = c.last_upload_at
-      ? new Intl.DateTimeFormat(getLang() === "ar" ? "ar-EG" : "en-GB",
-          { day: "2-digit", month: "short", year: "numeric" }).format(new Date(c.last_upload_at))
-      : "—";
-    // Small inline pill — uses existing color tokens so we don't add a
-    // new class to the global stylesheet for one table.
-    const interventionCell = c.open_intervention > 0
-      ? `<span style="background:rgba(196,114,0,0.12);color:var(--warning);font-weight:700;padding:2px 10px;border-radius:9999px;font-size:12px">${c.open_intervention}</span>`
-      : `<span class="text-muted">0</span>`;
-    tr.innerHTML = `
-      <td>${escapeHtml(c.campaign_name)}</td>
-      <td style="text-align:end">${(c.total_leads || 0).toLocaleString()}</td>
-      <td style="text-align:end">${interventionCell}</td>
-      <td>${lastUp}</td>
-      <td style="text-align:end">
-        <a class="btn btn-sm" href="/marketing/campaigns/${c.campaign_id}">
-          <span data-i18n="crm.marketing.action.open"></span>
-        </a>
-        <button class="btn btn-sm btn-primary" data-camp="${c.campaign_id}" data-name="${escapeHtml(c.campaign_name)}">
-          <span data-i18n="crm.marketing.action.upload"></span>
-        </button>
-      </td>
+  const lang = getLang();
+  const fmt = new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-GB",
+    { day: "2-digit", month: "short", year: "numeric" });
+
+  const cards = crmCampaignList.map(c => {
+    const lastUp = c.last_upload_at ? fmt.format(new Date(c.last_upload_at)) : "—";
+    const hasIntervention = c.open_intervention > 0;
+    const interventionBadge = hasIntervention
+      ? `<span style="background:rgba(196,114,0,0.12);color:var(--warning);font-weight:700;
+               padding:3px 10px;border-radius:9999px;font-size:12px">${c.open_intervention}</span>`
+      : `<span style="color:var(--text-dim);font-size:13px">0</span>`;
+
+    const div = document.createElement("div");
+    div.className = "crm-report-card glass-card";
+    div.innerHTML = `
+      <div class="crm-report-card-left">
+        <div class="crm-report-icon">
+          <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+        </div>
+        <div class="crm-report-info">
+          <div class="crm-report-name">${escapeHtml(c.campaign_name)}</div>
+          <div class="crm-report-meta">
+            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px" aria-hidden="true">schedule</span>
+            <span data-i18n="crm.marketing.col.last_upload"></span>:
+            <span class="crm-report-date">${escapeHtml(lastUp)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="crm-report-card-stats">
+        <div class="crm-report-stat">
+          <span class="crm-report-stat-val">${(c.total_leads || 0).toLocaleString()}</span>
+          <span class="crm-report-stat-lbl" data-i18n="crm.marketing.col.leads"></span>
+        </div>
+        <div class="crm-report-stat">
+          <span class="crm-report-stat-val">${interventionBadge}</span>
+          <span class="crm-report-stat-lbl" data-i18n="crm.marketing.col.intervention"></span>
+        </div>
+      </div>
+      <div class="crm-report-card-actions">
+        <a class="btn btn-sm" href="/marketing/campaigns/${c.campaign_id}" data-i18n="crm.marketing.action.open"></a>
+        <button class="btn btn-sm btn-primary" data-camp="${c.campaign_id}" data-name="${escapeHtml(c.campaign_name)}"
+                data-i18n="crm.marketing.action.upload"></button>
+      </div>
     `;
-    tr.querySelector("button[data-camp]").addEventListener("click", (e) => {
+    div.querySelector("button[data-camp]").addEventListener("click", (e) => {
       const btn = e.currentTarget;
       crmOpenUpload(parseInt(btn.getAttribute("data-camp"), 10), btn.getAttribute("data-name"));
     });
-    tbody.appendChild(tr);
+    return div;
   });
+
+  wrap.innerHTML = "";
+  cards.forEach(card => wrap.appendChild(card));
   applyLang(true);
 }
 
