@@ -5214,7 +5214,11 @@ html[dir="ltr"] { text-align: left; }
 .bento .span-5 { grid-column: span 5; }
 .bento .span-6 { grid-column: span 6; }
 .bento .span-7 { grid-column: span 7; }
-.bento .span-8 { grid-column: span 8; }
+.bento .span-8  { grid-column: span 8; }
+.bento .span-9  { grid-column: span 9; }
+.bento .span-10 { grid-column: span 10; }
+.bento .span-11 { grid-column: span 11; }
+.bento .span-12 { grid-column: 1 / -1; }
 
 /* Tablet — keep small tiles 2-col so a 4-up row of stat tiles doesn't
    become a 4-tall stack, which dwarfs the rest of the layout. Bigger

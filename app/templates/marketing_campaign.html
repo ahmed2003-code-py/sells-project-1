@@ -54,7 +54,7 @@
 <!-- ── Overview tab ─────────────────────────────────────────────────── -->
 <section class="crm-tab-panel" data-panel="overview" role="tabpanel">
   <!-- 4 KPI tiles. Layout uses .stats-grid + .kpi-tile per design system. -->
-  <div class="stats-grid" style="margin-bottom:20px">
+  <div class="stats-grid" style="margin-bottom:24px">
     <div class="kpi-tile tile-brand">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></span>
       <span class="kpi-tile-label" data-i18n="crm.overview.total_leads"></span>
@@ -77,7 +77,7 @@
     </div>
   </div>
 
-  <div class="bento" style="gap:18px">
+  <div class="bento" style="gap:24px">
     <div class="chart-card span-7">
       <div class="chart-card-header">
         <h3 class="chart-card-title" data-i18n="crm.overview.stage_breakdown"></h3>
@@ -276,7 +276,7 @@
     </div>
   </div>
 
-  <div class="stats-grid" style="margin-bottom:20px">
+  <div class="stats-grid" style="margin-bottom:24px">
     <div class="kpi-tile tile-brand">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">phone_in_talk</span></span>
       <span class="kpi-tile-label" data-i18n="crm.daily.total_attempts"></span>
@@ -352,7 +352,7 @@
   </div>
 
   <div id="mktrBody" hidden>
-    <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stats-grid" style="margin-bottom:24px">
       <div class="kpi-tile tile-brand">
         <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></span>
         <span class="kpi-tile-label" data-i18n="crm.marketing.unique_leads"></span>
@@ -465,7 +465,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat62"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}?v=flat64"></script>
 <script>
 const CAMPAIGN_ID = {{ campaign.id }};
 const STAGE_TOKENS = ["NO_ANSWER", "FOLLOWING", "MEETING", "CANCELLATION", "INTERESTED", "REQUEST"];
@@ -1390,15 +1390,16 @@ loadOverview();
     border-bottom-color: var(--brand);
     font-weight: 600;
   }
-  .crm-tab-panel { padding-top: 4px; }
+  /* .crm-tab-panel padding is set in the shared helpers block below */
 
   /* ── Shared layout helpers ───────────────────────────────────────── */
-  .crm-bento { gap: 18px; margin-bottom: 0; }
-  .crm-table-card { margin-top: 20px; padding: 0; overflow-x: auto; }
-  .crm-filter-bar { padding: 14px 18px; margin-bottom: 20px; }
+  .crm-tab-panel { padding-top: 8px; }
+  .crm-bento { gap: 24px; margin-bottom: 24px; }
+  .crm-table-card { margin-top: 24px; padding: 0; overflow-x: auto; }
+  .crm-filter-bar { padding: 16px 20px; margin-bottom: 22px; }
   .crm-filter-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
-  .crm-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .crm-rates-card { padding: 20px 22px; margin-top: 18px; }
+  .crm-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .crm-rates-card { padding: 22px 24px; margin-top: 24px; }
 
   /* Icon inside chart-card-header */
   .chart-card-header { display: flex; align-items: center; gap: 8px; }
