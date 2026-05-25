@@ -24,24 +24,29 @@
   </div>
 </section>
 
-<!-- Tabs — Overview is wired now; the rest are placeholders for later phases. -->
 <nav class="crm-tabs" role="tablist" aria-label="campaign sections">
   <button class="crm-tab is-active" role="tab" aria-selected="true" data-tab="overview">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">dashboard</span>
     <span data-i18n="crm.tabs.overview"></span>
   </button>
   <button class="crm-tab" role="tab" aria-selected="false" data-tab="sales">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">groups</span>
     <span data-i18n="crm.tabs.sales"></span>
   </button>
   <button class="crm-tab" role="tab" aria-selected="false" data-tab="leads">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">contacts</span>
     <span data-i18n="crm.tabs.leads"></span>
   </button>
   <button class="crm-tab" role="tab" aria-selected="false" data-tab="intervention">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">flag</span>
     <span data-i18n="crm.tabs.intervention"></span>
   </button>
   <button class="crm-tab" role="tab" aria-selected="false" data-tab="daily">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">calendar_month</span>
     <span data-i18n="crm.tabs.daily"></span>
   </button>
   <button class="crm-tab" role="tab" aria-selected="false" data-tab="marketing">
+    <span class="material-symbols-outlined crm-tab-icon" aria-hidden="true">analytics</span>
     <span data-i18n="crm.tabs.marketing"></span>
   </button>
 </nav>
@@ -72,22 +77,21 @@
     </div>
   </div>
 
-  <div class="bento">
-    <!-- Stage breakdown donut. Plotly via Charts.drawDonut. -->
+  <div class="bento" style="gap:18px">
     <div class="chart-card span-7">
       <div class="chart-card-header">
         <h3 class="chart-card-title" data-i18n="crm.overview.stage_breakdown"></h3>
       </div>
-      <div id="stageDonut" class="chart-host" style="min-height:280px"></div>
+      <div id="stageDonut" class="chart-host" style="min-height:320px"></div>
       <div id="stageEmpty" class="text-muted text-center" style="display:none;padding:60px 20px"
            data-i18n="crm.overview.no_data"></div>
     </div>
 
-    <!-- Top 5 HIGH-priority intervention items. -->
-    <div class="glass-card span-5" style="padding:18px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 class="chart-card-title" data-i18n="crm.overview.intervention_summary"></h3>
-        <a href="#" class="text-link" id="interventionViewAll"
+    <div class="glass-card span-5 crm-intervention-panel">
+      <div class="crm-panel-header">
+        <span class="material-symbols-outlined" aria-hidden="true" style="color:var(--danger);font-size:20px">flag</span>
+        <h3 class="chart-card-title" style="margin:0" data-i18n="crm.overview.intervention_summary"></h3>
+        <a href="#" class="text-link" id="interventionViewAll" style="margin-inline-start:auto"
            data-i18n="crm.overview.view_all"></a>
       </div>
       <ul class="intervention-list" id="interventionList">
@@ -97,11 +101,10 @@
   </div>
 </section>
 
-<!-- ── Sales Performance tab (P2) ───────────────────────────────────── -->
+<!-- ── Sales Performance tab ─────────────────────────────────────────── -->
 <section class="crm-tab-panel" data-panel="sales" role="tabpanel" hidden>
-  <!-- Unmatched-reps warning — only renders if there are any. Rendered
-       by JS so we don't need a server-template flag here. -->
-  <div id="salesUnmatchedWarn" class="glass-card sales-unmatched-card" hidden>
+
+  <div id="salesUnmatchedWarn" class="crm-warn-banner" hidden>
     <span class="material-symbols-outlined" aria-hidden="true">warning</span>
     <div class="sales-unmatched-body">
       <div class="sales-unmatched-title" id="salesUnmatchedTitle"></div>
@@ -109,39 +112,36 @@
     </div>
   </div>
 
-  <!-- Empty state — no reps yet (no assignments / no matched reps). -->
-  <div id="salesEmpty" class="glass-card" style="padding:48px;text-align:center" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true"
-          style="font-size:48px;color:var(--text-dim)">groups</span>
-    <h3 style="margin-top:12px" data-i18n="crm.sales.no_reps_yet"></h3>
+  <div id="salesEmpty" class="crm-empty-state" hidden>
+    <span class="material-symbols-outlined" aria-hidden="true">groups</span>
+    <p data-i18n="crm.sales.no_reps_yet"></p>
   </div>
 
-  <!-- Charts block. .bento gives us a 12-col grid that auto-stacks below
-       1100px, matching the rest of the system. -->
-  <div class="bento" id="salesChartsBlock" hidden>
+  <div class="bento crm-bento" id="salesChartsBlock" hidden>
     <div class="chart-card span-12">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon" aria-hidden="true">bar_chart</span>
         <h3 class="chart-card-title" data-i18n="crm.sales.totals_by_rep"></h3>
       </div>
-      <div id="salesTotalsChart" class="chart-host" style="min-height:280px"></div>
+      <div id="salesTotalsChart" class="chart-host" style="min-height:300px"></div>
     </div>
     <div class="chart-card span-6">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon fresh-icon" aria-hidden="true">fiber_new</span>
         <h3 class="chart-card-title" data-i18n="crm.sales.fresh_outcomes"></h3>
       </div>
-      <div id="salesFreshChart" class="chart-host" style="min-height:280px"></div>
+      <div id="salesFreshChart" class="chart-host" style="min-height:300px"></div>
     </div>
     <div class="chart-card span-6">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon rotation-icon" aria-hidden="true">sync</span>
         <h3 class="chart-card-title" data-i18n="crm.sales.rotation_outcomes"></h3>
       </div>
-      <div id="salesRotationChart" class="chart-host" style="min-height:280px"></div>
+      <div id="salesRotationChart" class="chart-host" style="min-height:300px"></div>
     </div>
   </div>
 
-  <!-- Per-rep details table. Lives in a glass-card .table-wrap so the
-       scroll behavior on narrow viewports matches every other table. -->
-  <div class="glass-card table-wrap" id="salesTableWrap" style="margin-top:18px;padding:0;overflow-x:auto" hidden>
+  <div class="glass-card table-wrap crm-table-card" id="salesTableWrap" hidden>
     <table id="salesRepTable">
       <thead>
         <tr>
@@ -256,11 +256,11 @@
   </div>
 </section>
 
-<!-- ── Daily Activity tab (P4) ──────────────────────────────────────── -->
+<!-- ── Daily Activity tab ────────────────────────────────────────────── -->
 <section class="crm-tab-panel" data-panel="daily" role="tabpanel" hidden>
-  <!-- Range picker -->
-  <div class="glass-card" style="padding:14px 18px;margin-bottom:18px">
-    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+
+  <div class="crm-filter-bar glass-card">
+    <div class="crm-filter-row">
       <div class="field" style="margin:0">
         <label data-i18n="crm.daily.from"></label>
         <input type="date" id="dailyFrom">
@@ -270,57 +270,60 @@
         <input type="date" id="dailyTo">
       </div>
       <button class="btn btn-primary" onclick="loadDaily()">
+        <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">refresh</span>
         <span data-i18n="common.refresh"></span>
       </button>
     </div>
   </div>
 
-  <!-- Top totals -->
   <div class="stats-grid" style="margin-bottom:20px">
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-brand">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">phone_in_talk</span></span>
       <span class="kpi-tile-label" data-i18n="crm.daily.total_attempts"></span>
       <span class="kpi-tile-value" id="dailyTotal">—</span>
     </div>
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-accent">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span></span>
       <span class="kpi-tile-label" data-i18n="crm.daily.answered"></span>
       <span class="kpi-tile-value" id="dailyAnswered">—</span>
     </div>
-    <div class="kpi-tile">
+    <div class="kpi-tile tile-warm">
       <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">trending_up</span></span>
       <span class="kpi-tile-label" data-i18n="crm.daily.response_rate"></span>
       <span class="kpi-tile-value" id="dailyRate">—</span>
     </div>
   </div>
 
-  <div id="dailyEmpty" class="glass-card" style="padding:48px;text-align:center" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:48px;color:var(--text-dim)">event_busy</span>
-    <h3 style="margin-top:12px" data-i18n="crm.daily.empty"></h3>
+  <div id="dailyEmpty" class="crm-empty-state" hidden>
+    <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
+    <p data-i18n="crm.daily.empty"></p>
   </div>
 
-  <div class="bento" id="dailyChartsBlock" hidden>
+  <div class="bento crm-bento" id="dailyChartsBlock" hidden>
     <div class="chart-card span-12">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon" aria-hidden="true">show_chart</span>
         <h3 class="chart-card-title" data-i18n="crm.daily.attempts_vs_answered"></h3>
       </div>
-      <div id="dailyAttemptsChart" class="chart-host" style="min-height:280px"></div>
+      <div id="dailyAttemptsChart" class="chart-host" style="min-height:300px"></div>
     </div>
-    <div class="chart-card span-6">
+    <div class="chart-card span-7">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon" aria-hidden="true">stacked_bar_chart</span>
         <h3 class="chart-card-title" data-i18n="crm.daily.stage_breakdown_daily"></h3>
       </div>
-      <div id="dailyStageChart" class="chart-host" style="min-height:260px"></div>
+      <div id="dailyStageChart" class="chart-host" style="min-height:280px"></div>
     </div>
-    <div class="chart-card span-6">
+    <div class="chart-card span-5">
       <div class="chart-card-header">
+        <span class="material-symbols-outlined crm-chart-icon" aria-hidden="true">percent</span>
         <h3 class="chart-card-title" data-i18n="crm.daily.response_rate_over_time"></h3>
       </div>
-      <div id="dailyRateChart" class="chart-host" style="min-height:260px"></div>
+      <div id="dailyRateChart" class="chart-host" style="min-height:280px"></div>
     </div>
   </div>
 
-  <div class="glass-card table-wrap" id="dailyTableWrap" style="padding:0;overflow-x:auto;margin-top:18px" hidden>
+  <div class="glass-card table-wrap crm-table-card" id="dailyTableWrap" hidden>
     <table id="dailyTable">
       <thead>
         <tr>
@@ -340,48 +343,55 @@
   </div>
 </section>
 
-<!-- ── Marketing Report tab (P4) ────────────────────────────────────── -->
+<!-- ── Marketing Report tab ──────────────────────────────────────────── -->
 <section class="crm-tab-panel" data-panel="marketing" role="tabpanel" hidden>
-  <div id="mktrEmpty" class="glass-card" style="padding:48px;text-align:center" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:48px;color:var(--text-dim)">analytics</span>
-    <h3 style="margin-top:12px" data-i18n="crm.marketing.empty"></h3>
+
+  <div id="mktrEmpty" class="crm-empty-state" hidden>
+    <span class="material-symbols-outlined" aria-hidden="true">analytics</span>
+    <p data-i18n="crm.marketing.empty"></p>
   </div>
 
   <div id="mktrBody" hidden>
     <div class="stats-grid" style="margin-bottom:20px">
-      <div class="kpi-tile">
+      <div class="kpi-tile tile-brand">
         <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">groups</span></span>
         <span class="kpi-tile-label" data-i18n="crm.marketing.unique_leads"></span>
         <span class="kpi-tile-value" id="mktrTotal">—</span>
       </div>
-      <div class="kpi-tile">
+      <div class="kpi-tile tile-accent">
         <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">trending_up</span></span>
         <span class="kpi-tile-label" data-i18n="crm.daily.response_rate"></span>
         <span class="kpi-tile-value" id="mktrResponse">—</span>
       </div>
-      <div class="kpi-tile">
+      <div class="kpi-tile tile-warm">
         <span class="kpi-tile-icon"><span class="material-symbols-outlined" aria-hidden="true">trending_down</span></span>
         <span class="kpi-tile-label" data-i18n="crm.marketing.no_answer_rate"></span>
         <span class="kpi-tile-value" id="mktrNoAnswer">—</span>
       </div>
     </div>
 
-    <div class="bento">
+    <div class="bento crm-bento">
       <div class="chart-card span-6">
         <div class="chart-card-header">
+          <span class="material-symbols-outlined crm-chart-icon" aria-hidden="true">donut_large</span>
           <h3 class="chart-card-title" data-i18n="crm.marketing.stage_breakdown_unique"></h3>
         </div>
-        <div id="mktrDonut" class="chart-host" style="min-height:280px"></div>
+        <div id="mktrDonut" class="chart-host" style="min-height:300px"></div>
       </div>
-      <div class="glass-card span-6" style="padding:20px 22px">
-        <h3 class="chart-card-title" style="margin:0 0 14px" data-i18n="crm.marketing.insights"></h3>
+      <div class="glass-card span-6" style="padding:20px 22px;display:flex;flex-direction:column;gap:0">
+        <div class="crm-panel-header" style="margin-bottom:14px">
+          <span class="material-symbols-outlined" aria-hidden="true" style="color:var(--brand);font-size:20px">lightbulb</span>
+          <h3 class="chart-card-title" style="margin:0" data-i18n="crm.marketing.insights"></h3>
+        </div>
         <ul id="mktrInsights" class="mktr-insights"></ul>
       </div>
     </div>
 
-    <!-- Rate comparison bars — single bento card so the layout balances. -->
-    <div class="glass-card" style="padding:20px 22px;margin-top:18px">
-      <h3 class="chart-card-title" style="margin:0 0 14px" data-i18n="crm.marketing.rates"></h3>
+    <div class="glass-card crm-rates-card">
+      <div class="crm-panel-header" style="margin-bottom:18px">
+        <span class="material-symbols-outlined" aria-hidden="true" style="color:var(--brand);font-size:20px">percent</span>
+        <h3 class="chart-card-title" style="margin:0" data-i18n="crm.marketing.rates"></h3>
+      </div>
       <div class="mktr-rate-grid">
         <div class="mktr-rate">
           <div class="mktr-rate-label"><span data-i18n="crm.daily.response_rate"></span></div>
@@ -1351,31 +1361,76 @@ loadOverview();
 
 <!-- Page-scoped CSS — uses existing tokens, no new design language. -->
 <style>
+  /* ── Tab bar ─────────────────────────────────────────────────────── */
   .crm-tabs {
     display: flex;
-    gap: 4px;
+    gap: 2px;
     flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
-    padding: 0 4px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+    padding: 0 2px;
   }
   .crm-tab {
+    display: inline-flex; align-items: center; gap: 6px;
     background: transparent;
     border: none;
-    padding: 12px 18px;
-    font: inherit;
+    padding: 11px 16px;
+    font: inherit; font-size: 13px; font-weight: 500;
     color: var(--text-muted);
     cursor: pointer;
     border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
+  .crm-tab-icon { font-size: 17px; }
   .crm-tab:hover { color: var(--text); background: var(--surface-recessed); }
   .crm-tab.is-active {
     color: var(--brand);
     border-bottom-color: var(--brand);
     font-weight: 600;
   }
+  .crm-tab-panel { padding-top: 4px; }
+
+  /* ── Shared layout helpers ───────────────────────────────────────── */
+  .crm-bento { gap: 18px; margin-bottom: 0; }
+  .crm-table-card { margin-top: 20px; padding: 0; overflow-x: auto; }
+  .crm-filter-bar { padding: 14px 18px; margin-bottom: 20px; }
+  .crm-filter-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .crm-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .crm-rates-card { padding: 20px 22px; margin-top: 18px; }
+
+  /* Icon inside chart-card-header */
+  .chart-card-header { display: flex; align-items: center; gap: 8px; }
+  .crm-chart-icon { font-size: 18px; color: var(--brand); opacity: 0.7; flex-shrink: 0; }
+  .fresh-icon    { color: var(--accent-2); }
+  .rotation-icon { color: var(--secondary); }
+
+  /* ── Empty states ────────────────────────────────────────────────── */
+  .crm-empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 56px 20px; text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); gap: 10px;
+  }
+  .crm-empty-state .material-symbols-outlined { font-size: 52px; color: var(--text-dim); }
+  .crm-empty-state p { color: var(--text-muted); margin: 0; font-size: 15px; }
+
+  /* ── Unmatched warning banner ────────────────────────────────────── */
+  .crm-warn-banner {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 18px; margin-bottom: 20px;
+    background: rgba(196,114,0,0.07);
+    border: 1px solid rgba(196,114,0,0.25);
+    border-inline-start: 4px solid var(--warning);
+    border-radius: var(--radius);
+  }
+  .crm-warn-banner > .material-symbols-outlined {
+    color: var(--warning); flex-shrink: 0; margin-top: 2px; font-size: 22px;
+  }
+
+  /* ── Intervention panel (Overview) ──────────────────────────────── */
+  .crm-intervention-panel { padding: 18px; display: flex; flex-direction: column; }
 
   /* Floating Upload FAB. inset-inline-end keeps it on the trailing edge
      in both RTL and LTR. */
