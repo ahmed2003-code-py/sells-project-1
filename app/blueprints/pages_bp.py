@@ -99,6 +99,12 @@ def marketing_page():
     return render_template("marketing.html", user=current_user())
 
 
+@pages_bp.route("/crm-reports")
+@role_required("marketing", "manager", "admin")
+def crm_reports_page():
+    return render_template("crm_reports.html", user=current_user())
+
+
 @pages_bp.route("/marketing/intervention")
 @role_required("marketing", "manager", "admin")
 def marketing_intervention_inbox():
