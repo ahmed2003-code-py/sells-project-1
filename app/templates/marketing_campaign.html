@@ -112,11 +112,6 @@
     </div>
   </div>
 
-  <div id="salesEmpty" class="crm-empty-state" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true">groups</span>
-    <p data-i18n="crm.sales.no_reps_yet"></p>
-  </div>
-
   <div class="bento crm-bento" id="salesChartsBlock" hidden>
     <div class="chart-card span-12">
       <div class="chart-card-header">
@@ -294,11 +289,6 @@
     </div>
   </div>
 
-  <div id="dailyEmpty" class="crm-empty-state" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
-    <p data-i18n="crm.daily.empty"></p>
-  </div>
-
   <div class="bento crm-bento" id="dailyChartsBlock" hidden>
     <div class="chart-card span-12">
       <div class="chart-card-header">
@@ -345,11 +335,6 @@
 
 <!-- ── Marketing Report tab ──────────────────────────────────────────── -->
 <section class="crm-tab-panel" data-panel="marketing" role="tabpanel" hidden>
-
-  <div id="mktrEmpty" class="crm-empty-state" hidden>
-    <span class="material-symbols-outlined" aria-hidden="true">analytics</span>
-    <p data-i18n="crm.marketing.empty"></p>
-  </div>
 
   <div id="mktrBody" hidden>
     <div class="stats-grid" style="margin-bottom:24px">
@@ -842,11 +827,7 @@ function renderSalesKpis() {
 
   renderSalesUnmatched(unmatched);
 
-  // Empty state — only if there are no matched reps AT ALL (no events
-  // attributed to a known user yet). Unmatched-only campaigns still see
-  // the warning card but not the empty state.
   const hasReps = reps.length > 0;
-  document.getElementById("salesEmpty").hidden = hasReps;
   document.getElementById("salesChartsBlock").hidden = !hasReps;
   document.getElementById("salesTableWrap").hidden = !hasReps;
   if (!hasReps) return;
@@ -1220,8 +1201,7 @@ function renderDaily() {
   document.getElementById("dailyRate").textContent =
     (totals.total_attempts > 0 ? totals.response_rate_pct + "%" : "—");
 
-  const hasData = days.length > 0;
-  document.getElementById("dailyEmpty").hidden = hasData;
+  const hasData = totals.total_attempts > 0;
   document.getElementById("dailyChartsBlock").hidden = !hasData;
   document.getElementById("dailyTableWrap").hidden = !hasData;
   if (!hasData) return;
@@ -1283,7 +1263,6 @@ async function loadMarketingReport() {
 function renderMarketingReport() {
   if (!mktrData) return;
   const total = mktrData.total_unique_leads || 0;
-  document.getElementById("mktrEmpty").hidden = total > 0;
   document.getElementById("mktrBody").hidden = total <= 0;
   if (total <= 0) return;
 
@@ -1407,15 +1386,6 @@ loadOverview();
   .fresh-icon    { color: var(--accent-2); }
   .rotation-icon { color: var(--secondary); }
 
-  /* ── Empty states ────────────────────────────────────────────────── */
-  .crm-empty-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 56px 20px; text-align: center;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); gap: 10px;
-  }
-  .crm-empty-state .material-symbols-outlined { font-size: 52px; color: var(--text-dim); }
-  .crm-empty-state p { color: var(--text-muted); margin: 0; font-size: 15px; }
 
   /* ── Unmatched warning banner ────────────────────────────────────── */
   .crm-warn-banner {
